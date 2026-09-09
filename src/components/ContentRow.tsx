@@ -62,7 +62,16 @@ export function ContentRow({
   }
 
   return (
-    <View style={styles.section}>
+    // `scrollSnapAlign="start"` makes THIS view -- heading included -- the unit
+    // the vertical scroller aligns to when focus lands on any card inside it.
+    //
+    // Without it, Android's default behaviour is requestChildRectangleOnScreen,
+    // which scrolls the minimum distance needed to reveal the focused *card*.
+    // The heading sits above the card, so it stays clipped off the top edge and
+    // the user cannot see which row they are in. The fork walks up from the
+    // focused view to the nearest ancestor carrying this prop, which is why
+    // marking the section rather than the card is what fixes it.
+    <View style={styles.section} scrollSnapAlign="start">
       <Text style={styles.heading}>{title}</Text>
 
       <TVFocusGuideView autoFocus>

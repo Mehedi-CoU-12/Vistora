@@ -102,7 +102,14 @@ export function HomeScreen() {
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}>
+          showsVerticalScrollIndicator={false}
+          // Leanback-style row alignment: instead of scrolling the minimum
+          // amount to reveal a focused card, land the whole focused SECTION at a
+          // consistent position near the top. Each ContentRow marks itself with
+          // `scrollSnapAlign="start"`; this is the parent half of that contract.
+          snapToAlignment="item"
+          // Leaves the row's heading clear of the very top edge.
+          snapToItemPadding={spacing.md}>
           {data.map((section, index) => (
             <ContentRow
               key={section.id}
