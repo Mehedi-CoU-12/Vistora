@@ -1,13 +1,21 @@
 import React from 'react';
-import {StyleSheet, Text, View} from 'react-native';
+import {Text, View} from 'react-native';
 
-import {colors, radius, spacing, typography} from '../theme';
+import {colors, makeStyles, radius, spacing} from '../theme';
 
 /**
  * Small overlay tag on a card: LIVE, a channel number, 4K.
  * `tone="live"` is reserved for content that is genuinely on air now.
  */
-export function Badge({label, tone = 'neutral'}: {label: string; tone?: 'neutral' | 'live'}) {
+export function Badge({
+  label,
+  tone = 'neutral',
+}: {
+  label: string;
+  tone?: 'neutral' | 'live';
+}) {
+  const styles = useStyles();
+
   return (
     <View style={[styles.badge, tone === 'live' && styles.live]}>
       <Text style={styles.label}>{label.toUpperCase()}</Text>
@@ -15,7 +23,7 @@ export function Badge({label, tone = 'neutral'}: {label: string; tone?: 'neutral
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(m => ({
   badge: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,
@@ -26,7 +34,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.live,
   },
   label: {
-    ...typography.label,
+    ...m.typography.label,
     color: colors.textPrimary,
   },
-});
+}));
