@@ -49,12 +49,18 @@ column, not into a proxy.
 
 ## Requirements
 
+These are the versions this project has actually been built and run against:
+
 | | |
 |---|---|
-| Node | ≥ 22.11 |
-| JDK | 17 (Android Gradle Plugin requirement) |
-| Android SDK | Platform 37, build-tools 37.0.0, NDK 27.1.12297006 |
-| Device | Android TV device, or an Android TV emulator image |
+| Node | 24.14 (≥ 22.11 required) |
+| JDK | **17** — Android Gradle Plugin requires it; 21+ fails with an obscure Kotlin error |
+| Android SDK | `platforms;android-37.0`, `build-tools;37.0.0` |
+| NDK | `27.1.12297006` — Gradle installs this automatically on first build (~2.5 GB) |
+| Device | Android TV emulator (`system-images;android-36;android-tv;x86_64`) or a real TV |
+
+`android/gradle.properties` pins `org.gradle.java.home` to JDK 17 so the build
+does not depend on whichever `java` happens to be first on your PATH.
 
 ---
 
@@ -106,6 +112,49 @@ If configuration is missing the app does not crash — it shows a setup screen
 with the exact steps.
 
 ---
+
+## Running on an Android TV emulator
+
+The AVD used for testing was created like this (a **TV** profile matters — a
+phone AVD will not exercise leanback behaviour or D-pad focus):
+
+```bash
+sdkmanager --install "emulator" "system-images;android-36;android-tv;x86_64"
+
+avdmanager create avd --name Vistora_TV \
+  --package "system-images;android-36;android-tv;x86_64" \
+  --device "tv_1080p"
+
+emulator -avd Vistora_TV -gpu host
+```
+
+Worth setting in `~/.android/avd/Vistora_TV.avd/config.ini`:
+
+```ini
+hw.gpu.enabled=yes
+hw.gpu.mode=host     # software rendering makes a video app unusable
+hw.keyboard=yes      # arrow keys then drive the D-pad
+hw.dPad=yes
+hw.ramSize=2048
+```
+
+Driving the remote from the shell is the fastest way to test focus:
+
+```bash
+adb shell input keyevent 19   # DPAD_UP
+adb shell input keyevent 20   # DPAD_DOWN
+adb shell input keyevent 21   # DPAD_LEFT
+adb shell input keyevent 22   # DPAD_RIGHT
+adb shell input keyevent 23   # DPAD_CENTER / OK
+adb shell input keyevent 4    # BACK
+```
+
+To see which element actually holds focus — as opposed to which one *looks*
+focused — read the accessibility tree rather than trusting a screenshot:
+
+```bash
+adb shell uiautomator dump /sdcard/ui.xml && adb pull /sdcard/ui.xml
+```
 
 ## Scripts
 
@@ -238,6 +287,22 @@ discoverable path, and the physical media keys work in both states.
 **No full-screen button.** On a TV the player *is* the screen; the control only
 makes sense on a phone, where video shares space with other UI.
 
+**Row alignment beats "scroll into view".** Android's default focus scrolling
+(`requestChildRectangleOnScreen`) moves the minimum distance needed to reveal the
+focused *card* — which leaves the row's heading clipped off the top edge, so the
+user cannot see which row they are in. The fix is the fork's item snapping: the
+scroller sets `snapToAlignment="item"`, each `ContentRow` marks itself with
+`scrollSnapAlign="start"`, and the whole section (heading included) is then
+aligned. The fork walks up from the focused view to the nearest ancestor carrying
+that prop, which is why the *section* is marked rather than the card.
+
+**Grid cards are fluid, not fixed.** With a fixed card width, whether the last
+column fits depends on screen width, sidebar width and padding all agreeing — and
+when they do not, the final column is clipped off the right edge. On a TV that is
+worse than ugly: the D-pad still moves focus onto that card, so the user's
+selection disappears off-screen. `LiveTvScreen` measures its grid and divides the
+space, so the row always fills exactly and no column can be cut off.
+
 ---
 
 ## Security model
@@ -272,22 +337,81 @@ Third-party demo endpoints do get retired. If one stops playing, the sample died
 
 ---
 
-## Verified so far
+## Verified
 
-* Migration applies cleanly on PostgreSQL 17; all constraints and RLS policies
-  tested against a live database, including that `anon` cannot read an inactive
-  row or write anything
+Checked against a real PostgreSQL 17 instance and a real Android TV emulator
+(Android 16 / API 36, `leanback_only`, 1920x1080 @ density 320):
+
+**Database**
+* Migration applies cleanly; every constraint tested (bad slugs, non-HTTP URLs,
+  duplicate channel numbers, `release_year` typos, `status='live'` with no
+  stream, `ends_at` before `starts_at`, deleting a sport that has fixtures,
+  `updated_at` trigger)
+* RLS: `anon` reads only active rows and **cannot** see the deliberately
+  inactive `vistora-draft` channel; all `anon` writes denied; non-admin
+  `authenticated` denied; admin allowed; self-promotion via `user_metadata`
+  correctly fails
 * Seed is idempotent
-* `tsc --noEmit`, ESLint and Jest all pass
-* Metro produces an Android bundle (1.6 MB) with the env values inlined and no
-  service-role key present
 
-**Not yet verified:** the APK has not been compiled or run on a device, because
-this project was scaffolded on a machine without a JDK or the Android SDK.
-Nothing about the native build is expected to be wrong, but treat the first
-`npm run android` as the real test.
+**Build**
+* `BUILD SUCCESSFUL` — debug APK compiles (50 MB), installs, and the system
+  registers it under `android.intent.category.LEANBACK_LAUNCHER`
+* `tsc --noEmit`, ESLint and 11 Jest tests pass
+* Production bundle is 1.6 MB, contains the publishable key only — no
+  `sb_secret_`, no service-role JWT
+
+**On the device**
+* Home screen renders live data from Supabase; the native window background
+  matches the JS background, so there is no flash on launch
+* D-pad left/right moves along a row and the row scrolls to follow
+* **Focus memory**: scroll to channel 107, press down then up, focus returns to
+  107 — not to 101
+* **Row alignment**: the focused row's heading stays on screen
+* Live TV grid: 4 columns, nothing clipped, category filter narrows 8 channels
+  to 2 without stealing focus from the sidebar
+* **HLS playback works** — Apple's BipBop reference stream and a 4K sample both
+  decode through Media3, connecting directly to their CDNs
+* Scheduled fixtures with no `stream_url` show `NOT STARTED` and do not open the
+  player
 
 ---
+
+## Gotchas worth knowing
+
+Three things here cost real debugging time. They are documented so they do not
+cost it twice.
+
+**`source.type` is a file extension, not a protocol name.** On Android,
+react-native-video does `Util.inferContentType("." + type)`. So `type: 'hls'`
+becomes `".hls"`, which Media3 does not recognise, so it falls back to the
+progressive-download extractors and playback dies with an error that lists every
+extractor *except* the one you need:
+
+```
+UnrecognizedInputFormatException: None of the available extractors
+(FlvExtractor, ... Mp4Extractor, TsExtractor, ...) could read the stream
+```
+
+The correct values are `m3u8`, `mpd`, `ism`. `MEDIA3_EXTENSION` in
+[VideoPlayer.tsx](src/player/VideoPlayer.tsx) does that mapping. A quick way to
+confirm which path a stream took is the module list ExoPlayer logs on release —
+`media3.exoplayer.hls` should be in it.
+
+**Fast Refresh cannot survive a changed hook order.** Adding a `useState` in the
+middle of a component that is already mounted produces a black screen and:
+
+```
+React has detected a change in the order of Hooks called by <Component>
+Error: Should have a queue. You are likely calling Hooks conditionally
+```
+
+This is not a bug in your code. Force-stop and relaunch the app:
+`adb shell am force-stop com.vistora`.
+
+**`adb screencap` cannot always capture video.** The player renders into a
+`SurfaceView`, which may come back as pure black in a screenshot even while video
+is visibly playing. Do not conclude playback is broken from a black screenshot —
+check `logcat` for `ExoPlayerImpl` and `BufferPoolAccessor` activity instead.
 
 ## Deliberately not built yet
 
