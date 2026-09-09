@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The launch splash on Android TV, at every API level.
+
+  Android TV does not show the platform splash screen that phones get from API 31,
+  which was found the hard way: with the window background set to a flat colour on
+  API 31+, a TV showed a plain dark screen for the whole JS bundle load and no logo
+  at all. So on TV this window background is the only launch surface there is.
+
+  Being the only surface, it shows the whole lock-up: mark, name and motto. There
+  is no platform splash to match geometry with, so none of the constraints that
+  shape the phone path apply here.
+
+  This file exists separately from drawable-v31 because the UI-mode qualifier
+  ("television") outranks the platform-version qualifier ("v31") in resource
+  resolution, so a TV on API 31+ resolves to this and a phone on API 31+ resolves
+  to drawable-v31.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/background" />
+    <item>
+        <bitmap
+            android:src="@drawable/splash_lockup"
+            android:gravity="center" />
+    </item>
+</layer-list>
