@@ -1,0 +1,23 @@
+{
+  "extends": "@react-native/typescript-config",
+  "compilerOptions": {
+    /**
+     * We use the `react-native-tvos` fork, installed under the `react-native`
+     * name via a package alias. The fork does not publish the `types_generated/`
+     * folder that upstream RN 0.87 points its default "types" export condition
+     * at, but it DOES publish the hand-written types -- including the TV-only
+     * APIs (TVFocusGuideView, useTVEventHandler, Pressable's `focused` state) --
+     * behind the "react-native-legacy-deep-imports" condition. Listing that
+     * condition first is what makes those imports resolve.
+     */
+    "customConditions": ["react-native-legacy-deep-imports", "react-native"],
+
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": false
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "App.tsx", "env.d.ts"],
+  "exclude": ["node_modules", "android"]
+}
