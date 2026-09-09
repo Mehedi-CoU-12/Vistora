@@ -1,11 +1,36 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useTVEventHandler, type HWEvent } from 'react-native';
 
+import {
+  actionForHardwareEvent,
+  actionForKeyCode,
+  type RemoteAction,
+  type RemoteKeyEvent,
+  type RemoteKeyHandlers,
+} from './remoteKeys';
+
 /**
- * Android KeyEvent.ACTION_UP. The fork emits both down and up for every key, so
- * acting on both would double every action.
+ * ===========================================================================
+ * Which half of a key press to act on -- measured, not assumed.
+ * ===========================================================================
+ * A physical press produces two events, ACTION_DOWN then ACTION_UP, and acting
+ * on both would double every action. The obvious filter is "ignore ACTION_UP",
+ * and on this app it silently ignores EVERY press: verified on an Android TV
+ * emulator, the only event that arrives in the player is the UP.
+ *
+ * The reason is that the DOWN is consumed on its way through the view tree. A
+ * focused view handles DPAD_DOWN for focus movement or for its own click, so
+ * `ReactRootView.dispatchKeyEvent` never reaches the line that feeds the TV
+ * event emitter -- but nothing consumes the UP, so that one gets through. Which
+ * half survives therefore depends on what has focus and on the architecture,
+ * and hard-coding either answer is how a remote ends up doing nothing at all.
+ *
+ * So the platform is allowed to tell us: the FIRST key action we ever see wins,
+ * and from then on its twin is ignored. Deterministic, needs no timing
+ * heuristic, and it keeps key repeat intact -- if DOWN is the surviving action,
+ * a held key repeats and the accumulating seek grows; if only UP arrives, each
+ * press counts once.
  */
-const ACTION_UP = 1;
 
 export interface RemoteActions {
   /** Any key at all: bring the overlay back and restart its countdown. */
@@ -55,6 +80,15 @@ export interface RemoteActions {
  * `shouldSeekWithArrows`; this hook only asks.
  *
  * ---------------------------------------------------------------------------
+ * Two delivery paths, one of which is dead on this architecture
+ * ---------------------------------------------------------------------------
+ * `keyHandlers` (the W3C `onKeyDown` path) is the one that works here, and it
+ * must be spread onto a FOCUSED view or nothing arrives. `useTVEventHandler` is
+ * kept for the old architecture and tvOS, where it is also the only route for
+ * physical media keys. See `remoteKeys.ts` for the full story, including why the
+ * first `onKeyDown` latches out the older path.
+ *
+ * ---------------------------------------------------------------------------
  * Two things this hook must never do
  * ---------------------------------------------------------------------------
  * 1. Consume the arrows. We observe them; the focus engine still gets them.
@@ -65,10 +99,6 @@ export interface RemoteActions {
  *    volume rocker -- waking the overlay for something that is not a player
  *    gesture at all. The hook is called unconditionally, as hooks must be, and
  *    returns immediately when `enabled` is false.
- *
- * `useTVEventHandler` is also the ONLY way to see the physical media keys
- * (play/pause, rewind, fast-forward). Those never reach a Pressable, because
- * they are not focus events -- they arrive at the activity.
  */
 export function useRemoteControl(
   actions: RemoteActions,
@@ -80,69 +110,123 @@ export function useRemoteControl(
   const enabledRef = useRef(enabled);
   enabledRef.current = enabled;
 
-  useTVEventHandler(
-    useCallback((event: HWEvent) => {
-      if (!enabledRef.current || event.eventKeyAction === ACTION_UP) {
-        return;
-      }
+  /**
+   * Set the first time a W3C key event arrives, and never cleared.
+   *
+   * `ReactRootView` calls the HW helper AND the JS key dispatcher, so on the old
+   * architecture a single press can be reported twice. Latching means the first
+   * path to prove it is alive becomes the only one we listen to, and a skip is
+   * 10 seconds rather than 20.
+   */
+  const w3cAlive = useRef(false);
 
-      const a = actionsRef.current;
+  /** The key action this platform actually delivers. See the note above. */
+  const trustedKeyAction = useRef<number | null>(null);
 
-      switch (event.eventType) {
-        case 'playPause':
-          a.onWake();
-          a.onTogglePlay();
-          break;
+  const dispatch = useCallback((action: RemoteAction) => {
+    if (!enabledRef.current) {
+      return;
+    }
 
-        case 'play':
-          a.onWake();
-          a.onPlay();
-          break;
+    const a = actionsRef.current;
 
-        case 'pause':
-          a.onWake();
-          a.onPause();
-          break;
+    switch (action) {
+      case 'playPause':
+        a.onWake();
+        a.onTogglePlay();
+        break;
 
-        // The dedicated media keys always scrub: they mean nothing else, so
-        // there is no focus question to lose to.
-        case 'rewind':
-          a.onWake();
+      case 'play':
+        a.onWake();
+        a.onPlay();
+        break;
+
+      case 'pause':
+        a.onWake();
+        a.onPause();
+        break;
+
+      // The dedicated media keys always scrub: they mean nothing else, so there
+      // is no focus question to lose to.
+      case 'rewind':
+        a.onWake();
+        a.onSkip(-1);
+        break;
+
+      case 'fastForward':
+        a.onWake();
+        a.onSkip(1);
+        break;
+
+      case 'left':
+        if (a.shouldSeekWithArrows()) {
           a.onSkip(-1);
-          break;
+        }
+        a.onWake();
+        break;
 
-        case 'fastForward':
-          a.onWake();
+      case 'right':
+        if (a.shouldSeekWithArrows()) {
           a.onSkip(1);
-          break;
+        }
+        a.onWake();
+        break;
 
-        case 'left':
-          if (a.shouldSeekWithArrows()) {
-            a.onSkip(-1);
+      case 'menu':
+      case 'info':
+        a.onMenu();
+        break;
+
+      case 'stop':
+        a.onStop();
+        break;
+
+      default:
+        // Any other press -- arrows included -- simply wakes the overlay.
+        a.onWake();
+    }
+  }, []);
+
+  useTVEventHandler(
+    useCallback(
+      (event: HWEvent) => {
+        if (w3cAlive.current) {
+          return;
+        }
+
+        const keyAction = event.eventKeyAction;
+
+        // `eventKeyAction` is -1 for the events the fork synthesises rather than
+        // reads off a KeyEvent; those are never paired, so they are always acted
+        // on and never latch a preference.
+        if (typeof keyAction === 'number' && keyAction >= 0) {
+          if (trustedKeyAction.current === null) {
+            trustedKeyAction.current = keyAction;
+          } else if (trustedKeyAction.current !== keyAction) {
+            return;
           }
-          a.onWake();
-          break;
+        }
 
-        case 'right':
-          if (a.shouldSeekWithArrows()) {
-            a.onSkip(1);
-          }
-          a.onWake();
-          break;
-
-        case 'menu':
-        case 'info':
-          a.onMenu();
-          break;
-
-        case 'stop':
-          a.onStop();
-          break;
-
-        default:
-          // Any other press simply wakes the overlay.
-          a.onWake();
-      }
-    }, []),
+        dispatch(actionForHardwareEvent(event.eventType));
+      },
+      [dispatch],
+    ),
   );
+
+  /**
+   * Spread onto whichever view holds focus: the wake layer while the controls
+   * are hidden, and the overlay itself while they are up (key events bubble, so
+   * a press on a focused button reaches the overlay's root).
+   */
+  const keyHandlers = useMemo<RemoteKeyHandlers>(
+    () => ({
+      onKeyDown: (event: RemoteKeyEvent) => {
+        w3cAlive.current = true;
+        dispatch(actionForKeyCode(event.nativeEvent.code));
+      },
+    }),
+    [dispatch],
+  );
+
+  return { keyHandlers };
 }
