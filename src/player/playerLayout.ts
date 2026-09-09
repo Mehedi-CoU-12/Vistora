@@ -1,36 +1,7 @@
 import type { Metrics } from '../theme';
 import { spacing } from '../theme';
 
-/**
- * ===========================================================================
- * How big the player's own furniture is, per device.
- * ===========================================================================
- * `src/theme/metrics.ts` answers "what kind of screen is this" for the whole
- * app. This file answers the follow-up the player alone has to ask: how large is
- * a control that a *thumb* must hit versus one a *D-pad* merely has to land on,
- * and which pieces of the overlay exist at all.
- *
- * The two are genuinely different interfaces, not one interface with different
- * padding:
- *
- *   TV     A single focusable row of buttons plus a focusable scrub bar. No
- *          centre cluster -- a remote cannot "reach for the middle of the
- *          screen", and a second focus target there would only be somewhere for
- *          focus to get lost. Key hints are printed, because nothing on a remote
- *          is self-evident.
- *
- *   Touch  A big centre play/skip cluster, because that is where a thumb already
- *          is, plus the gesture layer (double-tap, swipe, pinch) that carries
- *          most of the interaction. No key hints: the gestures are the same ones
- *          every video app on the phone already taught the user.
- *
- * Everything is a pure function of `Metrics`, so it is safe to call inside a
- * `makeStyles` factory -- which is where most of it is called.
- */
-
 export interface PlayerChrome {
-  /** Big play/skip buttons in the middle of the screen. Touch only. */
-  showsCentreCluster: boolean;
   /** The "OK to select - Back to exit" helper line. TV only. */
   showsKeyHints: boolean;
   /**
@@ -44,11 +15,13 @@ export interface PlayerChrome {
   buttonPaddingH: number;
   /** Font size of the glyph inside a button. */
   glyphSize: number;
-  /** The centre play/pause button, and the two skip buttons flanking it. */
-  centreButton: number;
-  centreGlyph: number;
-  skipButton: number;
-  skipGlyph: number;
+  /**
+   * The round play/pause button at the left end of the touch control row, and
+   * the glyph inside it. Zero on TV, where play/pause is a labelled pill in the
+   * focus row like every other control.
+   */
+  playButton: number;
+  playGlyph: number;
   /** Scrub bar: thickness at rest, thickness while focused or dragging. */
   seekTrack: number;
   seekTrackActive: number;
@@ -77,19 +50,16 @@ export function resolvePlayerChrome(metrics: Metrics): PlayerChrome {
 
   if (metrics.isTV) {
     return {
-      showsCentreCluster: false,
       showsKeyHints: true,
       compact: false,
       buttonHeight: 40,
       buttonPaddingH: spacing.lg,
       glyphSize: 15,
       // Unused on TV, but the type is one shape everywhere: a component reading
-      // `centreButton` while `showsCentreCluster` is false is a bug in the
-      // component, not something to make the type express.
-      centreButton: 0,
-      centreGlyph: 0,
-      skipButton: 0,
-      skipGlyph: 0,
+      // `playButton` on a TV is a bug in the component, not something to make
+      // the type express.
+      playButton: 0,
+      playGlyph: 0,
       seekTrack: 4,
       seekTrackActive: 8,
       seekThumb: 16,
@@ -104,7 +74,6 @@ export function resolvePlayerChrome(metrics: Metrics): PlayerChrome {
   const tablet = metrics.device === 'tablet';
 
   return {
-    showsCentreCluster: true,
     showsKeyHints: false,
     compact,
     // `minTouchTarget` is 48 on touch devices: the smallest thing a finger hits
@@ -113,10 +82,10 @@ export function resolvePlayerChrome(metrics: Metrics): PlayerChrome {
     buttonHeight: metrics.minTouchTarget,
     buttonPaddingH: compact ? spacing.md : spacing.lg,
     glyphSize: 14,
-    centreButton: tablet ? 84 : 68,
-    centreGlyph: tablet ? 30 : 24,
-    skipButton: tablet ? 64 : 52,
-    skipGlyph: tablet ? 20 : 16,
+    // Bigger than the pills beside it, because it is the one control reached
+    // for without looking, but not so big that it crowds the row it sits in.
+    playButton: tablet ? 64 : 56,
+    playGlyph: tablet ? 24 : 20,
     seekTrack: 4,
     seekTrackActive: 7,
     seekThumb: 16,

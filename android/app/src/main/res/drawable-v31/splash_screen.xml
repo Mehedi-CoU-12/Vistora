@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The window background behind the API 31+ platform splash, on devices that HAVE
+  one (phones, tablets). Android TV is handled by drawable-television, which the
+  resource system prefers over this file because the UI-mode qualifier outranks the
+  platform-version qualifier.
+
+  This draws @drawable/splash_icon at the platform's own 288dp icon geometry,
+  deliberately matching what the platform splash shows rather than the fuller
+  lock-up. MainActivity holds the platform splash until React paints and then
+  removes it in one cut, so in normal operation nothing here is ever seen. It
+  matters in two cases, and both want the pixels to match:
+
+    the safety ceiling fires, because the JS bundle never loaded
+    a future device dismisses its splash before we take the exit listener
+
+  In either case an identical image underneath means the swap is invisible. An
+  unmatched image is exactly what made the logo appear to vanish and come back.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/background" />
+    <item>
+        <bitmap
+            android:src="@drawable/splash_icon"
+            android:gravity="center" />
+    </item>
+</layer-list>

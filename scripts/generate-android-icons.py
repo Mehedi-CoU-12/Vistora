@@ -14,23 +14,21 @@ android/app/src/main/res/
   mipmap-{mdpi..xxxhdpi}/ic_launcher_round.png       legacy round icon
   mipmap-{mdpi..xxxhdpi}/ic_launcher_foreground.png  adaptive foreground, API 26+
   mipmap-{mdpi..xxxhdpi}/ic_launcher_monochrome.png  themed-icon silhouette, API 33+
-  drawable-{mdpi..xxxhdpi}/splash_logo.png           cold-start splash lock-up
+  drawable-{mdpi..xxxhdpi}/splash_icon.png           cold-start splash, both phases
   drawable-xhdpi/banner.png                          Android TV banner, 320x180
   drawable-xxhdpi/banner.png                         the same at 480x270
   values/ic_launcher_background.xml                  sampled backdrop colour
-src/assets/
-  logo.png, logo@2x.png, logo@3x.png                 the JS splash overlay's lock-up
 
 Two design decisions worth knowing
 ----------------------------------
-1. The launcher icon carries the V mark ALONE. At 48dp the wordmark is a smudge, so
-   putting it there would cost legibility and gain nothing. The full lock-up goes on
-   the TV banner and both splash screens, which have room for it.
+1. The launcher icon and the splash carry the V mark ALONE. At 48dp the wordmark is
+   a smudge, and the API 31+ splash slot is a circle that would clip it. Only the TV
+   banner, which is 16:9 and viewed from across a room, gets the full lock-up.
 
 2. The source's flat backdrop is knocked out to transparency rather than kept. An
    adaptive icon's foreground layer must be transparent -- the launcher masks it into
    a circle or squircle and composites it over the background layer -- and the splash
-   lock-up has to sit on the app's own background colour without showing a seam.
+   icon has to sit on the app's own background colour without showing a seam.
    Alpha ramps from the backdrop over a narrow distance band, which preserves the
    artwork's anti-aliased edges instead of hard-clipping them.
 
@@ -72,15 +70,27 @@ LEGACY_MARK_SCALE = 0.78
 LEGACY_ROUND_MARK_SCALE = 0.62
 # Share of the 320x180 TV banner the lock-up may fill.
 BANNER_LOGO_SCALE = 0.82
-# Splash lock-up width, in dp. A quarter of the 960dp TV viewport: present without
-# dominating, and small enough that holding the bitmap as the window background for
-# the activity's lifetime costs about 2MB at the 4K (xxxhdpi) bucket.
-SPLASH_LOGO_DP = 240
-# Base width in points for the JS overlay's asset; @2x and @3x follow.
-JS_LOGO_PT = 320
+# Splash icon geometry, dictated by the Android 12+ platform splash screen and NOT
+# free to choose. From API 31 the system draws its own splash from
+# windowSplashScreenAnimatedIcon before the app gets control, rendering that
+# drawable on a 288dp canvas and expecting the artwork to stay inside the inner
+# 192dp circle (192/288 = 0.667) so its reveal animation and any OEM mask have
+# room. We generate at exactly that geometry and then reuse the SAME drawable for
+# the pre-API-31 window background, so every phase of startup draws identical
+# pixels in an identical place. That is the whole anti-flicker strategy: not
+# careful timing, but leaving nothing that could differ.
+SPLASH_ICON_DP = 288
+SPLASH_ICON_SCALE = 0.64
+# The platform's branding slot, which is where the name and the motto go on API 31+.
+# 200x80dp is the documented size and, like the icon slot, is not ours to choose --
+# the platform pins this image to the bottom of its own splash. The wordmark plus
+# tagline is a wide, short block, so it fits the width and lands well under 80dp.
+SPLASH_BRANDING_DP = (200, 80)
+# The full lock-up, for the pre-API-31 window background where we own the whole
+# screen and can show mark, name and motto together at a comfortable size.
+SPLASH_LOCKUP_DP = 280
 
 RES = Path("android/app/src/main/res")
-JS_ASSETS = Path("src/assets")
 
 # Channel distance from the backdrop at which a pixel is fully opaque artwork.
 # Below KNOCKOUT_LO it is fully transparent; between the two, alpha ramps, which is
@@ -179,30 +189,43 @@ def row_bands(art: Image.Image) -> list[tuple[int, int]]:
 
 
 def locate(art: Image.Image, mode: str, manual):
-    """Return (mark_box, full_box): the V alone, and the whole lock-up."""
+    """Return (mark_box, brand_box, full_box).
+
+    mark_box  the V alone, for the launcher icon and the platform splash slot
+    brand_box the name and motto together, for the platform's branding slot
+    full_box  the whole lock-up, for the TV banner and the pre-31 splash
+    """
     full = art.getbbox()
     if full is None:
         sys.exit("The source looks blank -- no artwork found against its backdrop. "
                  "Check that the artwork actually contrasts with its backdrop.")
 
+    def band_box(top, bottom):
+        """Tight box around the content between two rows."""
+        sub = art.crop((0, top, art.width, bottom + 1)).getbbox()
+        return (sub[0], top + sub[1], sub[2], top + sub[3])
+
     if manual:
         w, h = art.size
         l, t, r, b = manual
-        return (round(l * w), round(t * h), round(r * w), round(b * h)), full
+        return (round(l * w), round(t * h), round(r * w), round(b * h)), None, full
 
     if mode == "full":
-        return full, full
+        return full, None, full
 
     bands = row_bands(art)
     if len(bands) < 2:
         print("  ! only one element detected -- putting the whole lock-up on the icon")
-        return full, full
+        return full, None, full
 
-    top, bottom = bands[0]
-    sub = art.crop((0, top, art.width, bottom + 1)).getbbox()
-    mark = (sub[0], top + sub[1], sub[2], top + sub[3])
-    print(f"  {len(bands)} elements detected; mark = topmost, {mark}")
-    return mark, full
+    mark = band_box(*bands[0])
+    # Everything below the mark is the name and the motto: one block, kept together
+    # so the branding image reads as the designed lock-up rather than two crops.
+    brand = band_box(bands[1][0], bands[-1][1])
+    print(f"  {len(bands)} elements detected")
+    print(f"    mark  = {mark}")
+    print(f"    brand = {brand}  (name + motto, {len(bands) - 1} element(s))")
+    return mark, brand, full
 
 
 def fit(art: Image.Image, box_w: float, box_h: float) -> Image.Image:
@@ -271,7 +294,7 @@ def main() -> int:
         print(f"No such file: {src_path}")
         return 1
 
-    res, js_assets = Path(args.res), JS_ASSETS
+    res = Path(args.res)
     if not res.is_dir():
         print(f"Not a res directory: {res} -- run this from the repo root")
         return 1
@@ -291,8 +314,9 @@ def main() -> int:
     print("backdrop sampled as #{:02X}{:02X}{:02X}".format(*sampled[:3]))
     art = knockout(img, sampled)
 
-    mark_box, full_box = locate(art, args.mark, manual)
+    mark_box, brand_box, full_box = locate(art, args.mark, manual)
     mark, full = art.crop(mark_box), art.crop(full_box)
+    brand = art.crop(brand_box) if brand_box else None
 
     def parse_hex(s, fallback):
         if not s:
@@ -341,17 +365,27 @@ def main() -> int:
         rnd.putalpha(round_mask(legacy_px))
         write(rnd, res / f"mipmap-{bucket}" / "ic_launcher_round.png")
 
-    # Splash lock-up. Kept transparent so the layer-list underneath supplies the
-    # colour -- one less place for the splash and the JS UI to disagree.
-    print("\nsplash lock-up (native cold start)")
+    # Splash icon. Transparent, so whichever layer draws it supplies the colour and
+    # the two can never disagree on the backdrop. The mark, not the lock-up: the
+    # platform slot is a circle, which would clip a wordmark.
+    print("\nsplash icon (API 31+ platform slot)")
     for bucket, mult in DENSITIES.items():
-        w = round(SPLASH_LOGO_DP * mult)
-        write(fit(full, w, w), res / f"drawable-{bucket}" / "splash_logo.png")
+        px = round(SPLASH_ICON_DP * mult)
+        canvas = Image.new("RGBA", (px, px), (0, 0, 0, 0))
+        centred(canvas, mark, SPLASH_ICON_SCALE)
+        write(canvas, res / f"drawable-{bucket}" / "splash_icon.png")
 
-    print("\nsplash lock-up (js overlay)")
-    for suffix, mult in (("", 1), ("@2x", 2), ("@3x", 3)):
-        w = JS_LOGO_PT * mult
-        write(fit(full, w, w), js_assets / f"logo{suffix}.png")
+    if brand is not None:
+        print("\nsplash branding: name + motto (API 31+ platform slot)")
+        bw, bh = SPLASH_BRANDING_DP
+        for bucket, mult in DENSITIES.items():
+            art_b = fit(brand, bw * mult, bh * mult)
+            write(art_b, res / f"drawable-{bucket}" / "splash_branding.png")
+
+    print("\nsplash lock-up (pre-API-31 window background)")
+    for bucket, mult in DENSITIES.items():
+        w = round(SPLASH_LOCKUP_DP * mult)
+        write(fit(full, w, w), res / f"drawable-{bucket}" / "splash_lockup.png")
 
     print("\nandroid tv banner")
     for bucket, (bw, bh) in {"xhdpi": (320, 180), "xxhdpi": (480, 270)}.items():

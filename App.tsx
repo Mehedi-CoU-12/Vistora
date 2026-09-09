@@ -1,8 +1,6 @@
 import React from 'react';
-import {StyleSheet, View} from 'react-native';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 
-import {SplashOverlay} from './src/components/SplashOverlay';
 import {RootNavigator} from './src/navigation/RootNavigator';
 import {MetricsProvider} from './src/theme';
 
@@ -27,28 +25,19 @@ import {MetricsProvider} from './src/theme';
  *
  * Everything below reads those through `useSafeAreaInsets()` and `useMetrics()`
  * rather than measuring the screen itself.
+ *
+ * There is deliberately no splash component here. The launch splash is entirely
+ * native -- the platform's on API 31+, a window background below it, both drawing
+ * the same icon -- because a JS splash cannot start until the bundle has loaded,
+ * which is the wait it would exist to cover. A JS logo on top of a native one is
+ * the same logo appearing twice; see res/drawable/splash_screen.xml.
  */
 export default function App() {
   return (
     <SafeAreaProvider>
       <MetricsProvider>
-        {/* The wrapper exists to give SplashOverlay a full-screen positioned
-            parent: MetricsProvider renders a context provider, not a host view,
-            so an absolutely-positioned child has nothing to fill. */}
-        <View style={styles.root}>
-          <RootNavigator />
-          {/* Last child, so it paints over the navigator while the app settles.
-              Unmounts itself once faded; see SplashOverlay for why the splash
-              needs a JS half at all. */}
-          <SplashOverlay />
-        </View>
+        <RootNavigator />
       </MetricsProvider>
     </SafeAreaProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
-});

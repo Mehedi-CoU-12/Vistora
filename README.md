@@ -188,8 +188,9 @@ python3 scripts/generate-android-icons.py assets/vistora-logo.png
 | `mipmap-*/ic_launcher_monochrome.png` + `mipmap-anydpi-v33/*.xml` | Android 13+ "Themed icons" |
 | `mipmap-*/ic_launcher{,_round}.png` | Launchers below API 26 |
 | `drawable-*/banner.png` | The Android **TV home screen** — a TV launcher draws `android:banner`, not the icon |
-| `drawable-*/splash_logo.png` | Native cold-start splash, via `SplashTheme` |
-| `src/assets/logo{,@2x,@3x}.png` | `SplashOverlay`, the JS half of the splash |
+| `drawable-*/splash_icon.png` | The mark, in the API 31+ platform splash's icon slot |
+| `drawable-*/splash_branding.png` | The name and motto, in that splash's branding slot |
+| `drawable-*/splash_lockup.png` | The whole lock-up, for the window-background splash |
 
 Three things about this worth knowing before you change any of it:
 
@@ -200,13 +201,81 @@ Three things about this worth knowing before you change any of it:
 - **The source's navy backdrop is knocked out to transparency.** An adaptive
   icon's foreground layer *must* be transparent, because the launcher masks it
   into a circle or squircle and composites it over the background layer itself.
-- **The splash has two halves and needs both.** `SplashTheme`'s window
-  background covers tap → React's first paint, because that is the only thing
-  Android can draw before our code runs; `SplashOverlay` covers React's first
-  paint → a UI worth looking at. Both draw the same lock-up at the same size on
-  the same colour, so the handoff is invisible. Change one size and you must
-  change the other — `SPLASH_LOGO_DP` in the script, `LOGO_BOX` in the
-  component.
+- **The splash is entirely native, and there are three launch paths.** Which one
+  a device takes is decided by resource qualifiers, not by code:
+
+  | Device | Surface that shows the splash | What it shows |
+  |---|---|---|
+  | Phone/tablet, API 31+ | the platform's own splash screen | mark in the icon slot, name + motto in the branding slot |
+  | Phone/tablet, API 24–30 | `windowBackground` (`drawable/`) | the whole lock-up, centred |
+  | Android TV, any API | `windowBackground` (`drawable-television/`) | the whole lock-up, centred |
+
+  From targetSdk 31 the platform draws its own splash at every cold start and
+  that is **mandatory** — it cannot be disabled, only styled. Android TV,
+  however, does not get one at all. Both facts are load-bearing, and each was
+  learned by breaking it:
+
+  *The flicker.* The platform dismisses its splash with a **fade**, as soon as
+  the activity's first frame lands — which on React Native is long before the JS
+  bundle has loaded. Anything drawing the logo underneath therefore reappeared as
+  that fade completed. A frame-by-frame capture of a real launch showed the logo
+  drop to almost nothing and snap back to full strength one frame later: that is
+  what "the logo shows twice" was. `MainActivity` now takes over the exit
+  listener, which both cancels the fade and holds the splash until React has
+  actually painted, then removes it in a single frame.
+
+  **Do not assume matching artwork underneath makes the fade safe — it does
+  not.** That was the previous fix, and it failed. On the build that produced the
+  capture above, the window background behind the splash was already drawing the
+  same icon at the same 288dp geometry as `windowSplashScreenAnimatedIcon`,
+  confirmed by dumping the resource table of the APK that was actually installed
+  at the time, and the frame still dropped out. The fade dips regardless of what
+  is behind it. Cancelling it is what fixes this; the matching icon in
+  `drawable-v31/` only buys continuity if the safety ceiling fires, so the logo
+  stays where it was instead of jumping.
+
+  The hazard worth naming is a held splash over an app that is already running —
+  on a returning player, a splash over playing video. Three separate things stop
+  it, and it is worth knowing which does what, because only the weakest is code
+  of ours:
+
+  1. `configChanges` declares orientation, screenSize, screenLayout,
+     smallestScreenSize and uiMode, so the framework reconfigures this activity
+     in place instead of recreating it. The player's landscape lock and PiP
+     enter/exit are all changes in that set, so none of them reach `onCreate` at
+     all.
+  2. Even on a genuine recreate, `setOnExitAnimationListener` only fires when the
+     platform actually *presented* a splash, and it presents one for launches,
+     not for reconfiguration. No splash, no hold. This is the protection that
+     survives someone narrowing `configChanges` later.
+  3. The hold releases immediately if the React root already has children.
+
+  Note what (3) does and does not cover. A recreate builds a *new* React root,
+  empty at first, so this check would not catch that case — it catches a listener
+  firing on an activity whose UI is already up. It is the last layer, not the
+  first.
+
+  And note it asks "has React painted", not "was this recreated". A warm relaunch
+  from the launcher does get a splash and does often carry saved instance state,
+  so gating on `savedInstanceState` would skip the hold exactly where it is
+  needed and let the fade back in.
+
+  *The dark TV.* The first attempt at the above set `windowBackground` to a flat
+  colour on API 31+, reasoning that the platform splash covered the whole load.
+  On Android TV, which has no platform splash, that produced a plain dark screen
+  and no logo for the entire bundle load. Hence `drawable-television/`, which the
+  resource system prefers over `drawable-v31/` because the UI-mode qualifier
+  outranks the platform-version qualifier.
+
+  *No JS splash.* A JS splash cannot start until the bundle has loaded, which is
+  the wait it would exist to cover, so it can only draw the logo a second time
+  after a native splash already did. That was the third layer in the original
+  bug.
+
+  The icon slot is a fixed 288dp square whose artwork must stay inside an inner
+  192dp circle, which is why `SPLASH_ICON_DP` / `SPLASH_ICON_SCALE` are not free
+  choices, and why the name and motto go to the branding slot rather than being
+  crammed into the icon where they would be clipped and illegible.
 
 ---
 
@@ -220,8 +289,7 @@ src/
   types/                 database rows, app models + mappers, route params
   hooks/                 useAsyncData (loading / error / retry)
   theme/                 colours, type scale, and the responsive metrics system
-  components/            Focusable, ContentCard, ContentRow, state views, SplashOverlay
-  assets/                generated logo rasters for the splash (see Branding assets)
+  components/            Focusable, ContentCard, ContentRow, state views
   player/                the player: overlay, gestures, remote, settings panel
                          — and it knows nothing about Supabase
   screens/               Home, LiveTv, Player
@@ -620,19 +688,53 @@ touches playback. The one thing a tap *must* still do is bring the Unlock button
 back: the overlay auto-hides after four seconds, and a lock that hid its own way
 out would be permanent.
 
+### A seek must never move the bar backwards
+
+A seek does not land instantly, and both events that report one can carry a
+position from *before* the jump. In react-native-video's Android code `onSeek`
+fires from `onIsPlayingChanged` and reads `player.getCurrentPosition()` at the
+moment playback resumes; `onProgress` meanwhile keeps ticking on its own 500ms
+timer while Media3 flushes its decoder.
+
+Dropping the target when `onSeek` arrived therefore handed the bar a stale
+position for up to half a second: it snapped back to where the finger started,
+then jumped forward again — plainly visible when scrubbing by dragging the bar.
+So the player holds the pending target until a reported position is
+demonstrably near it (`hasSeekLanded`, 1s tolerance), with a 4s safety valve for
+a target that never lands. The readout only ever moves the way the user asked.
+
+The buffering spinner is delayed 250ms for the same reason: every seek buffers
+briefly, and a spinner that flashes for 150ms on each one is a flicker of its
+own.
+
+Two other things could put the bar back at zero, and both are now refused rather
+than guessed at. `timeForTrackX` returns **null** when it has no measurement or
+the timeline has no length, because answering "the start of the timeline" is
+indistinguishable from a deliberate jump to the beginning — a control that does
+not know where it is should do nothing. And `onProgress` reporting a
+`seekableDuration` of 0, which Media3 does transiently around a seek and while a
+live playlist reloads, is ignored rather than stored: a zero-length timeline
+collapses the fill to the far left and maps every position on the bar to zero.
+
 ### Controls on a TV, controls on a phone
 
 Same pieces, different arrangement, resolved in `playerLayout.ts`:
 
 * **TV** — two focus rows and nothing else: the scrub bar, then one row of
-  buttons. No centre cluster, because a remote cannot reach for the middle of the
-  screen and a second focus target there would only compete for left/right. Key
+  buttons, skip included because a remote has no other way to ask for a
+  10-second jump. Nothing sits in the middle of the screen: a remote cannot reach
+  for it, and a second focus target there would only compete for left/right. Key
   hints are printed, because nothing on a remote is self-evident.
-* **Touch** — a big play/skip cluster in the centre, where the thumb already is,
-  and small secondary controls at the bottom. Nothing is sized below
-  `minTouchTarget` (48dp). The centre cluster duplicates the gestures on purpose:
-  double-tap-to-skip is faster once you know it, and invisible until someone
-  tells you.
+* **Touch** — one row along the bottom, play/pause at the left end as the only
+  round control in it, so the button reached for without looking is the one shape
+  that is not a rectangle. **No skip buttons**: double-tapping either side of the
+  screen already skips, and a pair of buttons doing the same job reads as clutter
+  over the picture — especially in landscape, where the row is the only chrome on
+  screen. Nothing is sized below `minTouchTarget` (48dp).
+
+The gestures are therefore the *only* way to skip on a phone, which is the
+trade this layout makes deliberately: discoverability for a clean picture. It is
+the right way round for a player people use every day rather than once.
 
 The settings panel changes shape rather than scaling — a column down the side
 where there is width for one, a sheet up from the bottom below 560dp — and the
@@ -741,6 +843,22 @@ Checked against a real PostgreSQL 17 instance and a real Android TV emulator
 These cost real debugging time. They are documented so they do not cost it
 twice.
 
+**`aapt2` renames the `drawable-television` folder in the APK.** Verifying the
+splash resources against a built APK shows the TV variant as
+`res/drawable-television-v8/splash_screen.xml`, not `drawable-television`: the
+tool appends the API level at which the qualifier was introduced. It is harmless
+— any device that matches `television` is far past API 8 — but an exact-match
+search for `drawable-television` in the APK will come up empty and look like the
+resource never shipped. Confirm variants with `aapt2 dump resources <apk>` and
+read the config labels it prints, which are the real qualifiers:
+
+```
+resource drawable/splash_screen
+  ()           res/drawable/splash_screen.xml
+  (television) res/drawable-television-v8/splash_screen.xml
+  (v31)        res/drawable-v31/splash_screen.xml
+```
+
 **`source.type` is a file extension, not a protocol name.** On Android,
 react-native-video does `Util.inferContentType("." + type)`. So `type: 'hls'`
 becomes `".hls"`, which Media3 does not recognise, so it falls back to the
@@ -774,6 +892,18 @@ must go through the navigator instead: `PlayerScreen` uses `usePreventRemove`,
 and the player exposes `dismissTop()` for it to call. The `BackHandler`
 registration is kept only for hosts that are not native-stack routes.
 
+**`nativeEvent.locationX` is relative to the view the touch HIT, not to the
+responder.** A drag handler on a container therefore gets coordinates measured
+against whichever child happened to be under the finger. The scrub bar has four
+children — track, buffered fill, played fill, thumb — so grabbing the thumb, which
+is exactly what a hand aims at, reported an x between 0 and 16 instead of a
+position along the bar; mapped to a time, that is the start of the film. The
+symptom is a bar that flickers and jumps to the beginning while being dragged.
+Use screen coordinates instead (`pageX` on grant, `gestureState.moveX` while
+moving) against the track's own measured `pageX` from `measure()`, and set
+`pointerEvents="none"` on the decorative children so the row is the only thing a
+touch can land on.
+
 **`Pressable` overrides pan handlers spread onto it.** It renders
 `<View {...restPropsWithDefaults} {...eventHandlers}>` — its own responder
 handlers come *last*, so `{...panResponder.panHandlers}` passed to a `Pressable`
@@ -801,9 +931,10 @@ Error: Should have a queue. You are likely calling Hooks conditionally
 This is not a bug in your code. Force-stop and relaunch the app:
 `adb shell am force-stop com.vistora`.
 
-**The TV emulator dies after a few minutes of video playback.** Twice here, under
-both `-gpu host` and `-gpu swiftshader_indirect`, the emulator process exited
-with a flood of
+**The TV emulator dies on its own, repeatedly.** Three times in one session here,
+under both `-gpu host` and `-gpu swiftshader_indirect` — twice with video playing
+and once while nothing but `screencap` was running against it — the emulator
+process exited with a flood of
 
 ```
 ERROR | Failed to find ColorBuffer: 403
@@ -811,9 +942,15 @@ ERROR | Failed to find ColorBuffer: 403
 ```
 
 The app is not crashing — the emulator's own graphics/codec bridge is, and it
-takes the device with it (`adb devices` goes empty). So plan player testing in
-short sessions, and re-check `adb devices` before concluding that a key press did
-nothing. A real TV does not do this.
+takes the device with it (`adb devices` goes empty, sometimes via `device
+offline`). So plan player testing in short sessions, and re-check `adb devices`
+before concluding that a key press did nothing. A real TV does not do this.
+
+It is also the leading explanation for a one-off SIGSEGV seen on the Home screen
+in `MountingCoordinator::pullTransaction` ("trying to execute non-executable
+memory"), which did not reproduce in four clean targeted cold starts. If that
+signature ever appears on real hardware, it is worth taking seriously; on this
+emulator it is not evidence of much.
 
 **`adb screencap` cannot always capture video.** The player renders into a
 `SurfaceView`, which may come back as pure black in a screenshot even while video

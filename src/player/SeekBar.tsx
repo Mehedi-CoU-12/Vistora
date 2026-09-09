@@ -4,12 +4,12 @@ import {
   Pressable,
   View,
   type GestureResponderEvent,
-  type LayoutChangeEvent,
+  type PanResponderGestureState,
 } from 'react-native';
 
 import { colors, makeStyles, radius, useMetrics } from '../theme';
 import { formatTime } from './formatTime';
-import { clamp01, clampSeekTarget } from './playbackOptions';
+import { clamp01, timeForTrackX } from './playbackOptions';
 import { resolvePlayerChrome } from './playerLayout';
 
 interface SeekBarProps {
@@ -86,11 +86,41 @@ export function SeekBar({
   const [focused, setFocused] = useState(false);
   const [dragging, setDragging] = useState(false);
 
-  /** Measured width of the track, needed to turn an x coordinate into a time. */
-  const trackWidth = useRef(0);
+  /**
+   * Where the track is, in the same coordinate space the gesture reports.
+   *
+   * ---------------------------------------------------------------------------
+   * Why this is measured rather than read off the touch event
+   * ---------------------------------------------------------------------------
+   * `nativeEvent.locationX` is relative to the view the touch actually HIT, not
+   * to the view holding the responder -- and this row has children: the track,
+   * the buffered fill, the played fill and the thumb. Grab the thumb, which is
+   * exactly what a hand aims at, and locationX is a number between 0 and 16
+   * instead of a position along the bar. Mapped to a time, that is the start of
+   * the film. Drag across the fills and the reference view changes underneath
+   * the gesture, so the position jumps about.
+   *
+   * That was the flicker: a drag reported "0" whenever the finger was over the
+   * thumb it was dragging. So the maths uses window coordinates instead --
+   * `pageX` on grant and `gestureState.moveX` while moving, both of which are
+   * screen positions independent of what is under the finger -- against the
+   * track's own measured offset. The children are also `pointerEvents="none"`
+   * now, so the row is the only thing a touch can land on.
+   */
+  const trackRef = useRef<View>(null);
+  const geometry = useRef({ pageX: 0, width: 0 });
 
-  const handleTrackLayout = useCallback((event: LayoutChangeEvent) => {
-    trackWidth.current = event.nativeEvent.layout.width;
+  const measureTrack = useCallback(() => {
+    // `measure` reports pageX against the root view, which is the same space
+    // PanResponder's pageX/moveX use. `measureInWindow` is the wrong one here:
+    // its x includes any inset between the window and the root view.
+    trackRef.current?.measure((_x, _y, width, _height, pageX) => {
+      // A zero-width measurement can arrive mid-layout. Keeping the last good
+      // one beats mapping every touch to the beginning of the timeline.
+      if (width > 0) {
+        geometry.current = { pageX, width };
+      }
+    });
   }, []);
 
   /**
@@ -103,14 +133,32 @@ export function SeekBar({
   const callbacksRef = useRef({ onScrubPreview, onSeek, disabled });
   callbacksRef.current = { onScrubPreview, onSeek, disabled };
 
-  const timeAt = useCallback((x: number) => {
-    const width = trackWidth.current;
-    const { start: from, end: to } = windowRef.current;
-    if (width <= 0 || to <= from) {
-      return from;
-    }
-    return clampSeekTarget(from + (x / width) * (to - from), from, to);
-  }, []);
+  /**
+   * Window x -> a time on the bar, or null when the answer is not known.
+   *
+   * Null rather than a fallback, and that matters: the old code returned the
+   * start of the timeline when it had no measurement, which is indistinguishable
+   * from the user asking to go back to the beginning. A control that does not
+   * know where it is should do nothing.
+   */
+  const timeAtWindowX = useCallback(
+    (windowX: number): number | null =>
+      timeForTrackX(windowX, geometry.current, windowRef.current),
+    [],
+  );
+
+  /** The most recent window x this gesture reported. */
+  const lastWindowX = useRef(0);
+
+  const preview = useCallback(
+    (windowX: number) => {
+      const target = timeAtWindowX(windowX);
+      if (target !== null) {
+        callbacksRef.current.onScrubPreview(target);
+      }
+    },
+    [timeAtWindowX],
+  );
 
   const responder = useMemo(
     () =>
@@ -123,27 +171,35 @@ export function SeekBar({
         onPanResponderTerminationRequest: () => false,
 
         onPanResponderGrant: (event: GestureResponderEvent) => {
+          // Re-measure per gesture: the overlay moves when the phone is turned
+          // or the settings panel opens, and a stale offset would bias every
+          // position by the difference.
+          measureTrack();
           setDragging(true);
-          callbacksRef.current.onScrubPreview(
-            timeAt(event.nativeEvent.locationX),
-          );
+          lastWindowX.current = event.nativeEvent.pageX;
+          preview(lastWindowX.current);
         },
 
-        onPanResponderMove: (event: GestureResponderEvent) => {
-          // locationX stays relative to the row for the whole gesture, including
-          // after the finger has left it -- it simply goes negative or past the
-          // width, which `timeAt` clamps. That is what lets a drag continue when
-          // the thumb wanders off the bar, instead of sticking at the edge.
-          callbacksRef.current.onScrubPreview(
-            timeAt(event.nativeEvent.locationX),
-          );
+        onPanResponderMove: (
+          _event: GestureResponderEvent,
+          gesture: PanResponderGestureState,
+        ) => {
+          // moveX is a screen position, so it stays correct when the finger is
+          // over the thumb, over a fill, or off the bar entirely.
+          lastWindowX.current = gesture.moveX;
+          preview(gesture.moveX);
         },
 
-        onPanResponderRelease: (event: GestureResponderEvent) => {
+        onPanResponderRelease: () => {
           setDragging(false);
-          const target = timeAt(event.nativeEvent.locationX);
+          // The last position we actually saw, not the release event's: a tap
+          // never produces a move, so moveX would be 0 and would seek to the
+          // start of the film.
+          const target = timeAtWindowX(lastWindowX.current);
           callbacksRef.current.onScrubPreview(null);
-          callbacksRef.current.onSeek(target);
+          if (target !== null) {
+            callbacksRef.current.onSeek(target);
+          }
         },
 
         onPanResponderTerminate: () => {
@@ -151,7 +207,7 @@ export function SeekBar({
           callbacksRef.current.onScrubPreview(null);
         },
       }),
-    [timeAt],
+    [measureTrack, preview, timeAtWindowX],
   );
 
   const handleFocus = useCallback(() => {
@@ -186,7 +242,14 @@ export function SeekBar({
   };
 
   const track = (
-    <View style={styles.trackArea} onLayout={handleTrackLayout}>
+    <View
+      ref={trackRef}
+      style={styles.trackArea}
+      onLayout={measureTrack}
+      // Decoration only: with the children hittable, the touch that starts a
+      // drag lands on the thumb or a fill instead of on the row.
+      pointerEvents="none"
+    >
       <View
         style={[
           styles.track,

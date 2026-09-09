@@ -155,6 +155,66 @@ export function clampSeekTarget(
   return clamp(target, start, Math.max(start, end - 0.25));
 }
 
+/**
+ * Has a seek arrived where it was aimed?
+ *
+ * The player holds the scrub bar at a pending target until this says yes, which
+ * is what stops the bar flicking backwards: both events that report a seek can
+ * carry a position from before the jump, so "the seek is done" has to be decided
+ * by proximity rather than by trusting either event.
+ *
+ * The tolerance is generous on purpose. A keyframe-aligned source lands the
+ * playhead near the request rather than on it, and demanding an exact match
+ * would leave the target pinned until the safety timeout every time.
+ */
+export function hasSeekLanded(
+  reportedTime: number,
+  pendingTarget: number,
+  toleranceSeconds = 1,
+): boolean {
+  if (!Number.isFinite(reportedTime) || !Number.isFinite(pendingTarget)) {
+    return true;
+  }
+  return Math.abs(reportedTime - pendingTarget) <= toleranceSeconds;
+}
+
+/**
+ * Turns a screen x into a time on the scrub bar, or null if it cannot.
+ *
+ * Null is the important part. The first version of this returned the start of
+ * the timeline whenever it had no measurement, and "the start of the timeline"
+ * is indistinguishable from a deliberate request to go back to the beginning --
+ * so an unmeasured bar, or a live window that momentarily reported zero length,
+ * silently threw the viewer back to 0. A control that does not know where it is
+ * should do nothing at all.
+ *
+ * `windowX` and `track.pageX` must be in the same space; the caller uses screen
+ * coordinates for both, because a touch's `locationX` is relative to whichever
+ * child view it happened to land on.
+ */
+export function timeForTrackX(
+  windowX: number,
+  track: { pageX: number; width: number },
+  timeline: { start: number; end: number },
+): number | null {
+  if (
+    !Number.isFinite(windowX) ||
+    !Number.isFinite(track.pageX) ||
+    !(track.width > 0) ||
+    !(timeline.end > timeline.start)
+  ) {
+    return null;
+  }
+
+  const fraction = (windowX - track.pageX) / track.width;
+
+  return clampSeekTarget(
+    timeline.start + fraction * (timeline.end - timeline.start),
+    timeline.start,
+    timeline.end,
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Tracks
 // ---------------------------------------------------------------------------
