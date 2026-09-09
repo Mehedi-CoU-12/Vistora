@@ -1,12 +1,16 @@
-import {DarkTheme, NavigationContainer, type Theme} from '@react-navigation/native';
-import {createNativeStackNavigator} from '@react-navigation/native-stack';
+import {
+  DarkTheme,
+  NavigationContainer,
+  type Theme,
+} from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 
-import {HomeScreen} from '../screens/HomeScreen';
-import {LiveTvScreen} from '../screens/LiveTvScreen';
-import {PlayerScreen} from '../screens/PlayerScreen';
-import {colors} from '../theme';
-import type {RootStackParamList} from '../types/navigation';
+import { HomeScreen } from '../screens/HomeScreen';
+import { LiveTvScreen } from '../screens/LiveTvScreen';
+import { PlayerScreen } from '../screens/PlayerScreen';
+import { colors } from '../theme';
+import type { RootStackParamList } from '../types/navigation';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -44,8 +48,9 @@ export function RootNavigator() {
           // Slide/fade transitions on a TV read as sluggish, and a mid-transition
           // screen is a screen where focus is briefly nowhere.
           animation: 'fade',
-          contentStyle: {backgroundColor: colors.background},
-        }}>
+          contentStyle: { backgroundColor: colors.background },
+        }}
+      >
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="LiveTv" component={LiveTvScreen} />
         <Stack.Screen
@@ -54,7 +59,7 @@ export function RootNavigator() {
           options={{
             // The player is its own world: no background peeking through while
             // the surface initialises.
-            contentStyle: {backgroundColor: '#000'},
+            contentStyle: { backgroundColor: '#000' },
           }}
         />
       </Stack.Navigator>
