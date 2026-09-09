@@ -1,45 +1,3 @@
--- =============================================================================
--- Vistora -- initial schema
--- =============================================================================
--- Apply with either:
---   supabase db push                       (Supabase CLI, recommended)
---   or paste into the SQL Editor in the Supabase dashboard
---
--- Design notes, and where this differs from a first sketch:
---
---  * UUID primary keys everywhere. Content is created by an admin tool and
---    referenced from a TV client; sequential integers would leak how much
---    content exists and make merging data from two environments painful.
---
---  * `stream_url` is the column name on EVERY playable table (the first draft
---    called it `video_url` on movies). One name means a single `PlayableItem`
---    type in the app and a player that does not care what it is playing.
---
---  * `stream_protocol` is stored rather than sniffed from the file extension.
---    HLS URLs do not reliably end in `.m3u8`, and the player benefits from
---    being told.
---
---  * Every table carries `slug`, `is_active`, `sort_order`, `created_at` and
---    `updated_at`. That shared shape is the extensibility story: adding
---    `cartoons` or `series` later is a copy of a known pattern, including its
---    RLS policies, rather than a new invention.
---
---  * `category.type` was renamed to `category.kind`. `type` is a non-reserved
---    keyword in PostgreSQL, so it works, but it reads badly in queries.
--- =============================================================================
-
--- No extension needed for UUIDs: gen_random_uuid() has been part of PostgreSQL
--- core since v13, and Supabase runs 15+. (Older guides tell you to install
--- pgcrypto or uuid-ossp -- that advice is out of date.)
-
-
--- ---------------------------------------------------------------------------
--- Enums
--- ---------------------------------------------------------------------------
--- Chosen over free text so a typo is a database error, not a silently empty
--- shelf on the home screen. Adding a value later is a one-line migration:
---   alter type public.category_kind add value 'documentary';
-
 create type public.category_kind as enum (
   'live_tv',
   'movie',
@@ -82,29 +40,8 @@ begin
 end;
 $$;
 
--- Authorisation for administrative writes.
---
--- It reads `app_metadata.role` from the caller's JWT. `app_metadata` is the
--- right place for this because, unlike `user_metadata`, it CANNOT be modified
--- by the user themselves -- only by the service role. So a signed-in user has no
--- way to promote themselves to admin.
---
--- Grant admin with the service role (server-side, never from the TV app):
---   await admin.auth.admin.updateUserById(userId, {
---     app_metadata: {role: 'admin'},
---   });
--- SECURITY DEFINER is deliberate. As SECURITY INVOKER (the default) this
--- function only works if the calling role holds USAGE on the `auth` schema.
--- Supabase does grant that today, but depending on it makes every policy in this
--- file fail with a bare "permission denied for schema auth" if that ever changes
--- or if you run this migration on plain PostgreSQL. DEFINER removes the
--- dependency.
---
--- This does not weaken anything: the function takes no arguments and reads only
--- the CURRENT request's JWT, so it still evaluates the caller's identity, never
--- the definer's. `set search_path = ''` plus the schema-qualified `auth.jwt()`
--- call is what makes a SECURITY DEFINER function safe -- without it, a caller
--- could shadow `jwt()` with their own function and hijack the elevated context.
+
+
 create or replace function public.is_admin()
 returns boolean
 language sql
@@ -321,19 +258,7 @@ create trigger sports_events_set_updated_at
 -- ===========================================================================
 -- Row Level Security
 -- ===========================================================================
--- The rule for this phase:
---
---   READ   active content -> anyone, including anonymous devices
---   WRITE  anything       -> admins only
---
--- RLS is deny-by-default once enabled, so the absence of an INSERT/UPDATE/DELETE
--- policy for `anon` is itself the protection. Nothing here depends on the client
--- behaving well: the anon key in the app grants exactly these policies and
--- nothing more.
---
--- Note the `is_active` filter lives in the POLICY, not just in app queries. A
--- draft channel is therefore invisible to the client even if someone crafts
--- their own request with the anon key.
+
 -- ===========================================================================
 
 alter table public.categories    enable row level security;
@@ -406,14 +331,7 @@ create policy "Admins manage sports events"
 -- ===========================================================================
 -- Privileges
 -- ===========================================================================
--- Supabase normally configures default privileges so new tables in `public` are
--- reachable by `anon` and `authenticated`, with RLS doing the real gatekeeping.
--- We state them explicitly anyway, so this migration produces the same result
--- on a local `supabase start`, a fresh project, or a plain PostgreSQL instance.
---
--- Granting a privilege is not granting access: every statement still has to pass
--- the RLS policies above. `authenticated` holding INSERT/UPDATE/DELETE is only
--- useful to someone whose JWT satisfies public.is_admin().
+
 -- ===========================================================================
 
 grant usage on schema public to anon, authenticated;
