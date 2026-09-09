@@ -801,6 +801,20 @@ Error: Should have a queue. You are likely calling Hooks conditionally
 This is not a bug in your code. Force-stop and relaunch the app:
 `adb shell am force-stop com.vistora`.
 
+**The TV emulator dies after a few minutes of video playback.** Twice here, under
+both `-gpu host` and `-gpu swiftshader_indirect`, the emulator process exited
+with a flood of
+
+```
+ERROR | Failed to find ColorBuffer: 403
+[h264 @ 0x...] no frame!
+```
+
+The app is not crashing — the emulator's own graphics/codec bridge is, and it
+takes the device with it (`adb devices` goes empty). So plan player testing in
+short sessions, and re-check `adb devices` before concluding that a key press did
+nothing. A real TV does not do this.
+
 **`adb screencap` cannot always capture video.** The player renders into a
 `SurfaceView`, which may come back as pure black in a screenshot even while video
 is visibly playing. Do not conclude playback is broken from a black screenshot —
