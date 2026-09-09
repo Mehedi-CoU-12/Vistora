@@ -74,3 +74,14 @@ export const focusScale = 1.07;
 
 /** Space around each card, sized so the focus ring and scale never clip. */
 export const cardGap = spacing.md;
+
+/**
+ * Fixed width a ContentCard adds around its artwork: its own padding plus the
+ * focus-ring border, on both sides.
+ *
+ * Exported because any screen laying out a grid has to subtract it to work out a
+ * fluid card width. Hard-coding "about 12" at the call site is how a grid ends
+ * up one column too wide, with the last column clipped off-screen and therefore
+ * unreachable by the D-pad.
+ */
+export const cardChrome = spacing.xs * 2 + 2 * 2;

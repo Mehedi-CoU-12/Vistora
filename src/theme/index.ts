@@ -1,6 +1,7 @@
 export {colors} from './colors';
 export {typography} from './typography';
 export {
+  cardChrome,
   cardGap,
   cardSize,
   focusScale,
