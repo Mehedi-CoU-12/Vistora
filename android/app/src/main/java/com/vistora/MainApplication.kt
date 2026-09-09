@@ -14,8 +14,10 @@ class MainApplication : Application(), ReactApplication {
       context = applicationContext,
       packageList =
         PackageList(this).packages.apply {
-          // Packages that cannot be autolinked yet can be added manually here, for example:
-          // add(MyReactNativePackage())
+          // Autolinking only discovers modules that ship as node modules, so the app's own
+          // native modules are added by hand. OrientationModule lets the player ask for
+          // landscape while a video is on screen; see DeviceOrientation for the policy.
+          add(OrientationPackage())
         },
     )
   }
