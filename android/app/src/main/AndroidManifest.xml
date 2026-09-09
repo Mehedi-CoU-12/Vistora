@@ -46,13 +46,38 @@
         android:usesCleartextTraffic="${usesCleartextTraffic}"
         android:supportsRtl="true">
 
+        <!--
+          NOTE: there is deliberately no android:screenOrientation below.
+
+          One APK serves two devices that want opposite answers: a TV is
+          landscape and nothing else, a phone is portrait until its owner turns
+          it. A manifest attribute cannot express both. It is a single static
+          value, with no resource qualifier and no way to vary by device, so
+          MainActivity sets `requestedOrientation` at startup, from the same
+          television check React Native's own `Platform.isTV` uses. See
+          MainActivity.kt.
+
+          android:configChanges is what makes rotating cheap. It lists
+          orientation, screenSize, screenLayout and smallestScreenSize, so
+          turning the phone reconfigures the activity in place instead of
+          recreating it: React Native turns the change into a dimensions event,
+          the tree re-renders with new metrics, and navigation state, scroll
+          offsets and playback all survive the turn.
+
+          android:supportsPictureInPicture is what makes the player's "Pop out"
+          control possible, and note that without it the request fails SILENTLY:
+          react-native-video reads the flag back off our own ActivityInfo and
+          returns early, so the button would simply do nothing. The player only
+          offers it on a touch device.
+        -->
         <activity
             android:name=".MainActivity"
             android:label="@string/app_name"
             android:banner="@drawable/banner"
+            android:theme="@style/SplashTheme"
             android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
             android:launchMode="singleTask"
-            android:screenOrientation="landscape"
+            android:supportsPictureInPicture="true"
             android:windowSoftInputMode="adjustResize"
             android:exported="true">
             <intent-filter>
