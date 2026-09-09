@@ -12,6 +12,12 @@ interface ContentCardProps {
   onPress: (item: ContentItem) => void;
   onFocus?: (item: ContentItem) => void;
   hasTVPreferredFocus?: boolean;
+  /**
+   * Overrides the variant's default artwork width, keeping its aspect ratio.
+   * Used by grids that divide the available space between a fixed number of
+   * columns rather than using a fixed card size.
+   */
+  width?: number;
 }
 
 /**
@@ -28,8 +34,18 @@ export function ContentCard({
   onPress,
   onFocus,
   hasTVPreferredFocus,
+  width,
 }: ContentCardProps) {
-  const size = cardSize[variant];
+  const defaultSize = cardSize[variant];
+  // Scale the height with the width so a fluid card keeps the variant's shape
+  // (16:9 for landscape, 2:3 for a poster) instead of stretching the artwork.
+  const size =
+    width === undefined
+      ? defaultSize
+      : {
+          width,
+          height: Math.round((width * defaultSize.height) / defaultSize.width),
+        };
   const isPlayable = item.stream !== null;
 
   return (
