@@ -24,20 +24,22 @@ const tvMetrics: Metrics = {
 };
 
 describe('resolvePlayerChrome', () => {
-  it('gives a TV two focus rows and no centre cluster', () => {
-    const chrome = resolvePlayerChrome(tvMetrics);
-
-    // A remote cannot reach for the middle of the screen, and a second focus
-    // target there would only compete with the button row for left/right.
-    expect(chrome.showsCentreCluster).toBe(false);
-    expect(chrome.showsKeyHints).toBe(true);
+  // Nothing on a remote is self-evident, so the TV prints its key hints; a
+  // phone's gestures are the ones every video app already taught the user.
+  it('prints key hints on a TV and not on a phone', () => {
+    expect(resolvePlayerChrome(tvMetrics).showsKeyHints).toBe(true);
+    expect(resolvePlayerChrome(resolveMetrics(390, 844)).showsKeyHints).toBe(
+      false,
+    );
   });
 
-  it('gives a phone the centre cluster and no key hints', () => {
-    const chrome = resolvePlayerChrome(resolveMetrics(390, 844));
-
-    expect(chrome.showsCentreCluster).toBe(true);
-    expect(chrome.showsKeyHints).toBe(false);
+  // On TV, play/pause is a labelled pill in the focus row like everything else;
+  // the round button exists only where a thumb reaches for it.
+  it('sizes the round play button on touch only', () => {
+    expect(resolvePlayerChrome(tvMetrics).playButton).toBe(0);
+    expect(
+      resolvePlayerChrome(resolveMetrics(844, 390)).playButton,
+    ).toBeGreaterThan(0);
   });
 
   // A control smaller than the platform minimum is a control that only works
@@ -57,7 +59,7 @@ describe('resolvePlayerChrome', () => {
       expect(chrome.seekRowHeight).toBeGreaterThanOrEqual(
         metrics.minTouchTarget,
       );
-      expect(chrome.skipButton).toBeGreaterThanOrEqual(metrics.minTouchTarget);
+      expect(chrome.playButton).toBeGreaterThanOrEqual(metrics.minTouchTarget);
     }
   });
 
