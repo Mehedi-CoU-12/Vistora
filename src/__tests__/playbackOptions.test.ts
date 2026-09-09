@@ -1,12 +1,14 @@
 import {
   clampSeekTarget,
   describeTracks,
+  hasSeekLanded,
   formatRate,
   formatSeekDelta,
   nextScalingMode,
   resizeModeFor,
   SCALING_MODES,
   stepScalingMode,
+  timeForTrackX,
 } from '../player/playbackOptions';
 
 describe('clampSeekTarget', () => {
@@ -34,6 +36,75 @@ describe('clampSeekTarget', () => {
     expect(clampSeekTarget(10, 0, NaN)).toBe(0);
     expect(clampSeekTarget(NaN, 0, 100)).toBe(0);
     expect(clampSeekTarget(10, 0, Infinity)).toBe(0);
+  });
+});
+
+describe('timeForTrackX', () => {
+  const track = { pageX: 100, width: 800 };
+  const timeline = { start: 0, end: 600 };
+
+  it('maps a position along the track to a time', () => {
+    expect(timeForTrackX(100, track, timeline)).toBeCloseTo(0);
+    expect(timeForTrackX(500, track, timeline)).toBeCloseTo(300);
+    expect(timeForTrackX(900, track, timeline)).toBeLessThan(600);
+    expect(timeForTrackX(900, track, timeline)).toBeGreaterThan(599);
+  });
+
+  it('respects the track offset rather than assuming it starts at zero', () => {
+    expect(timeForTrackX(500, { pageX: 0, width: 800 }, timeline)).toBeCloseTo(
+      375,
+    );
+  });
+
+  it('clamps a finger that has left the bar', () => {
+    expect(timeForTrackX(-500, track, timeline)).toBe(0);
+    expect(timeForTrackX(5000, track, timeline)).toBeLessThan(600);
+  });
+
+  // This is the bug the null return exists for. The old code answered "the
+  // start of the timeline" when it had no measurement, which is exactly what a
+  // deliberate jump to the beginning looks like -- so an unmeasured bar threw
+  // the viewer back to 0, which is what "it jumps to the start" was.
+  it('answers null rather than the start when it cannot know', () => {
+    expect(timeForTrackX(500, { pageX: 100, width: 0 }, timeline)).toBeNull();
+    expect(timeForTrackX(500, track, { start: 0, end: 0 })).toBeNull();
+    expect(timeForTrackX(500, track, { start: 90, end: 30 })).toBeNull();
+    expect(timeForTrackX(NaN, track, timeline)).toBeNull();
+  });
+
+  // A live DVR window does not start at zero.
+  it('maps within a window that starts late', () => {
+    expect(
+      timeForTrackX(500, track, { start: 300, end: 900 }),
+    ).toBeCloseTo(600);
+  });
+});
+
+describe('hasSeekLanded', () => {
+  // The bar is held at the target until this says yes. Both of the events that
+  // report a seek can carry a position from before the jump, and acting on one
+  // was what made the scrub bar flick backwards after a drag.
+  it('accepts a position near the target', () => {
+    expect(hasSeekLanded(60, 60)).toBe(true);
+    expect(hasSeekLanded(59.4, 60)).toBe(true);
+    expect(hasSeekLanded(61, 60)).toBe(true);
+  });
+
+  it('rejects the stale position an in-flight seek reports', () => {
+    expect(hasSeekLanded(12, 60)).toBe(false);
+    expect(hasSeekLanded(60, 12)).toBe(false);
+  });
+
+  it('honours a caller-supplied tolerance', () => {
+    expect(hasSeekLanded(57, 60, 5)).toBe(true);
+    expect(hasSeekLanded(57, 60, 1)).toBe(false);
+  });
+
+  // Never leave the readout pinned to a target because of a bad number: a
+  // frozen bar over playing video is worse than one that moves early.
+  it('gives up on values it cannot compare', () => {
+    expect(hasSeekLanded(NaN, 60)).toBe(true);
+    expect(hasSeekLanded(60, Infinity)).toBe(true);
   });
 });
 
