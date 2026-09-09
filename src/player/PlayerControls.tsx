@@ -12,9 +12,18 @@ import {
   type ScalingMode,
 } from './playbackOptions';
 import { resolvePlayerChrome, type EdgeInsets } from './playerLayout';
+import type { RemoteKeyHandlers } from './remoteKeys';
 import { SeekBar } from './SeekBar';
 
 interface PlayerControlsProps {
+  /**
+   * W3C key handlers from `useRemoteControl`, spread onto the overlay root.
+   *
+   * Key events bubble, so a press on a focused button arrives here -- which is
+   * what keeps left/right scrubbing alive while the controls are up. See
+   * `remoteKeys.ts` for why this is the path that works.
+   */
+  keyHandlers?: RemoteKeyHandlers;
   title: string;
   subtitle?: string;
   isPaused: boolean;
@@ -73,7 +82,7 @@ interface PlayerControlsProps {
  * are", so presses land on buttons and everything else falls through.
  */
 export function PlayerControls(props: PlayerControlsProps) {
-  const { locked, edges, onToggleLock } = props;
+  const { locked, edges, onToggleLock, keyHandlers } = props;
   const styles = useStyles();
 
   if (locked) {
@@ -81,7 +90,11 @@ export function PlayerControls(props: PlayerControlsProps) {
     // a sleeve or a child cannot change anything, so there is exactly one
     // control on screen and no gesture does anything at all.
     return (
-      <View style={[styles.root, edgePadding(edges)]} pointerEvents="box-none">
+      <View
+        style={[styles.root, edgePadding(edges)]}
+        pointerEvents="box-none"
+        {...keyHandlers}
+      >
         <View style={styles.lockRow}>
           <ControlButton
             label="Unlock"
@@ -98,6 +111,7 @@ export function PlayerControls(props: PlayerControlsProps) {
 }
 
 function UnlockedControls({
+  keyHandlers,
   title,
   subtitle,
   isPaused,
@@ -147,7 +161,11 @@ function UnlockedControls({
   const rightLabel = isLive ? null : total;
 
   return (
-    <View style={[styles.root, edgePadding(edges)]} pointerEvents="box-none">
+    <View
+      style={[styles.root, edgePadding(edges)]}
+      pointerEvents="box-none"
+      {...keyHandlers}
+    >
       <View style={styles.top} pointerEvents="box-none">
         {metrics.isTouch ? (
           <ControlButton
