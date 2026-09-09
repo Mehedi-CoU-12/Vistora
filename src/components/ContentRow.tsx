@@ -1,7 +1,7 @@
 import React, {useCallback} from 'react';
-import {FlatList, StyleSheet, Text, TVFocusGuideView, View} from 'react-native';
+import {FlatList, Text, TVFocusGuideView, View} from 'react-native';
 
-import {colors, overscan, spacing, typography, type CardVariant} from '../theme';
+import {colors, makeStyles, spacing, useMetrics, type CardVariant} from '../theme';
 import type {ContentItem} from '../types/content';
 import {ContentCard} from './ContentCard';
 
@@ -26,7 +26,8 @@ interface ContentRowProps {
  *    down to the next row, then press up again -- without this you land back on
  *    the first card, which feels broken. With it, focus returns to the eighth.
  *    It is the single biggest difference between a TV UI that feels native and
- *    one that feels like a ported phone app.
+ *    one that feels like a ported phone app. On a phone it renders as a plain
+ *    View, since there is no focus to remember.
  *
  * 2. A horizontal FlatList is safe here, which is not true of plain React
  *    Native. Virtualization normally breaks D-pad navigation: the platform
@@ -35,6 +36,11 @@ interface ContentRowProps {
  *    VirtualizedList handles this by wrapping the scroller in a focus guide with
  *    trapFocusLeft/Right enabled while unrendered cells remain, so focus is held
  *    inside the row until the list has scrolled and rendered more.
+ *
+ * The row itself needs no responsive code. Card widths come from the theme, and
+ * the theme sizes them so a fraction of a card is always visible at the right
+ * edge -- which is what tells a phone user the row scrolls at all, there being
+ * no D-pad to nudge and find out with.
  */
 export function ContentRow({
   title,
@@ -43,6 +49,9 @@ export function ContentRow({
   onSelectItem,
   isFirstRow = false,
 }: ContentRowProps) {
+  const {isTV} = useMetrics();
+  const styles = useStyles();
+
   const renderItem = useCallback(
     ({item, index}: {item: ContentItem; index: number}) => (
       <ContentCard
@@ -83,8 +92,10 @@ export function ContentRow({
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
           // Render a full screen's worth up front so the first D-pad press right
-          // never waits on a render.
-          initialNumToRender={8}
+          // never waits on a render. A phone shows two or three cards rather
+          // than six, so it needs fewer -- but still more than are visible, or
+          // the first flick reveals blank space.
+          initialNumToRender={isTV ? 8 : 6}
           windowSize={5}
           // Recycling views out from under the focus engine causes focus to jump
           // to the top of the screen. Cards are cheap; keep them mounted.
@@ -97,21 +108,22 @@ export function ContentRow({
 
 const keyExtractor = (item: ContentItem) => item.id;
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(m => ({
   section: {
     marginBottom: spacing.lg,
   },
   heading: {
-    ...typography.sectionTitle,
+    ...m.typography.sectionTitle,
     color: colors.textPrimary,
     marginBottom: spacing.sm,
-    paddingHorizontal: overscan.horizontal,
+    paddingHorizontal: m.gutter.horizontal,
   },
   listContent: {
-    // Left padding aligns cards with the heading. The generous vertical padding
-    // is not decorative: a focused card scales up and draws a ring, and without
-    // room to grow it gets clipped by the row's own bounds.
-    paddingHorizontal: overscan.horizontal - spacing.xs,
+    // Left padding aligns cards with the heading, less the card's own padding.
+    // The generous vertical padding is not decorative: an active card scales and
+    // draws a ring, and without room to grow it gets clipped by the row's own
+    // bounds.
+    paddingHorizontal: m.gutter.horizontal - spacing.xs,
     paddingVertical: spacing.sm,
   },
-});
+}));
