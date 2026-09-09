@@ -367,17 +367,45 @@ phone. Those are not the same layout with different padding — a 216dp sidebar 
 a quarter of a TV screen and more than half a phone screen — so the difference is
 resolved in exactly one place and read everywhere else.
 
-### Orientation is set in `MainActivity`, not the manifest
+### Orientation is set in code, not the manifest
 
 `android:screenOrientation` is a single static manifest attribute. It takes no
 resource qualifier, and the same APK installs on both devices, so it cannot
-express two answers. The manifest therefore declares nothing and
-`MainActivity.onCreate` sets `requestedOrientation`:
+express even two answers, let alone three. The manifest therefore declares
+nothing, and `DeviceOrientation` owns the policy:
 
-| Device | Policy | Why |
+| When | Policy | Why |
 |---|---|---|
-| TV | `SCREEN_ORIENTATION_LANDSCAPE` | A television is landscape and nothing else. Pinning it means no stray sensor reading or `adb shell` rotation can hand a 10-foot UI a portrait window. |
-| Phone / tablet | `SCREEN_ORIENTATION_USER` | Portrait in an upright hand, landscape when turned — and it honours the rotation lock in quick settings. `FULL_SENSOR` would override that lock, which is not ours to override. |
+| TV, always | `SCREEN_ORIENTATION_LANDSCAPE` | A television is landscape and nothing else. Pinning it means no stray sensor reading or `adb shell` rotation can hand a 10-foot UI a portrait window. |
+| Phone, browsing | `SCREEN_ORIENTATION_USER` | Portrait in an upright hand, landscape when turned — and it honours the rotation lock in quick settings. `FULL_SENSOR` would override that lock, which is not ours to override while merely browsing. |
+| Phone, video on screen | `SCREEN_ORIENTATION_SENSOR_LANDSCAPE` | A 16:9 stream in a portrait window is a band across the middle with two thirds of the display unused. `SENSOR_` so the phone can be held either way up; a viewer who turns it the "wrong" way gets a correct picture, not an upside-down one. |
+
+`MainActivity.onCreate` applies the resting policy (the first two rows) before
+`super.onCreate`, so the window is created with its final orientation rather than
+laying out at the wrong aspect ratio and reflowing — on a phone that reflow is a
+visible flash of the wrong layout.
+
+The third row is the one exception where the app overrides the owner's rotation
+lock, and it is deliberate: a locked-portrait phone is exactly the case the
+policy exists to answer. It is applied by `PlayerScreen` through a small native
+module, `OrientationModule`, which is two calls to `setRequestedOrientation` and
+knows nothing about video — the decision of *when* belongs to the screen that
+knows a player is mounted.
+
+**Why the lock lives in `PlayerScreen` and not in `VideoPlayer`.** Same reason as
+Back interception: "which way up is the device" is a property of the screen the
+player happens to be filling, not of playback. The same component embedded in a
+preview pane must not rotate the phone. Keeping it out is what lets `VideoPlayer`
+import nothing from navigation and nothing from the platform. It uses
+`useFocusEffect` rather than `useEffect`, because under a native stack the screen
+behind stays mounted — a mount-scoped effect would hold the phone landscape
+underneath anything later pushed on top of the player.
+
+**Why a hand-written module rather than an orientation library.** It would be the
+project's only native dependency that has to be re-verified against the
+react-native-tvos fork on every bump, in exchange for two lines of stable Android
+API. The JS wrapper optional-chains every call, so a bundle newer than the
+installed APK costs a video its landscape lock instead of throwing.
 
 The television test is
 `UiModeManager.getCurrentModeType() == UI_MODE_TYPE_TELEVISION`, which is
@@ -683,6 +711,29 @@ Checked against a real PostgreSQL 17 instance and a real Android TV emulator
 * Scheduled fixtures with no `stream_url` show `NOT STARTED` and do not open the
   player
 
+**The player, on the TV emulator**
+* Overlay auto-hides after 4s, and **OK brings it back** — see the key-action
+  gotcha below for why that took a fix rather than working first time
+* UP from the button row focuses the scrub bar (thicker track, visible thumb),
+  and left/right then scrub instead of moving focus
+* A three-press skip chain moves the position once, 0:28 → 0:58, with the
+  buffering spinner appearing at the commit rather than at each press
+* Live channel: LIVE pill, a `-6:15` behind-the-edge readout and a **Go live**
+  button; VOD: elapsed/total (`0:25 / 10:34`), no LIVE pill, no Go live
+* Settings panel opens as a side column, `1x` and `Fit` shown as the selected
+  options, and the audio list is built from the real stream (`Auto`, `Track 1`)
+* **Back closes the settings panel and stays in the player**; a second Back
+  returns to Home with the row's focus preserved
+* Picture-size cycling applies immediately, with its readout over the video
+* Subtitles from the stream render (BipBop's "Bip!" caption)
+
+**Not verified on a device**
+* Every touch gesture — double-tap skip, swipe-to-scrub, the volume and
+  brightness swipes, press-and-hold speed, pinch, lock — and picture-in-picture.
+  Only the Android TV system image is installed here, and a TV emulator is the
+  wrong device to judge a thumb on. These need a phone AVD
+  (`system-images;android-36;google_apis;x86_64`) or a real phone.
+
 ---
 
 ## Gotchas worth knowing
@@ -705,6 +756,23 @@ The correct values are `m3u8`, `mpd`, `ism`. `MEDIA3_EXTENSION` in
 [VideoPlayer.tsx](src/player/VideoPlayer.tsx) does that mapping. A quick way to
 confirm which path a stream took is the module list ExoPlayer logs on release —
 `media3.exoplayer.hls` should be in it.
+
+**Only one half of a key press reaches JavaScript, and which half varies.** A
+press produces ACTION_DOWN then ACTION_UP, so the obvious filter is "ignore the
+UP" — and on this app that ignores *every* press. Verified on the TV emulator:
+in the player, the only event that arrives is the UP, because the DOWN is
+consumed on the way through the view tree by whatever holds focus. The player
+therefore latches onto whichever action it sees first and ignores that action's
+twin from then on, rather than hard-coding either answer. Symptom if you get it
+wrong: the overlay auto-hides and no key on the remote can bring it back.
+
+**`BackHandler` does not fire under the native stack on Android.**
+react-native-screens pops the route natively, so a hardware Back press never
+reaches a JavaScript handler — verified by pressing Back with the player's
+settings panel open and landing back on Home. Anything that needs to absorb Back
+must go through the navigator instead: `PlayerScreen` uses `usePreventRemove`,
+and the player exposes `dismissTop()` for it to call. The `BackHandler`
+registration is kept only for hosts that are not native-stack routes.
 
 **`Pressable` overrides pan handlers spread onto it.** It renders
 `<View {...restPropsWithDefaults} {...eventHandlers}>` — its own responder
