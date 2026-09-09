@@ -1,8 +1,8 @@
 import React from 'react';
-import {ActivityIndicator, StyleSheet, Text, View} from 'react-native';
+import {ActivityIndicator, Text, View} from 'react-native';
 
 import {AppError} from '../services/errors';
-import {colors, radius, spacing, typography} from '../theme';
+import {colors, makeStyles, radius, spacing} from '../theme';
 import {Focusable} from './Focusable';
 
 /**
@@ -14,6 +14,8 @@ import {Focusable} from './Focusable';
  */
 
 export function LoadingState({label = 'Loading…'}: {label?: string}) {
+  const styles = useStyles();
+
   return (
     <View style={styles.center}>
       <ActivityIndicator size="large" color={colors.accent} />
@@ -29,6 +31,8 @@ export function EmptyState({
   title?: string;
   message?: string;
 }) {
+  const styles = useStyles();
+
   return (
     <View style={styles.center}>
       <Text style={styles.title}>{title}</Text>
@@ -38,6 +42,8 @@ export function EmptyState({
 }
 
 export function ErrorState({error, onRetry}: {error: AppError; onRetry?: () => void}) {
+  const styles = useStyles();
+
   // A missing or wrong .env cannot be fixed by pressing a button, so we show
   // the setup steps instead of a Retry that would fail identically.
   const isSetupProblem = error.kind === 'config';
@@ -58,8 +64,8 @@ export function ErrorState({error, onRetry}: {error: AppError; onRetry?: () => v
           hasTVPreferredFocus
           style={styles.button}
           accessibilityLabel="Try again">
-          {focused => (
-            <Text style={[styles.buttonLabel, focused && styles.buttonLabelFocused]}>
+          {active => (
+            <Text style={[styles.buttonLabel, active && styles.buttonLabelActive]}>
               Try again
             </Text>
           )}
@@ -69,21 +75,24 @@ export function ErrorState({error, onRetry}: {error: AppError; onRetry?: () => v
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(m => ({
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.xxl,
+    // The screen gutter plus a little, rather than a fixed inset: 48dp a side is
+    // a comfortable margin on a TV and leaves a phone about 290dp for a
+    // paragraph of setup instructions.
+    paddingHorizontal: m.gutter.horizontal + spacing.sm,
     gap: spacing.md,
   },
   title: {
-    ...typography.title,
+    ...m.typography.title,
     color: colors.textPrimary,
     textAlign: 'center',
   },
   message: {
-    ...typography.body,
+    ...m.typography.body,
     color: colors.textSecondary,
     textAlign: 'center',
     maxWidth: 620,
@@ -101,12 +110,14 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     borderRadius: radius.pill,
     backgroundColor: colors.surface,
+    minHeight: m.minTouchTarget,
+    justifyContent: 'center',
   },
   buttonLabel: {
-    ...typography.body,
+    ...m.typography.body,
     color: colors.textPrimary,
   },
-  buttonLabelFocused: {
+  buttonLabelActive: {
     color: colors.accent,
   },
-});
+}));

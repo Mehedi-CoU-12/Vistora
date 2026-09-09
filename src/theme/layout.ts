@@ -1,39 +1,25 @@
-import {Dimensions} from 'react-native';
-
 /**
- * TV layout constants.
+ * Layout constants that do NOT depend on the device.
  *
- * ---------------------------------------------------------------------------
- * The one number to internalise: an Android TV screen is ~960 x 540 dp.
- * ---------------------------------------------------------------------------
- * A 1080p TV reports density 2.0, and a 4K TV reports 4.0, so BOTH present a
- * logical viewport of roughly 960 x 540 dp. Every size in this file is dp
- * against that space, which is why the numbers look small next to phone values:
- * a 120dp poster is 240 physical pixels on a 1080p panel and 480 on a 4K one.
+ * Anything that changes between a TV, a tablet and a phone -- screen padding,
+ * card sizes, grid columns, type sizes -- lives in `metrics.ts` and is read
+ * through `useMetrics()`. This file holds only the values that are the same
+ * everywhere: the spacing rhythm, the corner radii, and the shape of a card.
  *
- * Practical consequence: sizes that feel right on a phone are roughly half of
- * what you want here, and font sizes that look large in a phone preview are
- * correct at three metres.
+ * Keeping the split strict is what stops a stale `Dimensions.get()` snapshot
+ * leaking into a StyleSheet: a module-scope constant cannot react to a rotation,
+ * so no module-scope constant is allowed to know the screen size.
  */
 
-const {width: screenWidth, height: screenHeight} = Dimensions.get('window');
-
-export const screen = {width: screenWidth, height: screenHeight};
-
 /**
- * Overscan safe area.
+ * The spacing rhythm, in dp, shared by every device.
  *
- * Many TVs, especially older sets, crop a few percent off every edge and cannot
- * be told not to. Anything inside this margin may simply not be on the glass.
- * The platform will not tell you about it -- safe-area insets are 0 on TV, since
- * there are no system bars -- so it has to be a design constant. 5% per edge is
- * the standard allowance.
+ * These are deliberately not scaled per device. A 12dp gap is a 12dp gap: on a
+ * TV it reads as a tight gutter between cards at three metres, and on a phone it
+ * reads as a tight gutter between cards at thirty centimetres. What has to
+ * change with the screen is the size of the *content* (see `metrics.ts`), not
+ * the rhythm between pieces of it.
  */
-export const overscan = {
-  horizontal: 48,
-  vertical: 27,
-} as const;
-
 export const spacing = {
   xs: 4,
   sm: 8,
@@ -50,38 +36,33 @@ export const radius = {
   pill: 999,
 } as const;
 
+export type CardVariant = 'poster' | 'landscape' | 'square';
+
 /**
- * Card geometry per variant. Height excludes the caption below the artwork;
- * ContentCard adds that itself.
+ * Artwork shape per variant, as height / width.
+ *
+ * The aspect ratio is the invariant; the width is not. A poster is 2:3 on every
+ * screen ever made, so `ContentCard` derives its height from whatever width the
+ * current layout gives it rather than from a stored pixel height. That is what
+ * lets the same component render a 124dp poster on a TV and a 116dp one on a
+ * phone without stretching the artwork.
  */
-export const cardSize = {
+export const cardAspect: Record<CardVariant, number> = {
   /** 2:3 movie poster. */
-  poster: {width: 124, height: 186},
+  poster: 3 / 2,
   /** 16:9 thumbnail, for channels and events. */
-  landscape: {width: 168, height: 94},
+  landscape: 9 / 16,
   /** Square, for channel logos in a dense grid. */
-  square: {width: 116, height: 116},
-} as const;
-
-export type CardVariant = keyof typeof cardSize;
-
-/**
- * How much a card grows when focused. Kept small on purpose: a big jump on a
- * 55-inch panel is unpleasant, and anything above ~1.1 makes neighbouring cards
- * visibly shift.
- */
-export const focusScale = 1.07;
-
-/** Space around each card, sized so the focus ring and scale never clip. */
-export const cardGap = spacing.md;
+  square: 1,
+};
 
 /**
  * Fixed width a ContentCard adds around its artwork: its own padding plus the
  * focus-ring border, on both sides.
  *
- * Exported because any screen laying out a grid has to subtract it to work out a
- * fluid card width. Hard-coding "about 12" at the call site is how a grid ends
- * up one column too wide, with the last column clipped off-screen and therefore
+ * Exported because any layout dividing a measured width between cards has to
+ * subtract it. Hard-coding "about 12" at the call site is how a grid ends up one
+ * column too wide, with the last column clipped off-screen and therefore
  * unreachable by the D-pad.
  */
 export const cardChrome = spacing.xs * 2 + 2 * 2;

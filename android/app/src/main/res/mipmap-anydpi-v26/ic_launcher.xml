@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Adaptive launcher icon (Android 8.0 / API 26 and up).
+
+  The launcher masks these two layers into whatever shape the device uses (circle,
+  squircle, rounded square), so the artwork must be full-bleed and the mark must
+  stay inside the centre 66 of the 108dp canvas. generate-android-icons.py keeps it
+  at 58%, which survives every mask plus the launcher's parallax wobble.
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+</adaptive-icon>

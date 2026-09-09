@@ -1,10 +1,31 @@
 import {Platform, type TextStyle} from 'react-native';
 
 /**
- * Type scale for a ~960dp-wide viewport read from about three metres away.
- * `body` at 15dp renders as 30px on a 1080p panel, which is roughly the
- * smallest comfortably readable size at that distance -- treat it as the floor
- * and do not introduce anything smaller than `caption`.
+ * The type scale.
+ *
+ * ---------------------------------------------------------------------------
+ * The base scale below is the TV scale, and it is the reference for everything.
+ * ---------------------------------------------------------------------------
+ * It is sized for a ~960dp-wide viewport read from about three metres away.
+ * `body` at 15dp renders as 30px on a 1080p panel, which is roughly the smallest
+ * comfortably readable size at that distance -- treat it as the floor and do not
+ * introduce anything smaller than `caption`.
+ *
+ * ---------------------------------------------------------------------------
+ * Why only the headline sizes change on a phone
+ * ---------------------------------------------------------------------------
+ * The reflex is to scale the whole scale down for a small screen. That is wrong
+ * here, and the reason is worth stating: dp is a *physical* unit, and the two
+ * viewing distances almost cancel out. A phone is ~10x closer than a TV but its
+ * pixels are ~2.5x smaller, so 15dp of body text is legible on both -- which is
+ * why 15dp is also a perfectly normal phone body size.
+ *
+ * What genuinely does not survive the move is the headlines, because those are
+ * sized against the *width* of the screen rather than against the eye. `display`
+ * at 34dp is 3.5% of a TV's 960dp viewport and a comfortable wordmark; the same
+ * 34dp is 8.7% of a 390dp phone and swamps the header.
+ *
+ * So: headlines scale, body and below do not.
  */
 
 const fontFamily = Platform.select({
@@ -17,7 +38,7 @@ const medium = Platform.select({
   default: undefined,
 });
 
-export const typography = {
+export const baseTypography = {
   /** App name / hero. */
   display: {
     fontFamily: medium,
@@ -63,3 +84,46 @@ export const typography = {
     letterSpacing: 0.8,
   },
 } satisfies Record<string, TextStyle>;
+
+export type TypographyRole = keyof typeof baseTypography;
+
+/**
+ * One role's style, with `fontSize` and `lineHeight` narrowed to required.
+ *
+ * They are required by construction: every role in the base scale sets both, and
+ * scaling preserves both. Plain `TextStyle` leaves them optional, which would
+ * make every caller that compares or derives from a size handle an `undefined`
+ * that cannot occur.
+ */
+export type TypeStyle = TextStyle & {fontSize: number; lineHeight: number};
+
+export type Typography = Record<TypographyRole, TypeStyle>;
+
+/** The roles sized against screen width, and therefore the only ones scaled. */
+const HEADLINE_ROLES = ['display', 'title', 'sectionTitle'] as const;
+
+/**
+ * Returns the type scale with the headline roles multiplied by `headlineScale`.
+ *
+ * `lineHeight` is scaled by the same factor rather than recomputed, so the
+ * ratio the base scale was designed with survives -- scaling only the font size
+ * would leave a 27dp wordmark sitting in a 42dp line box.
+ */
+export function scaleTypography(headlineScale: number): Typography {
+  if (headlineScale === 1) {
+    return baseTypography;
+  }
+
+  const scaled: Typography = {...baseTypography};
+
+  for (const role of HEADLINE_ROLES) {
+    const base = baseTypography[role];
+    scaled[role] = {
+      ...base,
+      fontSize: Math.round(base.fontSize * headlineScale),
+      lineHeight: Math.round(base.lineHeight * headlineScale),
+    };
+  }
+
+  return scaled;
+}

@@ -1,6 +1,6 @@
 import {useNavigation} from '@react-navigation/native';
 import React, {useCallback} from 'react';
-import {ScrollView, StyleSheet} from 'react-native';
+import {ScrollView} from 'react-native';
 
 import {AppHeader} from '../components/AppHeader';
 import {ContentRow} from '../components/ContentRow';
@@ -8,12 +8,8 @@ import {ScreenContainer} from '../components/ScreenContainer';
 import {EmptyState, ErrorState, LoadingState} from '../components/StateViews';
 import {TextButton} from '../components/TextButton';
 import {useAsyncData} from '../hooks/useAsyncData';
-import {
-  fetchChannels,
-  fetchMovies,
-  fetchSportsEvents,
-} from '../services/contentService';
-import {overscan, spacing} from '../theme';
+import {fetchChannels, fetchMovies, fetchSportsEvents} from '../services/contentService';
+import {makeStyles, spacing, useMetrics} from '../theme';
 import type {ContentItem, ContentSection} from '../types/content';
 
 /** How many items each home row loads. Rows are a preview, not the full list. */
@@ -30,33 +26,55 @@ const ROW_LIMIT = 12;
  * popping in at different moments, and on a TV that is actively harmful: the
  * focused element moves under the user as the layout reflows. One coordinated
  * load means focus lands once, on the first card, and stays there.
+ *
+ * ---------------------------------------------------------------------------
+ * Row-of-shelves survives the move to a phone; the snapping does not
+ * ---------------------------------------------------------------------------
+ * The shape of this screen needs no responsive branch -- a vertical stack of
+ * horizontal shelves is what a phone media app looks like too, only with fewer
+ * cards per shelf, which the theme handles. The one thing that has to be turned
+ * off is the fork's item snapping (see below).
  */
 export function HomeScreen() {
   const navigation = useNavigation();
+  const {isTV} = useMetrics();
+  const styles = useStyles();
 
-  const {data, isLoading, error, reload} = useAsyncData<ContentSection[]>(
-    async () => {
-      const [channels, sports, movies, cartoons] = await Promise.all([
-        fetchChannels({limit: ROW_LIMIT}),
-        fetchSportsEvents({limit: ROW_LIMIT}),
-        fetchMovies({categoryKind: 'movie', limit: ROW_LIMIT}),
-        fetchMovies({categoryKind: 'cartoon', limit: ROW_LIMIT}),
-      ]);
+  const {data, isLoading, error, reload} = useAsyncData<ContentSection[]>(async () => {
+    const [channels, sports, movies, cartoons] = await Promise.all([
+      fetchChannels({limit: ROW_LIMIT}),
+      fetchSportsEvents({limit: ROW_LIMIT}),
+      fetchMovies({categoryKind: 'movie', limit: ROW_LIMIT}),
+      fetchMovies({categoryKind: 'cartoon', limit: ROW_LIMIT}),
+    ]);
 
-      const sections: ContentSection[] = [
-        {id: 'live-tv', title: 'Live TV', items: channels, cardVariant: 'landscape'},
-        {id: 'live-sports', title: 'Live & Upcoming Sport', items: sports, cardVariant: 'poster'},
-        {id: 'movies', title: 'Movies', items: movies, cardVariant: 'poster'},
-        {id: 'cartoons', title: 'Cartoons', items: cartoons, cardVariant: 'poster'},
-      ];
+    const sections: ContentSection[] = [
+      {
+        id: 'live-tv',
+        title: 'Live TV',
+        items: channels,
+        cardVariant: 'landscape',
+      },
+      {
+        id: 'live-sports',
+        title: 'Live & Upcoming Sport',
+        items: sports,
+        cardVariant: 'poster',
+      },
+      {id: 'movies', title: 'Movies', items: movies, cardVariant: 'poster'},
+      {
+        id: 'cartoons',
+        title: 'Cartoons',
+        items: cartoons,
+        cardVariant: 'poster',
+      },
+    ];
 
-      // Drop empty rows rather than rendering a heading over nothing. A row that
-      // exists but cannot be entered is a focus trap: the D-pad appears to stop
-      // working when it reaches it.
-      return sections.filter(section => section.items.length > 0);
-    },
-    [],
-  );
+    // Drop empty rows rather than rendering a heading over nothing. A row that
+    // exists but cannot be entered is a focus trap: the D-pad appears to stop
+    // working when it reaches it.
+    return sections.filter(section => section.items.length > 0);
+  }, []);
 
   const openItem = useCallback(
     (item: ContentItem) => {
@@ -79,6 +97,23 @@ export function HomeScreen() {
   const openLiveTv = useCallback(() => {
     navigation.navigate('LiveTv');
   }, [navigation]);
+
+  /**
+   * Leanback-style row alignment, and why it is TV-only.
+   *
+   * On TV, instead of scrolling the minimum amount to reveal a focused card, we
+   * land the whole focused SECTION at a consistent position near the top. Each
+   * ContentRow marks itself with `scrollSnapAlign="start"`; this is the parent
+   * half of that contract.
+   *
+   * The mechanism is driven by focus events, so on a phone there is nothing to
+   * trigger it -- but `snapToAlignment` still applies to touch scrolling, which
+   * would make a flick of the wrist stick to row boundaries instead of moving
+   * freely. Off it goes.
+   */
+  const snapProps = isTV
+    ? ({snapToAlignment: 'item', snapToItemPadding: spacing.md} as const)
+    : null;
 
   return (
     <ScreenContainer>
@@ -103,13 +138,7 @@ export function HomeScreen() {
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          // Leanback-style row alignment: instead of scrolling the minimum
-          // amount to reveal a focused card, land the whole focused SECTION at a
-          // consistent position near the top. Each ContentRow marks itself with
-          // `scrollSnapAlign="start"`; this is the parent half of that contract.
-          snapToAlignment="item"
-          // Leaves the row's heading clear of the very top edge.
-          snapToItemPadding={spacing.md}>
+          {...snapProps}>
           {data.map((section, index) => (
             <ContentRow
               key={section.id}
@@ -128,12 +157,12 @@ export function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(m => ({
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    // Bottom padding so the last row can scroll clear of the overscan margin.
-    paddingBottom: overscan.vertical + spacing.xl,
+    // Bottom padding so the last row can scroll clear of the bottom edge.
+    paddingBottom: m.gutter.vertical + spacing.xl,
   },
-});
+}));

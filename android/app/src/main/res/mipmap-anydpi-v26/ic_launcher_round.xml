@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Round variant. On API 26+ the launcher derives its own shape from the adaptive
+  layers, so this deliberately points at the same artwork as ic_launcher.xml; the
+  hand-masked circular PNGs in mipmap-*/ic_launcher_round.png are only used by
+  launchers below API 26.
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+</adaptive-icon>

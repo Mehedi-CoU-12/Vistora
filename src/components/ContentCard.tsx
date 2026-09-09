@@ -1,7 +1,15 @@
 import React from 'react';
-import {Image, StyleSheet, Text, View} from 'react-native';
+import {Image, Text, View} from 'react-native';
 
-import {cardSize, colors, radius, spacing, typography, type CardVariant} from '../theme';
+import {
+  cardAspect,
+  colors,
+  makeStyles,
+  radius,
+  spacing,
+  useMetrics,
+  type CardVariant,
+} from '../theme';
 import type {ContentItem} from '../types/content';
 import {Badge} from './Badge';
 import {Focusable} from './Focusable';
@@ -15,7 +23,7 @@ interface ContentCardProps {
   /**
    * Overrides the variant's default artwork width, keeping its aspect ratio.
    * Used by grids that divide the available space between a fixed number of
-   * columns rather than using a fixed card size.
+   * columns rather than taking the width the theme suggests for a row.
    */
   width?: number;
 }
@@ -26,7 +34,13 @@ interface ContentCardProps {
  * The title sits BELOW the artwork rather than on top of it. On a TV that is the
  * safer choice: posters vary wildly in brightness, and text overlaid on an
  * unpredictable image is the classic way to end up with an unreadable card on
- * someone else's panel.
+ * someone else's panel. It happens to be the right answer on a phone too, where
+ * the artwork is small enough that any overlay would cover most of it.
+ *
+ * The card does not know what device it is on. It asks the theme for the width
+ * of its variant and derives the height from the aspect ratio, so the same
+ * component renders a 124dp poster on a TV and a 116dp one on a phone with no
+ * branch of its own.
  */
 export function ContentCard({
   item,
@@ -36,16 +50,16 @@ export function ContentCard({
   hasTVPreferredFocus,
   width,
 }: ContentCardProps) {
-  const defaultSize = cardSize[variant];
+  const {cardSize} = useMetrics();
+  const styles = useStyles();
+
   // Scale the height with the width so a fluid card keeps the variant's shape
   // (16:9 for landscape, 2:3 for a poster) instead of stretching the artwork.
   const size =
     width === undefined
-      ? defaultSize
-      : {
-          width,
-          height: Math.round((width * defaultSize.height) / defaultSize.width),
-        };
+      ? cardSize[variant]
+      : {width, height: Math.floor(width * cardAspect[variant])};
+
   const isPlayable = item.stream !== null;
 
   return (
@@ -55,7 +69,7 @@ export function ContentCard({
       hasTVPreferredFocus={hasTVPreferredFocus}
       style={styles.card}
       accessibilityLabel={[item.title, item.subtitle].filter(Boolean).join(', ')}>
-      {focused => (
+      {active => (
         <View style={{width: size.width}}>
           <View style={[styles.artwork, size]}>
             {item.imageUrl ? (
@@ -78,7 +92,10 @@ export function ContentCard({
 
             {item.badge ? (
               <View style={styles.badgeSlot}>
-                <Badge label={item.badge} tone={item.badge === 'LIVE' ? 'live' : 'neutral'} />
+                <Badge
+                  label={item.badge}
+                  tone={item.badge === 'LIVE' ? 'live' : 'neutral'}
+                />
               </View>
             ) : null}
 
@@ -89,9 +106,7 @@ export function ContentCard({
             ) : null}
           </View>
 
-          <Text
-            style={[styles.title, focused && styles.titleFocused]}
-            numberOfLines={1}>
+          <Text style={[styles.title, active && styles.titleActive]} numberOfLines={1}>
             {item.title}
           </Text>
 
@@ -106,7 +121,7 @@ export function ContentCard({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(m => ({
   card: {
     padding: spacing.xs,
   },
@@ -127,7 +142,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   placeholderText: {
-    ...typography.caption,
+    ...m.typography.caption,
     color: colors.textMuted,
     textAlign: 'center',
   },
@@ -142,16 +157,16 @@ const styles = StyleSheet.create({
     left: spacing.sm,
   },
   title: {
-    ...typography.body,
+    ...m.typography.body,
     color: colors.textSecondary,
     marginTop: spacing.sm,
   },
-  titleFocused: {
+  titleActive: {
     color: colors.textPrimary,
   },
   subtitle: {
-    ...typography.caption,
+    ...m.typography.caption,
     color: colors.textMuted,
     marginTop: 2,
   },
-});
+}));
