@@ -1,6 +1,13 @@
 import {useNavigation} from '@react-navigation/native';
 import React, {useCallback, useMemo, useState} from 'react';
-import {FlatList, StyleSheet, Text, TVFocusGuideView, View} from 'react-native';
+import {
+  FlatList,
+  StyleSheet,
+  Text,
+  TVFocusGuideView,
+  View,
+  type LayoutChangeEvent,
+} from 'react-native';
 
 import {AppHeader} from '../components/AppHeader';
 import {ContentCard} from '../components/ContentCard';
@@ -9,11 +16,35 @@ import {EmptyState, ErrorState, LoadingState} from '../components/StateViews';
 import {Focusable} from '../components/Focusable';
 import {useAsyncData} from '../hooks/useAsyncData';
 import {fetchCategories, fetchChannels} from '../services/contentService';
-import {cardSize, colors, overscan, radius, spacing, typography} from '../theme';
+import {cardChrome, cardSize, colors, overscan, radius, spacing, typography} from '../theme';
 import type {Category, ContentItem} from '../types/content';
 
-/** Cards per row in the grid. Chosen to fit the ~960dp viewport comfortably. */
-const COLUMNS = 5;
+/** Cards per row in the grid. */
+const COLUMNS = 4;
+
+/** Horizontal padding inside the grid, mirrored in styles.gridContent below. */
+const GRID_PADDING_LEFT = spacing.sm;
+const GRID_PADDING_RIGHT = overscan.horizontal;
+const COLUMN_GAP = spacing.md;
+
+/**
+ * Divides the measured grid width into exactly COLUMNS cards.
+ *
+ * The cards are FLUID rather than a fixed size, which matters more than it
+ * sounds. With a fixed card width, whether the last column fits depends on the
+ * screen width, the sidebar width and the padding all agreeing -- and when they
+ * do not, the final column is clipped off the right edge. A clipped card on a TV
+ * is worse than an ugly one: the D-pad will still move focus onto it, so the
+ * user's selection vanishes off-screen with no way to see what is highlighted.
+ *
+ * Computing the width instead means the row always fills the space exactly, on
+ * any panel, and no column can ever be cut off.
+ */
+function computeCardWidth(gridWidth: number): number {
+  const usable =
+    gridWidth - GRID_PADDING_LEFT - GRID_PADDING_RIGHT - COLUMN_GAP * (COLUMNS - 1);
+  return Math.floor(usable / COLUMNS) - cardChrome;
+}
 
 interface LiveTvData {
   channels: ContentItem[];
@@ -55,6 +86,18 @@ export function LiveTvScreen() {
    */
   const [gridMayClaimFocus, setGridMayClaimFocus] = useState(true);
 
+  /**
+   * Measured width of the grid column, used to size cards. Starts at 0 and the
+   * grid is not rendered until it is known, so the cards are never laid out at
+   * the wrong size and then reflowed -- a reflow would move the focused card out
+   * from under the user.
+   */
+  const [gridWidth, setGridWidth] = useState(0);
+
+  const handleGridLayout = useCallback((event: LayoutChangeEvent) => {
+    setGridWidth(event.nativeEvent.layout.width);
+  }, []);
+
   const selectCategory = useCallback((categoryId: string | null) => {
     setGridMayClaimFocus(false);
     setSelectedCategoryId(categoryId);
@@ -95,16 +138,19 @@ export function LiveTvScreen() {
     [navigation],
   );
 
+  const cardWidth = gridWidth > 0 ? computeCardWidth(gridWidth) : 0;
+
   const renderChannel = useCallback(
     ({item, index}: {item: ContentItem; index: number}) => (
       <ContentCard
         item={item}
         variant="landscape"
+        width={cardWidth}
         onPress={openChannel}
         hasTVPreferredFocus={gridMayClaimFocus && index === 0}
       />
     ),
-    [gridMayClaimFocus, openChannel],
+    [cardWidth, gridMayClaimFocus, openChannel],
   );
 
   if (isLoading) {
@@ -164,13 +210,13 @@ export function LiveTvScreen() {
           ))}
         </TVFocusGuideView>
 
-        <TVFocusGuideView autoFocus style={styles.gridArea}>
+        <TVFocusGuideView autoFocus style={styles.gridArea} onLayout={handleGridLayout}>
           {visibleChannels.length === 0 ? (
             <EmptyState
               title="Nothing in this category"
               message="Pick another category from the left."
             />
-          ) : (
+          ) : cardWidth <= 0 ? null : (
             <FlatList
               // Remounting on category change resets scroll position to the top,
               // which is what you want: keeping the old offset would leave the
@@ -240,7 +286,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   sidebar: {
-    width: 176,
+    // Wide enough for real category names ("Entertainment", "Sports Channels")
+    // without ellipsis. The grid adapts to whatever width is left over.
+    width: 216,
     paddingLeft: overscan.horizontal,
     paddingRight: spacing.md,
     gap: spacing.xs,
@@ -285,12 +333,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   gridContent: {
-    paddingLeft: spacing.sm,
-    paddingRight: overscan.horizontal,
+    // These MUST match GRID_PADDING_LEFT / GRID_PADDING_RIGHT above, or the
+    // computed card width will not match the space actually available.
+    paddingLeft: GRID_PADDING_LEFT,
+    paddingRight: GRID_PADDING_RIGHT,
     paddingBottom: overscan.vertical + spacing.lg,
   },
   gridRow: {
-    gap: spacing.md,
+    gap: COLUMN_GAP,
     marginBottom: spacing.md,
     // Grid rows are left-aligned so a partially filled last row does not
     // centre its cards under the full rows above.
