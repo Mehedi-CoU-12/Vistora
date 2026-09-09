@@ -19,6 +19,7 @@ import {Badge} from '../components/Badge';
 import {Focusable} from '../components/Focusable';
 import {colors, radius, spacing, typography} from '../theme';
 import type {Stream} from '../types/content';
+import type {StreamProtocol} from '../types/database';
 import {formatTime} from './formatTime';
 
 interface VideoPlayerProps {
@@ -382,18 +383,45 @@ function ControlButton({
 }
 
 /**
+ * Maps our stored protocol to the value react-native-video actually wants.
+ *
+ * This is NOT cosmetic, and it is worth knowing why. On Android the library does
+ * this with whatever you pass as `source.type`:
+ *
+ *   type = Util.inferContentType("." + overrideExtension)
+ *
+ * In other words `type` is treated as a FILE EXTENSION, not a protocol name.
+ * Media3 recognises "m3u8" (HLS), "mpd" (DASH) and "ism"/"isml"
+ * (SmoothStreaming); anything else -- including the perfectly reasonable-looking
+ * "hls" -- infers CONTENT_TYPE_OTHER. That routes the stream through the
+ * progressive-download extractors instead of HlsMediaSource, and playback dies
+ * with a misleading error that names every extractor except the one you need:
+ *
+ *   UnrecognizedInputFormatException: None of the available extractors
+ *   (FlvExtractor, ... Mp4Extractor, TsExtractor, ...) could read the stream
+ *
+ * `undefined` for 'other' is deliberate: no hint at all is better than a wrong
+ * hint, because Media3 then falls back to inferring from the URL.
+ */
+const MEDIA3_EXTENSION: Record<StreamProtocol, string | undefined> = {
+  hls: 'm3u8',
+  dash: 'mpd',
+  mp4: 'mp4',
+  other: undefined,
+};
+
+/**
  * Translates our `Stream` into react-native-video's source object.
  *
- * `type` is set explicitly from the stored protocol instead of letting Media3
- * infer it from the file extension. Inference is unreliable: plenty of HLS
- * playlists live at URLs that do not end in `.m3u8` -- signed URLs, or a path
- * like `/tears-of-steel.ism/.m3u8` -- and a wrong guess surfaces as an
- * unhelpful "source error".
+ * We pass the type explicitly rather than relying on the URL, because plenty of
+ * real playlists live at URLs that do not end in a recognisable extension --
+ * signed URLs with query strings, or paths like `/tears-of-steel.ism/.m3u8`.
+ * Storing the protocol per row means such a source needs no code change.
  */
 function buildSource(stream: Stream) {
   return {
     uri: stream.url,
-    type: stream.protocol === 'other' ? undefined : stream.protocol,
+    type: MEDIA3_EXTENSION[stream.protocol],
     headers: stream.headers,
   };
 }
