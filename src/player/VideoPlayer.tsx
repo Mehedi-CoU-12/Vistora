@@ -36,6 +36,7 @@ import {
   clamp01,
   clampSeekTarget,
   describeTracks,
+  hasSeekLanded,
   HOLD_TO_SPEED_RATE,
   MEDIA3_EXTENSION,
   nextScalingMode,
@@ -95,6 +96,46 @@ const OVERLAY_TIMEOUT_MS = 4000;
 /** How long a gesture readout lingers once the gesture is over. */
 const FEEDBACK_LINGER_MS = 700;
 
+/**
+ * How close playback must get to a pending seek target before the readout stops
+ * showing the target and starts showing the real position again.
+ *
+ * ---------------------------------------------------------------------------
+ * This is the fix for the scrub bar flicking backwards after a seek.
+ * ---------------------------------------------------------------------------
+ * A seek does not land instantly, and the two events that report it disagree
+ * for a moment. In react-native-video's Android code, `onSeek` fires from
+ * `onIsPlayingChanged` and carries `player.getCurrentPosition()` -- taken when
+ * playback resumes, which can still be the position from BEFORE the jump. And
+ * `onProgress` keeps ticking on its own 500ms timer, so it reports stale
+ * positions too while Media3 flushes its decoder.
+ *
+ * Dropping the pending target on `onSeek` therefore handed the bar an old
+ * position for up to half a second: it snapped back to where the finger started,
+ * then jumped forward again when the next progress tick arrived. So instead the
+ * target is held until playback demonstrably reaches it, and the bar only ever
+ * moves in the direction the user asked for.
+ */
+const SEEK_SETTLE_TOLERANCE_SECONDS = 1;
+
+/**
+ * Safety valve for the above: stop waiting for a seek that never lands.
+ *
+ * A target can be unreachable -- a live edge that has moved on, a source that
+ * refuses the position -- and a pending target held forever would freeze the
+ * readout while the video played on behind it.
+ */
+const SEEK_SETTLE_TIMEOUT_MS = 4000;
+
+/**
+ * How long buffering must last before the spinner appears.
+ *
+ * Every seek buffers briefly, and a spinner that flashes up for 150ms on each
+ * one is a flicker in its own right. Waiting a moment means the spinner only
+ * shows up for stalls the viewer had already noticed.
+ */
+const BUFFER_SPINNER_DELAY_MS = 250;
+
 const LIVE_DVR_MIN_SECONDS = 90;
 
 /** How far behind the live edge counts as "not live any more". */
@@ -126,6 +167,12 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
     const [pendingSeek, setPendingSeek] = useState<number | null>(null);
     /** Where a finger is holding the scrub bar or a swipe, before release. */
     const [scrubPreview, setScrubPreview] = useState<number | null>(null);
+
+    /**
+     * When to give up waiting for the pending seek to land. Armed whenever a
+     * target is set, so an accumulating chain of skips cannot expire mid-chain.
+     */
+    const seekSettleDeadline = useRef(0);
 
     const [overlayVisible, setOverlayVisible] = useState(true);
     const [settingsOpen, setSettingsOpen] = useState(false);
@@ -311,6 +358,10 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
 
         live.current.pendingSeek = target;
         setPendingSeek(target);
+        // The chain has not been issued yet, so the deadline has to cover the
+        // wait for the last press as well as the seek itself.
+        seekSettleDeadline.current =
+          Date.now() + SEEK_CHAIN_MS + SEEK_SETTLE_TIMEOUT_MS;
         showFeedback({
           kind: 'skip',
           deltaSeconds: target - l.currentTime,
@@ -343,6 +394,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
         const clamped = clampSeekTarget(target, 0, l.timelineEnd);
         live.current.pendingSeek = clamped;
         setPendingSeek(clamped);
+        seekSettleDeadline.current = Date.now() + SEEK_SETTLE_TIMEOUT_MS;
         seekNow(clamped);
         revealOverlay();
       },
@@ -671,22 +723,62 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       }
     }, []);
 
-    const handleProgress = useCallback((data: OnProgressData) => {
-      setCurrentTime(data.currentTime);
-      setBuffered(data.playableDuration);
-      setSeekableDuration(data.seekableDuration);
+    /**
+     * Drop the pending target, but only once it means something.
+     *
+     * `settle` is the whole flicker fix: the target stays in place until a
+     * reported position is actually near it. The real position is still recorded
+     * on every tick -- `displayPosition` simply prefers the target while one is
+     * pending, so nothing the viewer sees moves backwards.
+     */
+    const settlePendingSeek = useCallback((reportedTime: number) => {
+      const pending = live.current.pendingSeek;
+      if (pending === null) {
+        return;
+      }
+
+      const landed = hasSeekLanded(
+        reportedTime,
+        pending,
+        SEEK_SETTLE_TOLERANCE_SECONDS,
+      );
+
+      if (landed || Date.now() > seekSettleDeadline.current) {
+        live.current.pendingSeek = null;
+        setPendingSeek(null);
+      }
     }, []);
 
+    const handleProgress = useCallback(
+      (data: OnProgressData) => {
+        setCurrentTime(data.currentTime);
+        setBuffered(data.playableDuration);
+        // Ignore a zero-length seekable window rather than storing it. Media3
+        // reports one transiently -- while a live playlist reloads, and around a
+        // seek -- and storing it collapses the timeline to nothing, which makes
+        // the bar's fill snap to the far left and every position on it map to
+        // the start. Keeping the last real window is always closer to the truth.
+        if (data.seekableDuration > 0) {
+          setSeekableDuration(data.seekableDuration);
+        }
+        settlePendingSeek(data.currentTime);
+      },
+      [settlePendingSeek],
+    );
+
     /**
-     * Media3 has arrived. Dropping the pending target here rather than when the
-     * seek was issued is what keeps the bar from snapping backwards for the
-     * couple of hundred milliseconds a seek takes to land.
+     * Media3 says the seek is done. Worth acting on because it usually arrives
+     * before the next progress tick, but not worth trusting on its own: the
+     * position it carries is read when playback resumes and can predate the
+     * jump, which is exactly what used to make the bar flick backwards.
      */
-    const handleSeek = useCallback((data: OnSeekData) => {
-      setCurrentTime(data.currentTime);
-      setPendingSeek(null);
-      live.current.pendingSeek = null;
-    }, []);
+    const handleSeek = useCallback(
+      (data: OnSeekData) => {
+        setCurrentTime(data.currentTime);
+        settlePendingSeek(data.currentTime);
+      },
+      [settlePendingSeek],
+    );
 
     const handleBuffer = useCallback(
       ({ isBuffering: buffering }: { isBuffering: boolean }) =>
@@ -710,6 +802,27 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       ({ isActive }: { isActive: boolean }) => setInPictureInPicture(isActive),
       [],
     );
+
+    /**
+     * The spinner trails the buffering state by a moment. See
+     * BUFFER_SPINNER_DELAY_MS: without it, every seek flashes a spinner over the
+     * picture for the fraction of a second Media3 spends refilling.
+     */
+    const [spinnerVisible, setSpinnerVisible] = useState(false);
+
+    useEffect(() => {
+      if (!isBuffering) {
+        setSpinnerVisible(false);
+        return;
+      }
+
+      const timer = setTimeout(
+        () => setSpinnerVisible(true),
+        BUFFER_SPINNER_DELAY_MS,
+      );
+
+      return () => clearTimeout(timer);
+    }, [isBuffering]);
 
     /** Unplugging headphones must not start playing a film to the room. */
     const handleAudioBecomingNoisy = useCallback(() => setIsPaused(true), []);
@@ -818,7 +931,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
           />
         ) : null}
 
-        {isBuffering ? (
+        {spinnerVisible ? (
           <View style={styles.bufferingLayer} pointerEvents="none">
             <ActivityIndicator size="large" color={colors.accent} />
           </View>
