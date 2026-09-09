@@ -1,0 +1,9 @@
+<resources>
+    <!--
+      Native-side colours. These must stay in sync with src/theme/colors.ts so the
+      window background matches the JS UI and you never see a white flash on launch.
+    -->
+    <color name="background">#FF0B0D14</color>
+    <color name="surface">#FF141824</color>
+    <color name="accent">#FF38BDF8</color>
+</resources>

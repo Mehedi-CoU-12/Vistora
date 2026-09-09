@@ -1,0 +1,17 @@
+<resources>
+
+    <!--
+      TV apps are always dark and always full screen: there is no action bar, no
+      status bar and no orientation change. We pin the theme to Dark (rather than
+      DayNight) so the native window background can never mismatch the JS UI.
+    -->
+    <style name="AppTheme" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@color/background</item>
+        <item name="android:colorBackground">@color/background</item>
+        <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
+        <!-- Hide the on-screen system bars on devices that have them. -->
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+    </style>
+
+</resources>
