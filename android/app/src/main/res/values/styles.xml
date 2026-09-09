@@ -1,17 +1,53 @@
 <resources>
 
     <!--
-      TV apps are always dark and always full screen: there is no action bar, no
-      status bar and no orientation change. We pin the theme to Dark (rather than
-      DayNight) so the native window background can never mismatch the JS UI.
+      Everything both device types agree on.
+
+      Pinned to Dark rather than DayNight so the native window background can
+      never mismatch the JS UI: src/theme/colors.ts is a single dark palette (a
+      TV is watched in a dim room; a media app is dark on a phone too), and a
+      DayNight parent would paint a light window behind it for anyone whose
+      device is in light mode, which shows as a white flash at launch.
     -->
-    <style name="AppTheme" parent="Theme.AppCompat.NoActionBar">
+    <style name="AppThemeBase" parent="Theme.AppCompat.NoActionBar">
         <item name="android:windowBackground">@color/background</item>
         <item name="android:colorBackground">@color/background</item>
         <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
-        <!-- Hide the on-screen system bars on devices that have them. -->
-        <item name="android:windowFullscreen">true</item>
         <item name="android:windowContentOverlay">@null</item>
+    </style>
+
+    <!--
+      The phone and tablet theme: base, and nothing added.
+
+      Specifically NOT android:windowFullscreen. A TV has no system bars to hide,
+      but a phone's status and navigation bars are real and belong to the user.
+      Hiding the clock, the battery and the back gesture to show a channel grid
+      is not a trade a phone user asked for. The player hides them for the
+      duration of a video, from JS, which is the one place it is warranted.
+
+      The TV override lives in res/values-television/styles.xml, selected by the
+      same UI-mode signal MainActivity and Platform.isTV read.
+    -->
+    <style name="AppTheme" parent="AppThemeBase" />
+
+    <!--
+      The launch theme. Identical to AppTheme except that the window background
+      carries the logo, so the app never shows an empty rectangle while it starts.
+
+      This stays the activity's theme for the whole session rather than being
+      swapped back to AppTheme in onCreate. Swapping is the usual trick for
+      releasing the splash bitmap, but on React Native it drops the logo at
+      activity creation, long before the JS bundle has loaded, which is
+      precisely the wait the splash exists to cover. Holding it instead costs
+      roughly 2MB, and nothing ever sees it after startup: every screen sits on an
+      opaque ScreenContainer.
+
+      Because the parent is resolved per configuration, this inherits the TV
+      variant of AppTheme on a TV and the phone variant on a phone, with no
+      second splash style needed.
+    -->
+    <style name="SplashTheme" parent="AppTheme">
+        <item name="android:windowBackground">@drawable/splash_screen</item>
     </style>
 
 </resources>

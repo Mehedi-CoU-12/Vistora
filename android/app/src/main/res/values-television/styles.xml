@@ -1,0 +1,24 @@
+<resources>
+
+    <!--
+      The TV variant of AppTheme.
+
+      `values-television` is Android's UI-mode resource qualifier, and it is
+      selected by the same signal as everything else in the app that asks "is
+      this a television": UiModeManager.getCurrentModeType() ==
+      UI_MODE_TYPE_TELEVISION, which is what MainActivity checks to pin the
+      orientation and what React Native reports as Platform.isTV. One signal,
+      three readers, so a device cannot be a TV to one of them and a phone to
+      another.
+
+      windowFullscreen is the whole difference. A TV genuinely has no status or
+      navigation bar, and some TV-mode devices (a tablet in a dock, an emulator
+      built from a phone image) do have them and should not: a 10-foot UI leaves
+      no room for phone furniture, and safe-area insets are reported as zero on
+      TV, so nothing would pad for it anyway.
+    -->
+    <style name="AppTheme" parent="AppThemeBase">
+        <item name="android:windowFullscreen">true</item>
+    </style>
+
+</resources>

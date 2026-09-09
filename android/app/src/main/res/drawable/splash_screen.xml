@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cold-start splash, used as SplashTheme's windowBackground.
+
+  This is a plain layer-list rather than a splash library on purpose. The window
+  background is the one thing Android can draw before a single line of our code
+  runs, so the logo is on screen from the moment the app is tapped: through
+  process start, through the React Native bundle load, until the JS root view
+  paints over it. A library could not be faster, because a library has to be
+  loaded first.
+
+  The bitmap is deliberately not scaled: splash_logo.png is generated per density
+  bucket at a fixed dp size, so it lands the same physical size on every panel.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/background" />
+    <item>
+        <bitmap
+            android:src="@drawable/splash_logo"
+            android:gravity="center" />
+    </item>
+</layer-list>
