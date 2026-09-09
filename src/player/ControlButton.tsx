@@ -30,7 +30,12 @@ import { resolvePlayerChrome } from './playerLayout';
  * washed-out panel, or a small control.
  */
 
-export type ControlVariant = 'pill' | 'round' | 'primary';
+/**
+ * 'pill' is every labelled control. 'play' is the round play/pause button on a
+ * touch device -- the only control that is not a pill, which is what makes it
+ * findable without reading it.
+ */
+export type ControlVariant = 'pill' | 'play';
 
 interface ControlButtonProps {
   /** A character from `glyph`, drawn before the label. */
@@ -95,8 +100,7 @@ export function ControlButton({
       style={({ pressed }) => [
         styles.base,
         variant === 'pill' && styles.pill,
-        variant === 'round' && styles.round,
-        variant === 'primary' && styles.primary,
+        variant === 'play' && styles.play,
         selected && styles.selected,
         focused && styles.focused,
         pressed && styles.pressed,
@@ -108,8 +112,7 @@ export function ControlButton({
         {glyphChar ? (
           <Text
             style={[
-              variant === 'primary' ? styles.glyphPrimary : styles.glyph,
-              variant === 'round' && styles.glyphRound,
+              variant === 'play' ? styles.glyphPlay : styles.glyph,
               (focused || selected) && styles.textActive,
             ]}
           >
@@ -149,17 +152,11 @@ const useStyles = makeStyles(metrics => {
       paddingHorizontal: chrome.buttonPaddingH,
       borderRadius: radius.pill,
     },
-    round: {
-      width: chrome.skipButton,
-      height: chrome.skipButton,
+    play: {
+      width: chrome.playButton,
+      height: chrome.playButton,
       borderRadius: radius.pill,
-      backgroundColor: colors.scrim,
-    },
-    primary: {
-      width: chrome.centreButton,
-      height: chrome.centreButton,
-      borderRadius: radius.pill,
-      backgroundColor: colors.scrim,
+      backgroundColor: colors.surface,
     },
     content: {
       flexDirection: 'row',
@@ -171,13 +168,9 @@ const useStyles = makeStyles(metrics => {
       lineHeight: chrome.glyphSize + 4,
       color: colors.textPrimary,
     },
-    glyphRound: {
-      fontSize: chrome.skipGlyph,
-      lineHeight: chrome.skipGlyph + 4,
-    },
-    glyphPrimary: {
-      fontSize: chrome.centreGlyph,
-      lineHeight: chrome.centreGlyph + 4,
+    glyphPlay: {
+      fontSize: chrome.playGlyph,
+      lineHeight: chrome.playGlyph + 4,
       color: colors.textPrimary,
       // The play triangle is drawn with a slight left bias inside its em box, so
       // centring the character leaves it visibly off-centre in a round button.

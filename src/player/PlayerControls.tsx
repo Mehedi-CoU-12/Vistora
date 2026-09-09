@@ -63,14 +63,16 @@ interface PlayerControlsProps {
  * settings -- but where they go, and which of them exist, is not:
  *
  *   TV     Two focus rows and nothing else: the scrub bar, then a single row of
- *          buttons. Every control must be reachable by counting D-pad presses,
- *          so a control in the middle of the screen is a control that competes
- *          with the row for the same key.
+ *          buttons -- skip included, because a remote has no other way to ask
+ *          for a 10-second jump. Every control must be reachable by counting
+ *          D-pad presses, so a control in the middle of the screen is a control
+ *          that competes with the row for the same key.
  *
- *   Touch  A big play/skip cluster in the centre, where the thumb already is,
- *          and small secondary controls at the bottom. The centre cluster
- *          duplicates gestures on purpose: double-tap-to-skip is faster once you
- *          know it, and invisible until someone tells you.
+ *   Touch  One row along the bottom, play/pause at the left end. No skip
+ *          buttons: double-tapping either side of the screen already skips, and
+ *          a pair of buttons doing the same thing reads as clutter over the
+ *          picture -- particularly in landscape, where the row is the only chrome
+ *          on screen. Nothing sits in the middle of the video at all.
  *
  * ---------------------------------------------------------------------------
  * pointerEvents="box-none" on the root is load-bearing
@@ -189,33 +191,6 @@ function UnlockedControls({
         {isLive ? <LivePill behind={behindLive} /> : null}
       </View>
 
-      {chrome.showsCentreCluster ? (
-        <View style={styles.centre} pointerEvents="box-none">
-          <ControlButton
-            glyph={glyph.rewind}
-            accessibilityLabel={`Back ${SEEK_STEP_SECONDS} seconds`}
-            onPress={() => onSkip(-SEEK_STEP_SECONDS)}
-            variant="round"
-            disabled={!canSeek}
-          />
-          <ControlButton
-            glyph={isPaused ? glyph.play : glyph.pause}
-            accessibilityLabel={isPaused ? 'Play' : 'Pause'}
-            onPress={onTogglePlay}
-            variant="primary"
-          />
-          <ControlButton
-            glyph={glyph.forward}
-            accessibilityLabel={`Forward ${SEEK_STEP_SECONDS} seconds`}
-            onPress={() => onSkip(SEEK_STEP_SECONDS)}
-            variant="round"
-            disabled={!canSeek}
-          />
-        </View>
-      ) : (
-        <View />
-      )}
-
       {/* autoFocus so waking the overlay puts focus on a real control rather
           than leaving it lost behind the video surface.
 
@@ -260,6 +235,18 @@ function UnlockedControls({
         )}
 
         <View style={styles.buttonRow}>
+          {metrics.isTouch ? (
+            // First in the row, so it lands under the left thumb in landscape --
+            // and round rather than a pill, so the one control you reach for
+            // without looking is the one shape that is not a rectangle.
+            <ControlButton
+              glyph={isPaused ? glyph.play : glyph.pause}
+              accessibilityLabel={isPaused ? 'Play' : 'Pause'}
+              onPress={onTogglePlay}
+              variant="play"
+            />
+          ) : null}
+
           {metrics.isTV ? (
             <>
               <ControlButton
@@ -400,12 +387,6 @@ const useStyles = makeStyles(metrics => {
     subtitle: {
       ...metrics.typography.body,
       color: colors.textSecondary,
-    },
-    centre: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: spacing.xl,
     },
     bottom: {
       gap: chrome.gap,
