@@ -1,6 +1,8 @@
 # Seeds the Supabase database with fresh content: live TV channels from the
-# iptv-org catalogue, and public-domain films and cartoons from the Internet
-# Archive.
+# iptv-org catalogue, and public-domain films, cartoons and anime from the
+# Internet Archive.
+#
+# Anime is deliberately NOT part of `everything` -- see the note on its step.
 #
 # ---------------------------------------------------------------------------
 # One-time setup
@@ -41,6 +43,7 @@ on:
           - movies
           - cartoons
           - movies-and-cartoons
+          - anime
       limit:
         description: How many titles to import (movies/cartoons only)
         type: string
@@ -184,6 +187,24 @@ jobs:
             echo "::endgroup::"
           fi
 
+          # Anime only runs when it is asked for BY NAME, which is why `want`
+          # is not used here. The public-domain anime corpus is close to empty
+          # (see scripts/import-archive.mjs), so the importer exits non-zero
+          # most of the time -- and under `everything` that would fail a run
+          # that had already generated perfectly good channels and films.
+          #
+          # Applying it needs migration 0002 on the target database first: the
+          # generated file inserts a category with kind = 'anime', and psql
+          # rejects an enum value the type does not have.
+          if [ "$SOURCE" = "anime" ]; then
+            echo "::group::Anime"
+            node scripts/import-archive.mjs \
+              --kind=anime --limit="$LIMIT" --license="$LICENSE" \
+              $years $probe_flag \
+              --out=seed-out/40_anime.sql
+            echo "::endgroup::"
+          fi
+
           if [ -z "$(ls -A seed-out)" ]; then
             echo "::error::no seed files were generated for source='$SOURCE'"
             exit 1
@@ -278,11 +299,18 @@ jobs:
                 union all
                 select 'Movies', count(*) from public.movies m
                   join public.categories c on c.id = m.category_id
-                  where m.is_active and c.kind = 'movie'
+                  where m.is_active and c.kind::text = 'movie'
                 union all
                 select 'Cartoons', count(*) from public.movies m
                   join public.categories c on c.id = m.category_id
-                  where m.is_active and c.kind = 'cartoon';
+                  where m.is_active and c.kind::text = 'cartoon'
+                union all
+                -- Compared as text, not as the enum: on a database that has not
+                -- had migration 0002 applied, `c.kind = 'anime'` is a cast
+                -- error that would take every count above down with it.
+                select 'Anime', count(*) from public.movies m
+                  join public.categories c on c.id = m.category_id
+                  where m.is_active and c.kind::text = 'anime';
               " 2>/dev/null | sed 's/^/| /; s/$/ |/' || echo "| _could not query the database_ | |"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
