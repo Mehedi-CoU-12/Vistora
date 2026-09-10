@@ -3,12 +3,32 @@ import { Text, View } from 'react-native';
 
 import { colors, makeStyles, spacing } from '../theme';
 
+/**
+ * A screen's own heading: what you are looking at, and how much of it.
+ *
+ * ---------------------------------------------------------------------------
+ * One row, not three
+ * ---------------------------------------------------------------------------
+ * This used to stack the wordmark, a title and a subtitle vertically. Three
+ * lines of chrome is affordable on a 960 x 540 television and expensive on a
+ * phone -- and it was also redundant, because the wordmark now lives in the top
+ * bar next to the tab rail and the tab rail already names the section.
+ *
+ * So: title and subtitle share a baseline, separated by a middot. On a
+ * television that is one line instead of three, which is a whole extra row of
+ * cards; on a phone it is the difference between chrome that takes an eighth of
+ * the screen and chrome that takes a twentieth.
+ *
+ * The title is the part that must survive a narrow window, so it refuses to
+ * shrink and the subtitle -- a count, always regenerable from the content
+ * itself -- ellipsises instead.
+ */
 export function AppHeader({
   title,
   subtitle,
   right,
 }: {
-  title?: string;
+  title: string;
   subtitle?: string;
   right?: React.ReactNode;
 }) {
@@ -17,16 +37,13 @@ export function AppHeader({
   return (
     <View style={styles.header}>
       <View style={styles.titles}>
-        <Text style={styles.brand} numberOfLines={1}>
-          VISTORA<Text style={styles.brandAccent}>.</Text>
+        <Text style={styles.title} numberOfLines={1}>
+          {title}
         </Text>
-        {title ? (
-          <Text style={styles.title} numberOfLines={1}>
-            {title}
-          </Text>
-        ) : null}
+
         {subtitle ? (
           <Text style={styles.subtitle} numberOfLines={1}>
+            <Text style={styles.separator}>· </Text>
             {subtitle}
           </Text>
         ) : null}
@@ -40,30 +57,32 @@ export function AppHeader({
 const useStyles = makeStyles(m => ({
   header: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.md,
     paddingHorizontal: m.gutter.horizontal,
-    paddingTop: m.gutter.vertical,
+    paddingTop: spacing.sm,
     paddingBottom: spacing.md,
   },
   titles: {
-    gap: 2,
+    flexDirection: 'row',
+    // Baseline rather than centre: the title and the subtitle are different
+    // sizes, and centring two different cap heights leaves the smaller one
+    // floating.
+    alignItems: 'baseline',
     flexShrink: 1,
   },
-  brand: {
-    ...m.typography.display,
-    color: colors.textPrimary,
-  },
-  brandAccent: {
-    color: colors.accent,
-  },
   title: {
-    ...m.typography.sectionTitle,
-    color: colors.textSecondary,
+    ...m.typography.title,
+    color: colors.textPrimary,
+    flexShrink: 0,
   },
   subtitle: {
     ...m.typography.caption,
+    color: colors.textSecondary,
+    flexShrink: 1,
+  },
+  separator: {
     color: colors.textMuted,
   },
   right: {

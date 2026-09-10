@@ -78,3 +78,13 @@ yarn-error.log
 .env
 .env.local
 .env.*.local
+
+# Generated seed data (scripts/import-*.mjs, and the "Seed content" workflow).
+# Regenerate on demand; the workflow writes its own copies to seed-out/ and
+# uploads them as a run artifact. Note supabase/seed.sql is NOT generated --
+# it is hand-written sample data and stays tracked.
+supabase/seed_iptv.sql
+supabase/seed_movies.sql
+supabase/seed_cartoons.sql
+supabase/seed_anime.sql
+seed-out/

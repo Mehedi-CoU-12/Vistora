@@ -4,6 +4,7 @@ import { ActivityIndicator, Text, View } from 'react-native';
 import { AppError } from '../services/errors';
 import { colors, makeStyles, radius, spacing } from '../theme';
 import { Focusable } from './Focusable';
+import { TextButton } from './TextButton';
 
 export function LoadingState({ label = 'Loading…' }: { label?: string }) {
   const styles = useStyles();
@@ -19,9 +20,20 @@ export function LoadingState({ label = 'Loading…' }: { label?: string }) {
 export function EmptyState({
   title = 'Nothing here yet',
   message,
+  action,
 }: {
   title?: string;
   message?: string;
+  /**
+   * Optional thing to do about it -- usually "Reload", for the case where the
+   * message just told you to go and add some content.
+   *
+   * It earns its place on a TV for a second reason: an empty screen with no
+   * focusable element on it leaves the D-pad with nothing to move to, so the
+   * remote appears to stop working until the user thinks to press UP into the
+   * tab bar. A button is somewhere for focus to be.
+   */
+  action?: { label: string; onPress: () => void };
 }) {
   const styles = useStyles();
 
@@ -29,6 +41,21 @@ export function EmptyState({
     <View style={styles.center}>
       <Text style={styles.title}>{title}</Text>
       {message ? <Text style={styles.message}>{message}</Text> : null}
+      {action ? (
+        <View style={styles.action}>
+          {/* Claims focus for the same reason ErrorState's Retry does: it is
+              the only focusable thing on the screen, so if it does not take
+              focus the remote appears dead until the user guesses to press UP
+              into the tab bar. Exactly one empty state with an action is ever
+              mounted at a time -- a catalog shows either this or its
+              per-category message, never both. */}
+          <TextButton
+            label={action.label}
+            onPress={action.onPress}
+            hasTVPreferredFocus
+          />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -97,6 +124,9 @@ const useStyles = makeStyles(m => ({
     color: colors.textSecondary,
     textAlign: 'center',
     maxWidth: 620,
+  },
+  action: {
+    marginTop: spacing.sm,
   },
   mono: {
     // Setup instructions contain shell commands, which are unreadable when

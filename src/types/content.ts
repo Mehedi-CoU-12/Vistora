@@ -62,14 +62,6 @@ export interface ContentItem {
   description?: string;
 }
 
-/** A titled horizontal row on the home screen. */
-export interface ContentSection {
-  id: string;
-  title: string;
-  items: ContentItem[];
-  cardVariant: 'poster' | 'landscape' | 'square';
-}
-
 export type Category = Pick<CategoryRow, 'id' | 'slug' | 'name' | 'kind'>;
 
 // ---------------------------------------------------------------------------

@@ -27,6 +27,9 @@ import {scaleTypography, type Typography} from './typography';
 export type DeviceClass = 'tv' | 'tablet' | 'phone';
 export type Orientation = 'landscape' | 'portrait';
 
+/** Where the tab bar sits. See `resolveNavPlacement`. */
+export type NavPlacement = 'top' | 'bottom';
+
 /**
  * The layouts we actually design for. Orientation matters on a touch device and
  * is meaningless on a TV, which is why TV is a single key rather than two.
@@ -91,8 +94,19 @@ export interface Metrics {
   focusScale: number;
   /** How much a card shrinks while a finger is held on it. 1 on TV. */
   pressScale: number;
-  /** Columns in the Live TV channel grid. */
-  gridColumns: number;
+  /**
+   * Columns in a catalog grid, per card variant.
+   *
+   * Per-variant rather than one number, because the variants are different
+   * shapes: at the width that fits two 16:9 channel tiles across a phone, three
+   * 2:3 posters fit and look right. A single count for both would either waste
+   * a third of the width on posters or clip the channel tiles.
+   */
+  gridColumns: Record<CardVariant, number>;
+  /**
+   * Where the tab bar sits: a rail across the top, or a bar along the bottom.
+   */
+  navPlacement: NavPlacement;
   /** Whether Live TV shows a category sidebar (true) or a chip rail (false). */
   usesSidebar: boolean;
   sidebarWidth: number;
@@ -149,12 +163,24 @@ const CARDS_ACROSS: Record<Exclude<LayoutKey, 'tv'>, Record<CardVariant, number>
   'phone-portrait': {poster: 2.8, landscape: 1.9, square: 3.4},
 };
 
-const GRID_COLUMNS: Record<LayoutKey, number> = {
-  tv: 4,
-  'tablet-landscape': 4,
-  'tablet-portrait': 3,
-  'phone-landscape': 3,
-  'phone-portrait': 2,
+/**
+ * Columns in a catalog grid, per layout and per card variant.
+ *
+ * Whole numbers here, unlike `CARDS_ACROSS` above -- and for the opposite
+ * reason. A horizontal shelf wants a fractional last card as its "there is more
+ * this way" cue; a grid scrolls vertically, so its cue is the next ROW peeking
+ * in at the bottom, and a fractional column would just clip artwork at the
+ * right edge for nothing.
+ */
+const GRID_COLUMNS: Record<LayoutKey, Record<CardVariant, number>> = {
+  tv: {poster: 5, landscape: 4, square: 6},
+  'tablet-landscape': {poster: 5, landscape: 4, square: 6},
+  'tablet-portrait': {poster: 4, landscape: 3, square: 5},
+  // Vertical space is what a phone held sideways is short of, so this layout
+  // takes MORE columns than portrait, not fewer: a poster four across would be
+  // 207dp tall in a 390dp window, so one row would fill the screen.
+  'phone-landscape': {poster: 6, landscape: 4, square: 7},
+  'phone-portrait': {poster: 3, landscape: 2, square: 4},
 };
 
 /** See the note on headline scaling in `typography.ts`. */
@@ -208,6 +234,20 @@ function resolveCardSizes(
 }
 
 /**
+ * Decides where the tab bar goes.
+ *
+ * Bottom, under the thumb, is right on a touch device held upright -- and only
+ * there. A television has no thumb: focus reaches the bar by pressing UP out of
+ * the content, which is the top of the screen by definition. And any landscape
+ * window is short of height rather than width, where a 56dp bar across the
+ * bottom would spend a seventh of a phone's 390dp on navigation nobody is
+ * looking at, next to a row of cards that has nowhere to grow.
+ */
+function resolveNavPlacement(isTV: boolean, orientation: Orientation): NavPlacement {
+  return !isTV && orientation === 'portrait' ? 'bottom' : 'top';
+}
+
+/**
  * Turns a window size into every screen-dependent value the app needs.
  *
  * Pure, and exported separately from the hook so it can be unit-tested against
@@ -246,6 +286,7 @@ export function resolveMetrics(width: number, height: number): Metrics {
     focusScale: isTV ? 1.07 : 1,
     pressScale: isTV ? 1 : 0.96,
     gridColumns: GRID_COLUMNS[key],
+    navPlacement: resolveNavPlacement(isTV, orientation),
     usesSidebar: isTV || contentWidth >= SIDEBAR_MIN_CONTENT_WIDTH,
     sidebarWidth: SIDEBAR_WIDTH[device],
     minTouchTarget: isTV ? 0 : 48,

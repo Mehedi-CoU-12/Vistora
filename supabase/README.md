@@ -22,12 +22,17 @@ automatically.
 
 ### Dashboard
 
-Paste `0001_initial_schema.sql` into the SQL Editor and run it, then do the same
-with `seed.sql`.
+Paste `0001_initial_schema.sql` into the SQL Editor and run it, then
+`0002_add_anime_kind.sql`, then `seed.sql`.
+
+Migrations apply in order and are safe to re-run. `0002` only adds `'anime'` to
+the `category_kind` enum — but note that PostgreSQL will not let a new enum value
+be *used* in the transaction that adds it, so it has to be its own statement
+before any seed file that inserts an anime category.
 
 ## Seeding real content
 
-`seed.sql` is sample data. Two importers fetch real catalogues instead, each
+`seed.sql` is sample data. The importers fetch real catalogues instead, each
 writing a SQL file of idempotent upserts keyed on `slug` — review it, then apply
 it. Re-running refreshes existing rows rather than duplicating them, which
 matters because stream URLs rot.
@@ -37,6 +42,23 @@ matters because stream URLs rot.
 | `npm run import:iptv` | [iptv-org](https://iptv-org.github.io/api/) — an index of public stream URLs | `channels` |
 | `npm run import:movies` | [archive.org](https://archive.org) — public-domain films | `movies` (`kind = 'movie'`) |
 | `npm run import:cartoons` | archive.org — public-domain cartoons | `movies` (`kind = 'cartoon'`) |
+| `npm run import:anime` | archive.org — see the warning below | `movies` (`kind = 'anime'`) |
+
+**`import:anime` will usually come back empty, and that is expected.** The
+Archive has no anime collection, and public-domain anime barely exists:
+essentially only pre-1953 Japanese animation has lapsed, and little of it is
+uploaded with the explicit licence metadata these scripts require. So the anime
+importer searches the broad `animationandcartoons` umbrella narrowed by subject
+keywords, which is the best available and still not much:
+
+```bash
+npm run import:anime -- --subjects=anime,manga --license=cc
+```
+
+The kind is wired up regardless, because that is what makes the Anime tab real:
+with `category_kind` carrying `'anime'` you can point `--subjects` at whatever
+you do have the rights to, or insert rows by hand against an anime category, and
+the app needs no change. Until then the tab renders its empty state.
 
 ```bash
 npm run import:movies -- --limit=60 --min-year=1930 --max-year=1970
@@ -66,14 +88,16 @@ Actions secrets and never in `.env`.
 
 ```
 categories ─┬─< channels
-            ├─< movies          (cartoons live here too, via category kind)
+            ├─< movies          (cartoons and anime live here too,
+            │                    via category kind)
             └─< sports_events >─ sports
 ```
 
 `categories.kind` is what separates content types that share a table: a cartoon
-is a row in `movies` whose category has `kind = 'cartoon'`. That is why
-`fetchMovies({categoryKind})` filters through `categories!inner(kind)` rather
-than a column on `movies`.
+is a row in `movies` whose category has `kind = 'cartoon'`, and an anime is the
+same row with `kind = 'anime'`. That is why `fetchMovies({categoryKind})` filters
+through `categories!inner(kind)` rather than a column on `movies` — and why
+adding the Anime tab needed one enum value and no new table.
 
 ## Conventions every table follows
 
