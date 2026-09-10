@@ -2,6 +2,7 @@ import { resolveMetrics, type Metrics } from '../theme';
 import {
   resolveOverlayEdges,
   resolvePlayerChrome,
+  resolveScrimHeights,
 } from '../player/playerLayout';
 
 const noInsets = { top: 0, right: 0, bottom: 0, left: 0 };
@@ -33,13 +34,43 @@ describe('resolvePlayerChrome', () => {
     );
   });
 
-  // On TV, play/pause is a labelled pill in the focus row like everything else;
-  // the round button exists only where a thumb reaches for it.
-  it('sizes the round play button on touch only', () => {
-    expect(resolvePlayerChrome(tvMetrics).playButton).toBe(0);
+  // Play/pause is the one control reached for without looking, on a remote as
+  // much as under a thumb, so it is the largest thing in the transport row on
+  // both devices -- and the skips flanking it have to stay smaller, or the group
+  // has no centre to aim at.
+  it('makes the play button the biggest control in the transport row', () => {
+    for (const chrome of [
+      resolvePlayerChrome(tvMetrics),
+      resolvePlayerChrome(resolveMetrics(844, 390)),
+      resolvePlayerChrome(resolveMetrics(390, 844)),
+    ]) {
+      expect(chrome.playButton).toBeGreaterThan(chrome.skipButton);
+      expect(chrome.playButton).toBeGreaterThan(chrome.iconButton);
+    }
+  });
+
+  // An icon-only control says less than a labelled one, so it cannot also be
+  // the harder one to hit.
+  it('sizes an icon button no smaller than a labelled one', () => {
+    for (const chrome of [
+      resolvePlayerChrome(tvMetrics),
+      resolvePlayerChrome(resolveMetrics(390, 844)),
+    ]) {
+      expect(chrome.iconButton).toBeGreaterThanOrEqual(chrome.buttonHeight);
+      expect(chrome.iconGlyph).toBeLessThan(chrome.iconButton);
+    }
+  });
+
+  // The cluster competes with the title for one row, and 390dp does not hold
+  // both. The two shortcuts that go are the two that are also in the panel.
+  it('drops the option shortcuts only on a narrow screen', () => {
     expect(
-      resolvePlayerChrome(resolveMetrics(844, 390)).playButton,
-    ).toBeGreaterThan(0);
+      resolvePlayerChrome(resolveMetrics(390, 844)).showsOptionShortcuts,
+    ).toBe(false);
+    expect(
+      resolvePlayerChrome(resolveMetrics(844, 390)).showsOptionShortcuts,
+    ).toBe(true);
+    expect(resolvePlayerChrome(tvMetrics).showsOptionShortcuts).toBe(true);
   });
 
   // A control smaller than the platform minimum is a control that only works
@@ -53,13 +84,15 @@ describe('resolvePlayerChrome', () => {
       const metrics = resolveMetrics(width, height);
       const chrome = resolvePlayerChrome(metrics);
 
-      expect(chrome.buttonHeight).toBeGreaterThanOrEqual(
-        metrics.minTouchTarget,
-      );
-      expect(chrome.seekRowHeight).toBeGreaterThanOrEqual(
-        metrics.minTouchTarget,
-      );
-      expect(chrome.playButton).toBeGreaterThanOrEqual(metrics.minTouchTarget);
+      for (const size of [
+        chrome.buttonHeight,
+        chrome.seekRowHeight,
+        chrome.playButton,
+        chrome.skipButton,
+        chrome.iconButton,
+      ]) {
+        expect(size).toBeGreaterThanOrEqual(metrics.minTouchTarget);
+      }
     }
   });
 
@@ -84,6 +117,128 @@ describe('resolvePlayerChrome', () => {
         expect(chrome.panelWidth).toBeLessThan(width / 2);
       }
     }
+  });
+});
+
+describe('resolveScrimHeights', () => {
+  // The whole point of two gradients rather than one wash is that the middle of
+  // the picture stays undimmed, so each strip has to be big enough to cover its
+  // own controls and no bigger.
+  it('covers the controls at each edge', () => {
+    const metrics = resolveMetrics(844, 390);
+    const chrome = resolvePlayerChrome(metrics);
+    const edges = resolveOverlayEdges(metrics, noInsets);
+    const scrim = resolveScrimHeights(chrome, edges);
+
+    expect(scrim.top.height).toBeGreaterThan(edges.top + chrome.iconButton);
+    expect(scrim.bottom.height).toBeGreaterThan(
+      edges.bottom + chrome.seekRowHeight + chrome.playButton,
+    );
+  });
+
+  /**
+   * The regression this pins is the one that was visible on a bright frame: the
+   * subtitle sat *below* the held region, on about 20% black over a white sky,
+   * because the top scrim was sized against the round back button while the
+   * two-line title block beside it is taller.
+   */
+  it('holds full strength across the whole title block, not just the buttons', () => {
+    const metrics = resolveMetrics(844, 390);
+    const chrome = resolvePlayerChrome(metrics);
+    const edges = resolveOverlayEdges(metrics, noInsets);
+    const { top } = resolveScrimHeights(chrome, edges);
+
+    expect(chrome.titleBlock).toBeGreaterThan(chrome.iconButton);
+    expect(top.hold * top.height).toBeGreaterThanOrEqual(
+      edges.top + chrome.titleBlock,
+    );
+  });
+
+  // Everything past the held region is ramp, and it is the same distance on
+  // every device -- so the fraction is whatever is left over, never 0 or 1.
+  it('leaves a ramp at both edges', () => {
+    for (const [width, height] of [
+      [390, 844],
+      [844, 390],
+      [960, 540],
+    ]) {
+      const metrics = resolveMetrics(width, height);
+      const scrim = resolveScrimHeights(
+        resolvePlayerChrome(metrics),
+        resolveOverlayEdges(metrics, noInsets),
+      );
+
+      for (const edge of [scrim.top, scrim.bottom]) {
+        expect(edge.hold).toBeGreaterThan(0);
+        expect(edge.hold).toBeLessThan(1);
+      }
+    }
+  });
+
+  // The bottom carries the bar, the readouts and the transport row; the top
+  // carries one row. A symmetrical pair of scrims would either fail to cover the
+  // bottom or dim twice as much of the picture as the top needs.
+  it('makes the bottom taller than the top', () => {
+    const metrics = resolveMetrics(390, 844);
+    const scrim = resolveScrimHeights(
+      resolvePlayerChrome(metrics),
+      resolveOverlayEdges(metrics, noInsets),
+    );
+
+    expect(scrim.bottom.height).toBeGreaterThan(scrim.top.height);
+  });
+
+  // The controls are pushed inwards by a cutout or a system bar, so the gradient
+  // behind them has to grow by the same amount or its ramp ends up underneath
+  // them.
+  it('grows with the safe-area insets', () => {
+    const metrics = resolveMetrics(390, 844);
+    const chrome = resolvePlayerChrome(metrics);
+
+    const bare = resolveScrimHeights(
+      chrome,
+      resolveOverlayEdges(metrics, noInsets),
+    );
+    const inset = resolveScrimHeights(
+      chrome,
+      resolveOverlayEdges(metrics, { ...noInsets, top: 36, bottom: 24 }),
+    );
+
+    expect(inset.top.height - bare.top.height).toBe(36);
+    expect(inset.bottom.height - bare.bottom.height).toBe(24);
+  });
+
+  // A TV prints a line of key hints under its buttons, and a scrim that stops
+  // above it leaves the one piece of text nobody can guess at sitting on bare
+  // video.
+  it('leaves room for the key hints a TV prints', () => {
+    const edges = resolveOverlayEdges(tvMetrics, noInsets);
+    const tv = resolvePlayerChrome(tvMetrics);
+    const withoutHints = resolveScrimHeights(
+      { ...tv, showsKeyHints: false },
+      edges,
+    );
+
+    expect(resolveScrimHeights(tv, edges).bottom.height).toBeGreaterThan(
+      withoutHints.bottom.height,
+    );
+  });
+
+  // Locked, the overlay is a single Unlock button: there is no top bar to back,
+  // and backing one button with the full-height bottom scrim would dim a third
+  // of a film someone has deliberately locked and walked away from.
+  it('shrinks to a single button when locked', () => {
+    const edges = resolveOverlayEdges(tvMetrics, noInsets);
+    const chrome = resolvePlayerChrome(tvMetrics);
+
+    const locked = resolveScrimHeights(chrome, edges, { locked: true });
+    const unlocked = resolveScrimHeights(chrome, edges);
+
+    expect(locked.top.height).toBe(0);
+    expect(locked.bottom.height).toBeLessThan(unlocked.bottom.height);
+    expect(locked.bottom.height).toBeGreaterThan(
+      edges.bottom + chrome.buttonHeight,
+    );
   });
 });
 
