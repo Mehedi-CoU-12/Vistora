@@ -9,17 +9,18 @@ import { makeStyles } from '../theme';
  * ---------------------------------------------------------------------------
  * Why it is drawn rather than typed or imported
  * ---------------------------------------------------------------------------
- * `player/glyphs.ts` sets the rule this follows: no icon font and no SVG
+ * `player/PlayerIcon.tsx` sets the rule this follows: no icon font and no SVG
  * library, because a font asset is a build-config change and a vector library is
  * a native dependency, and neither is worth shipping to a TV to draw a handful
  * of shapes. It also rules out anything from an emoji block -- Android renders
  * those through the colour emoji font, so U+1F50D arrives as a full-colour
  * pictogram at a size and weight nothing else on screen shares.
  *
- * That leaves the geometric characters the player uses, and there is no usable
- * magnifier among them. U+2315 is the closest thing and is not in Roboto's
- * coverage on every Android build, so the failure mode is a tofu box -- which is
- * strictly worse than the word it replaced.
+ * That would leave the geometric characters, and there is no usable magnifier
+ * among them. U+2315 is the closest thing and is not in Roboto's coverage on
+ * every Android build, so the failure mode is a tofu box -- which is strictly
+ * worse than the word it replaced. The player hit the same wall for a padlock
+ * and an aspect-ratio mark and drew its whole icon set for the same reason.
  *
  * A circle and a rotated bar have none of those problems: two Views, no asset,
  * no dependency, identical on every device, and the colour and size are props

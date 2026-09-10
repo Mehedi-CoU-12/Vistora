@@ -36,7 +36,7 @@ interface TabBarProps {
  * ---------------------------------------------------------------------------
  * Labels rather than icons
  * ---------------------------------------------------------------------------
- * There is no icon font in this project (see player/glyphs.ts on why one is not
+ * There is no icon font in this project (see player/PlayerIcon.tsx on why one is not
  * worth adding), but that is not the reason. The reason is that these tabs are
  * content KINDS, and the distinctions that matter here -- anime against films,
  * a channel against either -- have no pictogram anyone would read correctly.

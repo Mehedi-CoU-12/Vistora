@@ -3,7 +3,6 @@ import { ScrollView, Text, TVFocusGuideView, View } from 'react-native';
 
 import { colors, makeStyles, radius, spacing, useMetrics } from '../theme';
 import { ControlButton } from './ControlButton';
-import { glyph } from './glyphs';
 import {
   formatRate,
   PLAYBACK_RATES,
@@ -95,10 +94,10 @@ export function SettingsPanel({
       <View style={styles.header}>
         <Text style={styles.heading}>Playback</Text>
         <ControlButton
-          glyph={glyph.close}
+          icon="close"
+          variant="icon"
           accessibilityLabel="Close settings"
           onPress={onClose}
-          variant="pill"
           hasTVPreferredFocus
         />
       </View>
@@ -320,7 +319,11 @@ function TrackRow({
 }) {
   return (
     <ControlButton
-      glyph={selected ? glyph.tick : ' '}
+      icon={selected ? 'tick' : undefined}
+      // Reserved rather than conditional: without the empty slot the unselected
+      // rows would sit a tick's width to the left of the selected one, so the
+      // list would appear to indent whichever row happens to be current.
+      reserveIcon
       label={label}
       accessibilityLabel={label}
       selected={selected}

@@ -8,7 +8,8 @@ import {
 } from 'react-native';
 
 import { colors, makeStyles, radius, spacing, useMetrics } from '../theme';
-import { resolvePlayerChrome } from './playerLayout';
+import { PlayerIcon, type IconName } from './PlayerIcon';
+import { resolvePlayerChrome, type PlayerChrome } from './playerLayout';
 
 /**
  * A control in the player overlay, on either kind of device.
@@ -26,20 +27,49 @@ import { resolvePlayerChrome } from './playerLayout';
  *     reads as life, on a control bar it reads as a wobble.
  *
  * What it does keep is the app's focus vocabulary: accent ring, lighter surface,
- * accent text -- three cues at once, so focus survives a colour-blind viewer, a
+ * accent icon -- three cues at once, so focus survives a colour-blind viewer, a
  * washed-out panel, or a small control.
+ *
+ * ---------------------------------------------------------------------------
+ * Why the surface is translucent here and solid everywhere else in the app
+ * ---------------------------------------------------------------------------
+ * A card sits on the app's background and can be a solid tile. These sit on top
+ * of a film, and a solid tile over a film is a hole punched in the picture --
+ * eight of them along the bottom edge and the overlay stops being chrome over
+ * video and becomes a toolbar the video happens to be behind. So the resting
+ * surface is `controlSurface` at 58%, with a hairline border to keep the edge
+ * from dissolving into a bright frame, and it goes almost opaque only when the
+ * control is focused or held.
  */
 
 /**
- * 'pill' is every labelled control. 'play' is the round play/pause button on a
- * touch device -- the only control that is not a pill, which is what makes it
- * findable without reading it.
+ * What shape the control is, which follows from what it does rather than from
+ * where it happens to sit:
+ *
+ *   pill   Anything with a word or a number in it: "Go live", "1.5x", a track
+ *          name in the settings panel.
+ *   icon   The icon-only controls -- back, and the option cluster at the top
+ *          right. Round, because a row of round buttons at the edge of the
+ *          screen reads as chrome, where a row of rounded rectangles reads as a
+ *          toolbar.
+ *   skip   The two 10-second buttons, which are `icon` at their own size so the
+ *          transport row can be sized as a group.
+ *   play   The one control reached for without looking, and therefore the
+ *          largest thing in the overlay.
  */
-export type ControlVariant = 'pill' | 'play';
+export type ControlVariant = 'pill' | 'icon' | 'skip' | 'play';
 
 interface ControlButtonProps {
-  /** A character from `glyph`, drawn before the label. */
-  glyph?: string;
+  /** A shape from `PlayerIcon`, drawn before the label or on its own. */
+  icon?: IconName;
+  /**
+   * Keep the icon's space when there is no icon.
+   *
+   * For a list of controls where only the current one is ticked: without it the
+   * unticked rows sit a tick's width to the left of the ticked one, so the list
+   * looks like it indents whichever row happens to be selected.
+   */
+  reserveIcon?: boolean;
   /** Word label. Omitted on narrow screens by the caller, not by this component. */
   label?: string;
   accessibilityLabel: string;
@@ -47,8 +77,9 @@ interface ControlButtonProps {
   variant?: ControlVariant;
   /**
    * Marks a setting as the one in effect (the current speed, the current audio
-   * track). Different from focus, and it has to look different: focus is where
-   * the D-pad is, selection is what the player is doing.
+   * track), or a mode as switched on (the lock). Different from focus, and it
+   * has to look different: focus is where the D-pad is, selection is what the
+   * player is doing.
    */
   selected?: boolean;
   disabled?: boolean;
@@ -59,7 +90,8 @@ interface ControlButtonProps {
 }
 
 export function ControlButton({
-  glyph: glyphChar,
+  icon,
+  reserveIcon = false,
   label,
   accessibilityLabel,
   onPress,
@@ -71,7 +103,8 @@ export function ControlButton({
   style,
 }: ControlButtonProps) {
   const styles = useStyles();
-  const { isTouch } = useMetrics();
+  const metrics = useMetrics();
+  const chrome = resolvePlayerChrome(metrics);
   const [focused, setFocused] = useState(false);
 
   const handleFocus = useCallback(() => {
@@ -83,6 +116,24 @@ export function ControlButton({
     setFocused(false);
     onFocusChange?.(false);
   }, [onFocusChange]);
+
+  const round = variant !== 'pill';
+  const diameter = roundDiameter(variant, chrome);
+
+  /**
+   * The icon's tint, which is the same three-state vocabulary as the label's.
+   *
+   * Computed here rather than left to a style array because `PlayerIcon` takes a
+   * colour as a prop: a drawn shape has no `color` to inherit the way a glyph in
+   * a `Text` did, which is the one thing the old character-based icons got for
+   * free and this trades away for shapes that actually exist.
+   */
+  const tint =
+    focused || selected
+      ? colors.accent
+      : disabled
+      ? colors.textSecondary
+      : colors.textPrimary;
 
   return (
     <Pressable
@@ -96,11 +147,11 @@ export function ControlButton({
       accessibilityState={{ disabled, selected }}
       // A finger aiming at a 48dp button in the dark misses by a few dp; the
       // slop makes that a hit without making the button visually larger.
-      hitSlop={isTouch ? spacing.sm : undefined}
+      hitSlop={metrics.isTouch ? spacing.sm : undefined}
       style={({ pressed }) => [
         styles.base,
-        variant === 'pill' && styles.pill,
-        variant === 'play' && styles.play,
+        variant === 'pill' ? styles.pill : styles.round,
+        round && { width: diameter, height: diameter },
         selected && styles.selected,
         focused && styles.focused,
         pressed && styles.pressed,
@@ -109,15 +160,14 @@ export function ControlButton({
       ]}
     >
       <View style={styles.content}>
-        {glyphChar ? (
-          <Text
-            style={[
-              variant === 'play' ? styles.glyphPlay : styles.glyph,
-              (focused || selected) && styles.textActive,
-            ]}
-          >
-            {glyphChar}
-          </Text>
+        {icon ? (
+          <PlayerIcon
+            name={icon}
+            size={iconSize(variant, chrome)}
+            color={tint}
+          />
+        ) : reserveIcon ? (
+          <View style={{ width: iconSize(variant, chrome) }} />
         ) : null}
 
         {label ? (
@@ -133,6 +183,38 @@ export function ControlButton({
   );
 }
 
+/**
+ * Both of these are switches over the same four variants rather than two numbers
+ * on the props, so a caller cannot ask for a 48dp button holding a 28dp icon.
+ * The pairing is a design decision and it belongs with the sizes in
+ * `playerLayout.ts`, not at the twelve places a button is used.
+ */
+function roundDiameter(variant: ControlVariant, chrome: PlayerChrome): number {
+  switch (variant) {
+    case 'play':
+      return chrome.playButton;
+    case 'skip':
+      return chrome.skipButton;
+    default:
+      return chrome.iconButton;
+  }
+}
+
+function iconSize(variant: ControlVariant, chrome: PlayerChrome): number {
+  switch (variant) {
+    case 'play':
+      return chrome.playGlyph;
+    case 'skip':
+      return chrome.skipGlyph;
+    case 'icon':
+      return chrome.iconGlyph;
+    default:
+      // Inside a pill the icon stands next to a word, so it is sized against the
+      // text rather than against the button.
+      return chrome.glyphSize;
+  }
+}
+
 const useStyles = makeStyles(metrics => {
   const chrome = resolvePlayerChrome(metrics);
 
@@ -140,41 +222,26 @@ const useStyles = makeStyles(metrics => {
     base: {
       alignItems: 'center',
       justifyContent: 'center',
-      // A transparent border at rest, so gaining focus does not change the
-      // layout. Switching borderWidth 0 -> 2 on focus would nudge every
-      // neighbouring button along the row.
+      // A transparent border at rest would be the usual trick for "gaining focus
+      // must not change the layout", but these buttons need a visible hairline
+      // anyway -- see the note on the translucent surface above -- so the border
+      // is always drawn and only its colour changes.
       borderWidth: 2,
-      borderColor: 'transparent',
-      backgroundColor: colors.surface,
+      borderColor: colors.controlBorder,
+      backgroundColor: colors.controlSurface,
     },
     pill: {
       minHeight: chrome.buttonHeight,
       paddingHorizontal: chrome.buttonPaddingH,
       borderRadius: radius.pill,
     },
-    play: {
-      width: chrome.playButton,
-      height: chrome.playButton,
+    round: {
       borderRadius: radius.pill,
-      backgroundColor: colors.surface,
     },
     content: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.sm,
-    },
-    glyph: {
-      fontSize: chrome.glyphSize,
-      lineHeight: chrome.glyphSize + 4,
-      color: colors.textPrimary,
-    },
-    glyphPlay: {
-      fontSize: chrome.playGlyph,
-      lineHeight: chrome.playGlyph + 4,
-      color: colors.textPrimary,
-      // The play triangle is drawn with a slight left bias inside its em box, so
-      // centring the character leaves it visibly off-centre in a round button.
-      marginLeft: 2,
     },
     label: {
       ...metrics.typography.body,
@@ -184,16 +251,17 @@ const useStyles = makeStyles(metrics => {
       color: colors.accent,
     },
     selected: {
-      backgroundColor: colors.accentMuted,
+      backgroundColor: colors.controlSurfaceOn,
+      borderColor: colors.accentMuted,
     },
     focused: {
       borderColor: colors.accent,
-      backgroundColor: colors.surfaceFocused,
+      backgroundColor: colors.controlSurfaceActive,
     },
     pressed: {
-      // Touch feedback: the surface lifts and the whole control shrinks a touch,
-      // the same press language the cards use.
-      backgroundColor: colors.surfaceFocused,
+      // Touch feedback: the surface firms up and the whole control shrinks a
+      // touch, the same press language the cards use.
+      backgroundColor: colors.controlSurfaceActive,
       transform: [{ scale: metrics.pressScale }],
     },
     disabled: {

@@ -4,15 +4,22 @@ import { Text, TVFocusGuideView, View } from 'react-native';
 import { colors, makeStyles, radius, spacing, useMetrics } from '../theme';
 import { ControlButton } from './ControlButton';
 import { formatTime } from './formatTime';
-import { glyph } from './glyphs';
+import { PlayerIcon } from './PlayerIcon';
 import {
   formatRate,
   SCALING_LABEL,
   SEEK_STEP_SECONDS,
   type ScalingMode,
 } from './playbackOptions';
-import { resolvePlayerChrome, type EdgeInsets } from './playerLayout';
+import {
+  resolvePlayerChrome,
+  resolveScrimHeights,
+  TITLE_GAP,
+  TITLE_OFFSET,
+  type EdgeInsets,
+} from './playerLayout';
 import type { RemoteKeyHandlers } from './remoteKeys';
+import { Scrim } from './Scrim';
 import { SeekBar } from './SeekBar';
 
 interface PlayerControlsProps {
@@ -50,6 +57,8 @@ interface PlayerControlsProps {
   onCycleScaling: () => void;
   onToggleLock: () => void;
   onGoLive: () => void;
+  /** Touch only, and only where the platform offers it. */
+  onPictureInPicture?: () => void;
   onExit: () => void;
 }
 
@@ -57,22 +66,57 @@ interface PlayerControlsProps {
  * The control overlay.
  *
  * ---------------------------------------------------------------------------
- * One component, two interfaces
+ * Three zones, and what decides which zone a control belongs in
  * ---------------------------------------------------------------------------
- * The pieces are the same on every device -- title, scrub bar, play, skip,
- * settings -- but where they go, and which of them exist, is not:
+ * Everything used to live along the bottom: the scrub bar, then one row holding
+ * play, skip, speed, picture size, lock, settings and back. That row is where a
+ * player overlay goes wrong, because it mixes two kinds of control that want
+ * opposite things. So they are now separated by *how often a hand reaches for
+ * them*, not by what they do:
  *
- *   TV     Two focus rows and nothing else: the scrub bar, then a single row of
- *          buttons -- skip included, because a remote has no other way to ask
- *          for a 10-second jump. Every control must be reachable by counting
- *          D-pad presses, so a control in the middle of the screen is a control
- *          that competes with the row for the same key.
+ *   Top left     Leave. One button, in the corner every application on every
+ *                platform has trained people to look at, and nowhere near
+ *                anything that changes playback -- which is the point: exit was
+ *                previously a pill in the middle of a row of pills, one slip
+ *                away from Pause.
  *
- *   Touch  One row along the bottom, play/pause at the left end. No skip
- *          buttons: double-tapping either side of the screen already skips, and
- *          a pair of buttons doing the same thing reads as clutter over the
- *          picture -- particularly in landscape, where the row is the only chrome
- *          on screen. Nothing sits in the middle of the video at all.
+ *   Top right    The things you set once for a piece of content and then forget:
+ *                picture size, pop out, lock, settings. Icons with no words,
+ *                because they are a cluster of small round shapes at the edge of
+ *                the frame rather than a sentence to read -- and because the
+ *                words were what made the old bottom row too long to scan.
+ *
+ *   Bottom       The transport: the scrub bar, and skip / play / skip under it.
+ *                These are what a hand actually reaches for while watching, and
+ *                they now have the whole bottom strip to themselves.
+ *
+ * The corollary is that nothing sits in the middle of the picture, on either
+ * device. On a TV a control there cannot be reached without stealing left/right
+ * from the scrub bar; on a phone it covers the thing being watched.
+ *
+ * ---------------------------------------------------------------------------
+ * The two devices differ in what exists, not where it goes
+ * ---------------------------------------------------------------------------
+ * That is a change from the previous arrangement, where the two had genuinely
+ * different layouts. The zones above suit a remote and a thumb equally well, so
+ * what is left is a shorter list of real differences:
+ *
+ *   Lock         Touch only. A remote does not go in a pocket.
+ *   Pop out      Touch only; there is nothing to pop out of on a TV.
+ *   Shortcuts    Picture size and pop out drop out of the cluster on a narrow
+ *                screen (see `showsOptionShortcuts`) -- they are both in the
+ *                settings panel as well, and on a 390dp phone four icons plus a
+ *                back button leave no room for the title.
+ *   Key hints    TV only, because nothing on a remote is self-evident.
+ *
+ * Skip buttons are now on *both*, which is the other change worth naming. The
+ * argument for leaving them off a phone was that double-tapping either side of
+ * the screen already skips and a second way to do it is clutter -- true when it
+ * was competing with five other buttons for the same row. With the options gone
+ * to the top right the transport row holds three controls, the standard
+ * skip/play/skip group fits without crowding anything, and the gesture stops
+ * being the *only* way to skip, which it never should have been: it is the one
+ * gesture in the player a new user has no way to discover.
  *
  * ---------------------------------------------------------------------------
  * pointerEvents="box-none" on the root is load-bearing
@@ -86,19 +130,30 @@ interface PlayerControlsProps {
 export function PlayerControls(props: PlayerControlsProps) {
   const { locked, edges, onToggleLock, keyHandlers } = props;
   const styles = useStyles();
+  const metrics = useMetrics();
 
   if (locked) {
+    const scrim = resolveScrimHeights(resolvePlayerChrome(metrics), edges, {
+      locked: true,
+    });
+
     // Locked is a real mode, not a disabled overlay: the point is that a pocket,
     // a sleeve or a child cannot change anything, so there is exactly one
-    // control on screen and no gesture does anything at all.
+    // control on screen and no gesture does anything at all. It keeps its word
+    // as well as its icon -- it is the only thing on screen and the only way
+    // back, which is not a moment to make someone guess at a pictogram.
     return (
-      <View
-        style={[styles.root, edgePadding(edges)]}
-        pointerEvents="box-none"
-        {...keyHandlers}
-      >
-        <View style={styles.lockRow}>
+      <View style={styles.root} pointerEvents="box-none" {...keyHandlers}>
+        {/* One button's worth, so the way out of the lock stays readable over a
+            bright frame without dimming the film it is locked on. */}
+        <Scrim edge="bottom" geometry={scrim.bottom} />
+
+        <View
+          style={[styles.lockRow, bottomPadding(edges)]}
+          pointerEvents="box-none"
+        >
           <ControlButton
+            icon="unlock"
             label="Unlock"
             accessibilityLabel="Unlock controls"
             onPress={onToggleLock}
@@ -136,11 +191,13 @@ function UnlockedControls({
   onCycleScaling,
   onToggleLock,
   onGoLive,
+  onPictureInPicture,
   onExit,
 }: PlayerControlsProps) {
   const styles = useStyles();
   const metrics = useMetrics();
   const chrome = resolvePlayerChrome(metrics);
+  const scrim = resolveScrimHeights(chrome, edges);
 
   const elapsed = formatTime(position - start);
   const total = formatTime(end - start);
@@ -163,19 +220,21 @@ function UnlockedControls({
   const rightLabel = isLive ? null : total;
 
   return (
-    <View
-      style={[styles.root, edgePadding(edges)]}
-      pointerEvents="box-none"
-      {...keyHandlers}
-    >
-      <View style={styles.top} pointerEvents="box-none">
-        {metrics.isTouch ? (
-          <ControlButton
-            glyph={glyph.close}
-            accessibilityLabel="Close player"
-            onPress={onExit}
-          />
-        ) : null}
+    <View style={styles.root} pointerEvents="box-none" {...keyHandlers}>
+      {/* Behind everything, and outside the padded rows on purpose: an
+          absolutely positioned child is placed inside its parent's padding, so a
+          scrim in the top bar would stop short of the screen edge and leave a
+          bright band above itself. */}
+      <Scrim edge="top" geometry={scrim.top} />
+      <Scrim edge="bottom" geometry={scrim.bottom} />
+
+      <View style={[styles.top, topPadding(edges)]} pointerEvents="box-none">
+        <ControlButton
+          icon="back"
+          variant="icon"
+          accessibilityLabel="Leave the player"
+          onPress={onExit}
+        />
 
         <View style={styles.titleBlock}>
           <Text style={styles.title} numberOfLines={1}>
@@ -188,7 +247,60 @@ function UnlockedControls({
           ) : null}
         </View>
 
-        {isLive ? <LivePill behind={behindLive} /> : null}
+        <View style={styles.cluster}>
+          {isLive ? <LivePill behind={behindLive} /> : null}
+
+          {/* Only when it is not 1x. A speed chip that permanently reads "1x" is
+              a label for the absence of a setting, and it was competing for the
+              row with the settings button that changes it. Off the default, it
+              becomes something else: a standing reminder of why the film sounds
+              wrong, one press from the panel that undoes it. */}
+          {rate !== 1 ? (
+            <ControlButton
+              label={formatRate(rate)}
+              accessibilityLabel={`Speed ${formatRate(rate)}. Change it`}
+              onPress={onOpenSettings}
+            />
+          ) : null}
+
+          {chrome.showsOptionShortcuts ? (
+            <ControlButton
+              icon="aspect"
+              variant="icon"
+              // The current mode has to be *said*, since dropping the "Fit" /
+              // "Fill" / "Stretch" label is exactly what made this an icon. A
+              // sighted user gets the same answer from the readout the tap
+              // raises; without this a screen reader would get neither.
+              accessibilityLabel={`Picture size: ${SCALING_LABEL[scaling]}. Change it`}
+              onPress={onCycleScaling}
+            />
+          ) : null}
+
+          {chrome.showsOptionShortcuts && onPictureInPicture ? (
+            <ControlButton
+              icon="pip"
+              variant="icon"
+              accessibilityLabel="Pop out into a floating window"
+              onPress={onPictureInPicture}
+            />
+          ) : null}
+
+          {metrics.isTouch ? (
+            <ControlButton
+              icon="lock"
+              variant="icon"
+              accessibilityLabel="Lock the controls"
+              onPress={onToggleLock}
+            />
+          ) : null}
+
+          <ControlButton
+            icon="settings"
+            variant="icon"
+            accessibilityLabel="Playback settings"
+            onPress={onOpenSettings}
+          />
+        </View>
       </View>
 
       {/* autoFocus so waking the overlay puts focus on a real control rather
@@ -203,7 +315,7 @@ function UnlockedControls({
       <TVFocusGuideView
         autoFocus
         pointerEvents="box-none"
-        style={styles.bottom}
+        style={[styles.bottom, bottomPadding(edges)]}
       >
         {isLive && !canSeek ? (
           // No DVR window: a bar with nowhere to go is worse than no bar, so say
@@ -234,87 +346,42 @@ function UnlockedControls({
           </View>
         )}
 
-        <View style={styles.buttonRow}>
-          {metrics.isTouch ? (
-            // First in the row, so it lands under the left thumb in landscape --
-            // and round rather than a pill, so the one control you reach for
-            // without looking is the one shape that is not a rectangle.
+        <View style={styles.transportRow} pointerEvents="box-none">
+          <View style={styles.transport}>
             <ControlButton
-              glyph={isPaused ? glyph.play : glyph.pause}
+              icon="rewind"
+              variant="skip"
+              accessibilityLabel={`Back ${SEEK_STEP_SECONDS} seconds`}
+              onPress={() => onSkip(-SEEK_STEP_SECONDS)}
+              disabled={!canSeek}
+            />
+            <ControlButton
+              icon={isPaused ? 'play' : 'pause'}
+              variant="play"
               accessibilityLabel={isPaused ? 'Play' : 'Pause'}
               onPress={onTogglePlay}
-              variant="play"
+              // The one control that claims focus when the overlay appears.
+              hasTVPreferredFocus
             />
-          ) : null}
+            <ControlButton
+              icon="forward"
+              variant="skip"
+              accessibilityLabel={`Forward ${SEEK_STEP_SECONDS} seconds`}
+              onPress={() => onSkip(SEEK_STEP_SECONDS)}
+              disabled={!canSeek}
+            />
+          </View>
 
-          {metrics.isTV ? (
-            <>
-              <ControlButton
-                glyph={glyph.rewind}
-                label={`${SEEK_STEP_SECONDS}s`}
-                accessibilityLabel={`Back ${SEEK_STEP_SECONDS} seconds`}
-                onPress={() => onSkip(-SEEK_STEP_SECONDS)}
-                disabled={!canSeek}
-              />
-              <ControlButton
-                glyph={isPaused ? glyph.play : glyph.pause}
-                label={isPaused ? 'Play' : 'Pause'}
-                accessibilityLabel={isPaused ? 'Play' : 'Pause'}
-                onPress={onTogglePlay}
-                // The one control that claims focus when the overlay appears.
-                hasTVPreferredFocus
-              />
-              <ControlButton
-                glyph={glyph.forward}
-                label={`${SEEK_STEP_SECONDS}s`}
-                accessibilityLabel={`Forward ${SEEK_STEP_SECONDS} seconds`}
-                onPress={() => onSkip(SEEK_STEP_SECONDS)}
-                disabled={!canSeek}
-              />
-            </>
-          ) : null}
-
+          {/* At the far end of the row rather than in the transport group, and
+              it keeps its label: it appears and disappears as the viewer drifts
+              off the live edge, and a button that materialises next to Play
+              would move the controls under a thumb already on its way down. */}
           {behindLive ? (
             <ControlButton
-              glyph={glyph.live}
+              icon="live"
               label="Go live"
               accessibilityLabel="Jump to live"
               onPress={onGoLive}
-            />
-          ) : null}
-
-          <ControlButton
-            label={formatRate(rate)}
-            accessibilityLabel={`Speed ${formatRate(rate)}`}
-            onPress={onOpenSettings}
-          />
-
-          <ControlButton
-            label={SCALING_LABEL[scaling]}
-            accessibilityLabel={`Picture size: ${SCALING_LABEL[scaling]}`}
-            onPress={onCycleScaling}
-          />
-
-          {metrics.isTouch ? (
-            <ControlButton
-              label="Lock"
-              accessibilityLabel="Lock controls"
-              onPress={onToggleLock}
-            />
-          ) : null}
-
-          <ControlButton
-            glyph={glyph.settings}
-            label={chrome.compact ? undefined : 'Settings'}
-            accessibilityLabel="Playback settings"
-            onPress={onOpenSettings}
-          />
-
-          {metrics.isTV ? (
-            <ControlButton
-              label="Back"
-              accessibilityLabel="Back"
-              onPress={onExit}
             />
           ) : null}
         </View>
@@ -333,10 +400,22 @@ function UnlockedControls({
 
 function LivePill({ behind }: { behind: boolean }) {
   const styles = useStyles();
+  const metrics = useMetrics();
+  const chrome = resolvePlayerChrome(metrics);
 
   return (
     <View style={[styles.livePill, behind && styles.livePillBehind]}>
-      <Text style={styles.liveLabel}>LIVE</Text>
+      <PlayerIcon
+        name="live"
+        size={chrome.glyphSize}
+        // Behind the edge the whole pill drops to a neutral surface, so the dot
+        // has to carry the same demotion or it reads as a live indicator that
+        // has merely changed background.
+        color={behind ? colors.textMuted : colors.textPrimary}
+      />
+      <Text style={[styles.liveLabel, behind && styles.liveLabelBehind]}>
+        LIVE
+      </Text>
     </View>
   );
 }
@@ -349,10 +428,22 @@ function LivePill({ behind }: { behind: boolean }) {
  * window size (the cutout that was at the top is at the left in landscape). A
  * `makeStyles` factory only sees metrics, so this is the one part of the
  * overlay's layout that cannot live in a cached sheet.
+ *
+ * It is split per zone rather than applied once to the root because the scrims
+ * are absolutely positioned children of that root, and Yoga places an absolute
+ * child inside its parent's padding -- so padding the root would inset the
+ * gradients from the screen edge by the width of the gutter.
  */
-function edgePadding(edges: EdgeInsets) {
+function topPadding(edges: EdgeInsets) {
   return {
     paddingTop: edges.top,
+    paddingRight: edges.right,
+    paddingLeft: edges.left,
+  };
+}
+
+function bottomPadding(edges: EdgeInsets) {
+  return {
     paddingRight: edges.right,
     paddingBottom: edges.bottom,
     paddingLeft: edges.left,
@@ -373,12 +464,19 @@ const useStyles = makeStyles(metrics => {
     },
     top: {
       flexDirection: 'row',
-      alignItems: 'center',
+      // Not `center`: the title block is two lines and the buttons are one, so
+      // centring them against each other drops the buttons half a line down the
+      // screen and the whole bar looks like it is sagging in the middle.
+      alignItems: 'flex-start',
       gap: chrome.gap,
     },
     titleBlock: {
       flex: 1,
-      gap: 2,
+      // Both from `playerLayout`, which measures this block to size the scrim
+      // behind it -- see `chrome.titleBlock`. Hard-coding them here as well is
+      // how the gradient ends up stopping a few dp above the subtitle.
+      gap: TITLE_GAP,
+      paddingTop: TITLE_OFFSET,
     },
     title: {
       ...metrics.typography.title,
@@ -387,6 +485,15 @@ const useStyles = makeStyles(metrics => {
     subtitle: {
       ...metrics.typography.body,
       color: colors.textSecondary,
+    },
+    cluster: {
+      flexDirection: 'row',
+      // Stretch, not centre: the round buttons set the row's height and the
+      // labelled chips beside them (the speed readout, the LIVE pill) have a
+      // smaller natural one. Centred, a 40dp chip floats inside a 48dp row and
+      // the cluster stops reading as one group of controls.
+      alignItems: 'stretch',
+      gap: chrome.gap,
     },
     bottom: {
       gap: chrome.gap,
@@ -405,13 +512,15 @@ const useStyles = makeStyles(metrics => {
       // Stops the readout jittering as the digits change.
       fontVariant: ['tabular-nums'],
     },
-    buttonRow: {
+    transportRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      // Wrapping keeps every control reachable on a 390dp-wide screen instead of
-      // pushing the last one off the edge -- which on a TV would also mean the
-      // D-pad could focus something invisible.
-      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+      gap: chrome.gap,
+    },
+    transport: {
+      flexDirection: 'row',
+      alignItems: 'center',
       gap: chrome.gap,
     },
     lockRow: {
@@ -426,19 +535,25 @@ const useStyles = makeStyles(metrics => {
     livePill: {
       flexDirection: 'row',
       alignItems: 'center',
+      gap: spacing.xs,
       paddingHorizontal: spacing.sm,
-      paddingVertical: 3,
-      borderRadius: radius.sm,
+      // Matches the height of the round buttons beside it, so the cluster reads
+      // as one row of controls rather than a pill floating next to some.
+      height: chrome.iconButton,
+      borderRadius: radius.pill,
       backgroundColor: colors.live,
     },
     livePillBehind: {
       // Behind the edge, "LIVE" is a claim the picture is not backing up, so it
       // drops to a neutral surface until the viewer jumps back.
-      backgroundColor: colors.surface,
+      backgroundColor: colors.controlSurface,
     },
     liveLabel: {
       ...metrics.typography.label,
       color: colors.textPrimary,
+    },
+    liveLabelBehind: {
+      color: colors.textMuted,
     },
   };
 });
