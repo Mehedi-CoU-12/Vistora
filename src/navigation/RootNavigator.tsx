@@ -6,8 +6,7 @@ import {
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 
-import { HomeScreen } from '../screens/HomeScreen';
-import { LiveTvScreen } from '../screens/LiveTvScreen';
+import { BrowseScreen } from '../screens/BrowseScreen';
 import { PlayerScreen } from '../screens/PlayerScreen';
 import { colors } from '../theme';
 import type { RootStackParamList } from '../types/navigation';
@@ -24,7 +23,12 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  * button in a header.
  *
  * Headers are off everywhere. A TV app has no room for a navigation bar and no
- * way to tap one; each screen presents its own title instead.
+ * way to tap one; the browse screen presents its own chrome instead.
+ *
+ * There are only two routes, and that is the point. Everything browsable lives
+ * behind tabs inside `Browse`, so the stack is never deeper than "what I am
+ * looking at" and "what is playing" -- which is what makes Back unambiguous on
+ * a remote that has exactly one of them.
  */
 const navigationTheme: Theme = {
   ...DarkTheme,
@@ -42,7 +46,7 @@ export function RootNavigator() {
   return (
     <NavigationContainer theme={navigationTheme}>
       <Stack.Navigator
-        initialRouteName="Home"
+        initialRouteName="Browse"
         screenOptions={{
           headerShown: false,
           // Slide/fade transitions on a TV read as sluggish, and a mid-transition
@@ -51,8 +55,7 @@ export function RootNavigator() {
           contentStyle: { backgroundColor: colors.background },
         }}
       >
-        <Stack.Screen name="Home" component={HomeScreen} />
-        <Stack.Screen name="LiveTv" component={LiveTvScreen} />
+        <Stack.Screen name="Browse" component={BrowseScreen} />
         <Stack.Screen
           name="Player"
           component={PlayerScreen}

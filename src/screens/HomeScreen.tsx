@@ -1,79 +1,75 @@
-import {useNavigation} from '@react-navigation/native';
-import React, {useCallback} from 'react';
-import {ScrollView} from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import React, { useCallback } from 'react';
+import { RefreshControl, ScrollView } from 'react-native';
 
-import {AppHeader} from '../components/AppHeader';
-import {ContentRow} from '../components/ContentRow';
-import {ScreenContainer} from '../components/ScreenContainer';
-import {EmptyState, ErrorState, LoadingState} from '../components/StateViews';
-import {TextButton} from '../components/TextButton';
-import {useAsyncData} from '../hooks/useAsyncData';
-import {fetchChannels, fetchMovies, fetchSportsEvents} from '../services/contentService';
-import {makeStyles, spacing, useMetrics} from '../theme';
-import type {ContentItem, ContentSection} from '../types/content';
+import { ContentRow } from '../components/ContentRow';
+import { EmptyState, ErrorState, LoadingState } from '../components/StateViews';
+import { useAsyncData } from '../hooks/useAsyncData';
+import { catalogTabs, type CatalogTab, type TabId } from '../navigation/tabs';
+import { colors, makeStyles, spacing, useMetrics } from '../theme';
+import type { ContentItem } from '../types/content';
 
-/** How many items each home row loads. Rows are a preview, not the full list. */
+/** How many items each home shelf loads. Shelves are a preview, not the list. */
 const ROW_LIMIT = 12;
 
+/** One home shelf: a catalog tab, and a preview of what is in it. */
+interface Shelf {
+  tab: CatalogTab;
+  items: ContentItem[];
+}
+
 /**
- * The home screen: a vertical stack of horizontal rows.
+ * The home screen: a vertical stack of horizontal shelves.
  *
  * ---------------------------------------------------------------------------
- * Why one loader for all four rows instead of one per row
+ * The shelves are derived, not listed
  * ---------------------------------------------------------------------------
- * `Promise.all` fires the four queries concurrently but gives the screen a
- * single loading state and a single retry. Per-row loading would mean rows
+ * This screen used to hard-code its four rows, which meant the set of things on
+ * the home screen and the set of things you could browse were two lists kept in
+ * step by hand. It now maps over `catalogTabs()`, so adding a content kind to
+ * navigation/tabs.ts gives it a tab AND a shelf, or neither. Each shelf's "See
+ * all" goes to the tab it was built from, which is a link that cannot point at
+ * the wrong place.
+ *
+ * ---------------------------------------------------------------------------
+ * Why one loader for every shelf instead of one per shelf
+ * ---------------------------------------------------------------------------
+ * `Promise.all` fires the queries concurrently but gives the screen a single
+ * loading state and a single retry. Per-shelf loading would mean shelves
  * popping in at different moments, and on a TV that is actively harmful: the
  * focused element moves under the user as the layout reflows. One coordinated
  * load means focus lands once, on the first card, and stays there.
  *
  * ---------------------------------------------------------------------------
- * Row-of-shelves survives the move to a phone; the snapping does not
+ * The shape survives the move to a phone; the snapping does not
  * ---------------------------------------------------------------------------
- * The shape of this screen needs no responsive branch -- a vertical stack of
- * horizontal shelves is what a phone media app looks like too, only with fewer
- * cards per shelf, which the theme handles. The one thing that has to be turned
- * off is the fork's item snapping (see below).
+ * A vertical stack of horizontal shelves is what a phone media app looks like
+ * too, only with fewer cards per shelf, which the theme handles. The one thing
+ * that has to be turned off is the fork's item snapping (see below).
  */
-export function HomeScreen() {
+export function HomeScreen({
+  onSeeAll,
+}: {
+  /** Switch to a tab. Supplied by BrowseScreen, which owns the tab state. */
+  onSeeAll: (id: TabId) => void;
+}) {
   const navigation = useNavigation();
-  const {isTV} = useMetrics();
+  const { isTV, isTouch } = useMetrics();
   const styles = useStyles();
 
-  const {data, isLoading, error, reload} = useAsyncData<ContentSection[]>(async () => {
-    const [channels, sports, movies, cartoons] = await Promise.all([
-      fetchChannels({limit: ROW_LIMIT}),
-      fetchSportsEvents({limit: ROW_LIMIT}),
-      fetchMovies({categoryKind: 'movie', limit: ROW_LIMIT}),
-      fetchMovies({categoryKind: 'cartoon', limit: ROW_LIMIT}),
-    ]);
+  const { data, isLoading, error, reload } = useAsyncData<Shelf[]>(async () => {
+    const shelves = await Promise.all(
+      catalogTabs().map(async tab => ({
+        tab,
+        items: await tab.catalog.load(ROW_LIMIT),
+      })),
+    );
 
-    const sections: ContentSection[] = [
-      {
-        id: 'live-tv',
-        title: 'Live TV',
-        items: channels,
-        cardVariant: 'landscape',
-      },
-      {
-        id: 'live-sports',
-        title: 'Live & Upcoming Sport',
-        items: sports,
-        cardVariant: 'poster',
-      },
-      {id: 'movies', title: 'Movies', items: movies, cardVariant: 'poster'},
-      {
-        id: 'cartoons',
-        title: 'Cartoons',
-        items: cartoons,
-        cardVariant: 'poster',
-      },
-    ];
-
-    // Drop empty rows rather than rendering a heading over nothing. A row that
-    // exists but cannot be entered is a focus trap: the D-pad appears to stop
-    // working when it reaches it.
-    return sections.filter(section => section.items.length > 0);
+    // Drop empty shelves rather than rendering a heading over nothing. A row
+    // that exists but cannot be entered is a focus trap: the D-pad appears to
+    // stop working when it reaches it. The tab for that kind stays in the bar
+    // either way, where its own empty state explains what is missing.
+    return shelves.filter(shelf => shelf.items.length > 0);
   }, []);
 
   const openItem = useCallback(
@@ -94,10 +90,6 @@ export function HomeScreen() {
     [navigation],
   );
 
-  const openLiveTv = useCallback(() => {
-    navigation.navigate('LiveTv');
-  }, [navigation]);
-
   /**
    * Leanback-style row alignment, and why it is TV-only.
    *
@@ -112,48 +104,61 @@ export function HomeScreen() {
    * freely. Off it goes.
    */
   const snapProps = isTV
-    ? ({snapToAlignment: 'item', snapToItemPadding: spacing.md} as const)
+    ? ({ snapToAlignment: 'item', snapToItemPadding: spacing.md } as const)
     : null;
 
-  return (
-    <ScreenContainer>
-      <AppHeader
-        subtitle="Personal media library"
-        right={<TextButton label="All channels" onPress={openLiveTv} />}
+  // First load has nothing to keep on screen, so the spinner owns it. A reload
+  // over existing shelves shows the refresh spinner instead -- see the note in
+  // CatalogScreen, which also covers what a FAILED reload does.
+  if (isLoading && data === null) {
+    return <LoadingState label="Loading your library…" />;
+  }
+
+  if (error && data === null) {
+    return <ErrorState error={error} onRetry={reload} />;
+  }
+
+  if (!data || data.length === 0) {
+    return (
+      <EmptyState
+        title="No content yet"
+        message="Your database is reachable but empty. Apply supabase/seed.sql to load sample channels, movies and fixtures."
       />
+    );
+  }
 
-      {isLoading ? <LoadingState label="Loading your library…" /> : null}
-
-      {error ? <ErrorState error={error} onRetry={reload} /> : null}
-
-      {!isLoading && !error && data?.length === 0 ? (
-        <EmptyState
-          title="No content yet"
-          message="Your database is reachable but empty. Apply supabase/seed.sql to load sample channels, movies and fixtures."
+  return (
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        isTouch ? (
+          <RefreshControl
+            refreshing={isLoading}
+            onRefresh={reload}
+            tintColor={colors.accent}
+            colors={[colors.accent]}
+            progressBackgroundColor={colors.surface}
+          />
+        ) : undefined
+      }
+      {...snapProps}
+    >
+      {data.map((shelf, index) => (
+        <ContentRow
+          key={shelf.tab.id}
+          title={shelf.tab.title}
+          items={shelf.items}
+          cardVariant={shelf.tab.catalog.cardVariant}
+          onSelectItem={openItem}
+          onSeeAll={() => onSeeAll(shelf.tab.id)}
+          // Only the first row seeds initial focus, so exactly one element on
+          // the screen claims it.
+          isFirstRow={index === 0}
         />
-      ) : null}
-
-      {!isLoading && !error && data && data.length > 0 ? (
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          {...snapProps}>
-          {data.map((section, index) => (
-            <ContentRow
-              key={section.id}
-              title={section.title}
-              items={section.items}
-              cardVariant={section.cardVariant}
-              onSelectItem={openItem}
-              // Only the first row seeds initial focus, so exactly one element
-              // on the screen claims it.
-              isFirstRow={index === 0}
-            />
-          ))}
-        </ScrollView>
-      ) : null}
-    </ScreenContainer>
+      ))}
+    </ScrollView>
   );
 }
 
@@ -162,6 +167,9 @@ const useStyles = makeStyles(m => ({
     flex: 1,
   },
   scrollContent: {
+    // A little air above the first shelf heading, which now sits directly under
+    // the top bar rather than under a screen title.
+    paddingTop: spacing.sm,
     // Bottom padding so the last row can scroll clear of the bottom edge.
     paddingBottom: m.gutter.vertical + spacing.xl,
   },

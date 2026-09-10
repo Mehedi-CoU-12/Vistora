@@ -12,8 +12,11 @@ import type {Stream} from './content';
  * was handed -- the screen that navigated already has the metadata.
  */
 export type RootStackParamList = {
-  Home: undefined;
-  LiveTv: undefined;
+  /**
+   * Everything you can browse. The tabs inside it are component state rather
+   * than routes -- see the note in screens/BrowseScreen.tsx on why.
+   */
+  Browse: undefined;
   Player: {
     stream: Stream;
     title: string;
