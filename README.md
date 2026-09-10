@@ -1,12 +1,12 @@
 # Vistora
 
-An app for personal content consumption — live TV, sport, movies and cartoons —
-built with React Native, TypeScript and Supabase. It runs on **Android TV** with
-a remote and on **Android phones and tablets** with a finger, from one codebase
-and one APK.
+An app for personal content consumption — live TV, sport, films, cartoons and
+anime — built with React Native, TypeScript and Supabase. It runs on **Android
+TV** with a remote and on **Android phones and tablets** with a finger, from one
+codebase and one APK.
 
-**Phase 1 status:** project foundation, Supabase schema, TV-friendly home screen,
-Live TV browser, and a working player. Auth, favourites, watch history, search
+**Phase 1 status:** project foundation, Supabase schema, a tabbed browser over
+every content kind, and a working player. Auth, favourites, watch history, search
 and the admin dashboard are deliberately not built yet.
 
 ---
@@ -167,6 +167,10 @@ adb shell uiautomator dump /sdcard/ui.xml && adb pull /sdcard/ui.xml
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
 | `npm test` | Jest unit tests |
+| `npm run import:iptv` | Build a channel seed file from iptv-org |
+| `npm run import:movies` | Build a film seed file from archive.org |
+| `npm run import:cartoons` | Build a cartoon seed file from archive.org |
+| `npm run import:anime` | Build an anime seed file — see `supabase/README.md`; the public-domain corpus is tiny |
 | `python3 scripts/generate-android-icons.py <logo>` | Regenerate every launcher, banner and splash asset from the source logo |
 
 ---
@@ -279,6 +283,43 @@ Three things about this worth knowing before you change any of it:
 
 ---
 
+## Navigation: two routes, six tabs
+
+The stack has exactly two routes — `Browse` and `Player` — and everything
+browsable lives behind tabs inside `Browse`:
+
+| Tab | Content | Card |
+|---|---|---|
+| Home | A shelf per kind, twelve items each | mixed |
+| Live TV | `channels` | 16:9 tile |
+| Movies | `movies` where the category is `kind = 'movie'` | poster |
+| Cartoons | `movies` where `kind = 'cartoon'` | poster |
+| Anime | `movies` where `kind = 'anime'` | poster |
+| Sports | `sports_events`, live first then soonest | poster |
+
+**The tabs are component state, not navigator routes.** Routes would push a
+screen per switch, so Back would walk you through your own browsing history one
+tab at a time, which is not what a tab bar means anywhere.
+`@react-navigation/bottom-tabs` would fix that and bring a bottom bar this app
+cannot use on a television, plus a dependency to style around. So `BrowseScreen`
+owns one piece of state, and Back does the one thing it should: return to Home
+from anywhere, leave the app from Home.
+
+**Every tab but Home is the same screen.** `CatalogScreen` is a category filter
+beside a grid; what differs between Live TV and Anime is which query fills it,
+which categories the filter offers, and whether the artwork is a poster or a
+tile. All three are fields on a `CatalogSpec` in `src/navigation/tabs.ts`, which
+is the single list of what this app browses — `HomeScreen` derives its shelves
+from the same array, so a new content kind gets a tab *and* a shelf, or neither.
+
+**A visited tab stays mounted on touch and is unmounted on TV.** On a phone that
+keeps scroll position and the selected category, which is what a tab bar implies.
+On a TV it would be a bug: a hidden subtree's cards stay in the platform's focus
+tree, so the D-pad could walk out of the visible grid into a tab that is not on
+screen and leave nothing highlighted anywhere.
+
+---
+
 ## Project structure
 
 ```
@@ -289,11 +330,12 @@ src/
   types/                 database rows, app models + mappers, route params
   hooks/                 useAsyncData (loading / error / retry)
   theme/                 colours, type scale, and the responsive metrics system
-  components/            Focusable, ContentCard, ContentRow, state views
+  components/            Focusable, ContentCard, ContentRow, TabBar,
+                         CategoryPicker, state views
   player/                the player: overlay, gestures, remote, settings panel
                          — and it knows nothing about Supabase
-  screens/               Home, LiveTv, Player
-  navigation/            native stack
+  screens/               Browse (the tab host), Home, Catalog, Player
+  navigation/            native stack + tabs.ts, the list of content kinds
 supabase/
   migrations/            schema, RLS, indexes
   seed.sql               sample data with public test streams
@@ -421,8 +463,11 @@ that prop, which is why the *section* is marked rather than the card.
 column fits depends on screen width, sidebar width and padding all agreeing — and
 when they do not, the final column is clipped off the right edge. On a TV that is
 worse than ugly: the D-pad still moves focus onto that card, so the user's
-selection disappears off-screen. `LiveTvScreen` measures its grid and divides the
-space, so the row always fills exactly and no column can be cut off.
+selection disappears off-screen. `CatalogScreen` measures its grid and divides
+the space (`theme/grid.ts`), so the row always fills exactly and no column can be
+cut off. That arithmetic is checked against every layout and every card variant
+in `src/__tests__/gridLayout.test.ts` — it has to be, now that the column count
+varies by variant as well as by screen.
 
 ---
 
@@ -498,8 +543,10 @@ playback all survive a turn of the phone.
 |---|---|---|---|
 | Screen padding | 48 / 27dp overscan | 16 / 12dp + real system insets | 24 / 12dp + insets |
 | Poster card | 124 × 186dp, fixed | ~2.8 across, fluid | ~7 across, fluid |
-| Live TV grid | 4 columns | 2 columns | 3 columns |
+| Channel grid | 4 columns | 2 columns | 4 columns |
+| Poster grid | 5 columns | 3 columns | 6 columns |
 | Category picker | sidebar | chip rail | sidebar |
+| Tab bar | top rail | bottom bar | top rail |
 | Headline sizes | reference scale | ×0.78 | ×0.78 |
 | Body / caption | reference scale | unchanged | unchanged |
 | Interaction cue | focus ring + grow | press ring + shrink | press ring + shrink |
@@ -559,12 +606,22 @@ render; a `useMemo` per component would rebuild the same sheet once per instance
 rendering anything — including pinning the verified TV numbers, so a layout
 regression fails a test instead of clipping a column on somebody's television.
 
-### The one screen that changes shape
+### The two things that change shape
 
-`LiveTvScreen` swaps its category sidebar for a horizontal chip rail below 700dp
-of content width. Note the test is on available *width*, not on device class: a
-phone in landscape has ~796dp and keeps the sidebar, which is right, because
-vertical space is what that window is short of and a sidebar costs none of it.
+**The category picker.** `CategoryPicker` swaps its sidebar for a horizontal chip
+rail below 700dp of content width. Note the test is on available *width*, not on
+device class: a phone in landscape has ~796dp and keeps the sidebar, which is
+right, because vertical space is what that window is short of and a sidebar costs
+none of it.
+
+**The tab bar.** `TabBar` is a rail of pills across the top on a TV and in any
+landscape window, and a bar along the bottom on a touch device held upright.
+Neither placement is a preference. A television has no thumb for a bottom bar to
+be near, and the bar has to be somewhere focus reaches by pressing UP out of the
+content — which is the top of the screen by definition. A landscape window is
+short of height, where 56dp along the bottom is a seventh of a phone's 390dp
+spent on navigation nobody is looking at. Upright, the bottom is the part of a
+tall screen a thumb reaches without regripping.
 
 Everything else only changes size. A vertical stack of horizontal shelves is
 what a phone media app looks like too, so `HomeScreen` needed no branch — beyond
@@ -808,6 +865,8 @@ Checked against a real PostgreSQL 17 instance and a real Android TV emulator
 * **Row alignment**: the focused row's heading stays on screen
 * Live TV grid: 4 columns, nothing clipped, category filter narrows 8 channels
   to 2 without stealing focus from the sidebar
+* Tab rail: LEFT/RIGHT walks the tabs, OK opens one, DOWN enters its content and
+  UP comes back to the tab you left — not to Home
 * **HLS playback works** — Apple's BipBop reference stream and a 4K sample both
   decode through Media3, connecting directly to their CDNs
 * Scheduled fixtures with no `stream_url` show `NOT STARTED` and do not open the
