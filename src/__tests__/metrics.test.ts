@@ -25,6 +25,8 @@ function withPlatform<T>(isTV: boolean, run: () => T): T {
   }
 }
 
+const VARIANTS = ['poster', 'landscape', 'square'] as const;
+
 /** The logical viewport every Android TV presents, 1080p and 4K alike. */
 const TV = {width: 960, height: 540};
 const PHONE_PORTRAIT = {width: 390, height: 844};
@@ -55,12 +57,21 @@ describe('resolveMetrics on TV', () => {
     expect(cardSize.square).toEqual({width: 116, height: 116});
   });
 
-  it('keeps the 5% overscan allowance and the four-column grid', () => {
+  it('keeps the 5% overscan allowance and the four-column channel grid', () => {
     const m = tv();
     expect(m.gutter).toEqual({horizontal: 48, vertical: 27});
     expect(m.contentWidth).toBe(864);
-    expect(m.gridColumns).toBe(4);
+    expect(m.gridColumns.landscape).toBe(4);
     expect(m.usesSidebar).toBe(true);
+  });
+
+  /**
+   * The tab bar has to be reachable by pressing UP out of the content, which is
+   * the top of the screen by definition. A television also has no thumb for a
+   * bottom bar to be near.
+   */
+  it('puts the tab bar at the top', () => {
+    expect(tv().navPlacement).toBe('top');
   });
 
   it('uses the unscaled reference type scale and the D-pad focus treatment', () => {
@@ -125,9 +136,43 @@ describe('resolveMetrics on a phone', () => {
     expect(landscape().usesSidebar).toBe(true);
   });
 
-  it('gives the grid fewer columns than a TV, and more when turned sideways', () => {
-    expect(portrait().gridColumns).toBe(2);
-    expect(landscape().gridColumns).toBe(3);
+  it('gives the channel grid fewer columns than a TV', () => {
+    const tv = withPlatform(true, () => resolveMetrics(TV.width, TV.height));
+    expect(portrait().gridColumns.landscape).toBeLessThan(
+      tv.gridColumns.landscape,
+    );
+    expect(portrait().gridColumns.landscape).toBe(2);
+  });
+
+  /**
+   * The variants are different shapes, so one column count cannot serve both:
+   * at the width that fits two 16:9 channel tiles, three 2:3 posters fit.
+   */
+  it('fits more posters across than channel tiles', () => {
+    expect(portrait().gridColumns.poster).toBeGreaterThan(
+      portrait().gridColumns.landscape,
+    );
+  });
+
+  /**
+   * Turned sideways a phone is short of HEIGHT, not width, so the poster grid
+   * takes more columns rather than fewer -- four across would stand 207dp tall
+   * in a 390dp window, so a single row would fill the screen.
+   */
+  it('takes more columns in landscape, where height is the scarce resource', () => {
+    expect(landscape().gridColumns.poster).toBeGreaterThan(
+      portrait().gridColumns.poster,
+    );
+  });
+
+  /**
+   * Bottom, under the thumb, only while the device is upright. In landscape a
+   * 56dp bar across the bottom would spend a seventh of the height on
+   * navigation nobody is looking at.
+   */
+  it('moves the tab bar to the bottom only in portrait', () => {
+    expect(portrait().navPlacement).toBe('bottom');
+    expect(landscape().navPlacement).toBe('top');
   });
 
   it('sizes row cards fluidly, leaving part of one visible as a scroll cue', () => {
@@ -159,7 +204,7 @@ describe('resolveMetrics invariants', () => {
         resolveMetrics(size.width, size.height),
       );
 
-      for (const variant of ['poster', 'landscape', 'square'] as const) {
+      for (const variant of VARIANTS) {
         const {width, height} = cardSize[variant];
         expect(height).toBe(Math.floor(width * cardAspect[variant]));
       }
@@ -171,7 +216,7 @@ describe('resolveMetrics invariants', () => {
     (_name, isTV, size) => {
       const m = withPlatform(isTV, () => resolveMetrics(size.width, size.height));
 
-      for (const variant of ['poster', 'landscape', 'square'] as const) {
+      for (const variant of VARIANTS) {
         expect(m.cardSize[variant].width).toBeGreaterThan(0);
         expect(m.cardSize[variant].width).toBeLessThan(m.contentWidth);
       }
@@ -200,6 +245,8 @@ describe('resolveMetrics invariants', () => {
     // produce a negative or zero card width.
     const m = withPlatform(false, () => resolveMetrics(120, 200));
     expect(m.cardSize.poster.width).toBeGreaterThan(0);
-    expect(m.gridColumns).toBeGreaterThanOrEqual(2);
+    for (const variant of VARIANTS) {
+      expect(m.gridColumns[variant]).toBeGreaterThanOrEqual(2);
+    }
   });
 });
