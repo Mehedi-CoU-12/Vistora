@@ -1,19 +1,11 @@
 import React from 'react';
-import {ActivityIndicator, Text, View} from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 
-import {AppError} from '../services/errors';
-import {colors, makeStyles, radius, spacing} from '../theme';
-import {Focusable} from './Focusable';
+import { AppError } from '../services/errors';
+import { colors, makeStyles, radius, spacing } from '../theme';
+import { Focusable } from './Focusable';
 
-/**
- * The loading / error / empty states, in one file so they stay visually
- * consistent. On a TV these matter more than on a phone: a stalled screen with
- * no explanation gives the viewer nothing to do, since they cannot pull to
- * refresh or tap around to investigate. Every error state here ends in either a
- * focusable Retry button or a concrete instruction.
- */
-
-export function LoadingState({label = 'Loading…'}: {label?: string}) {
+export function LoadingState({ label = 'Loading…' }: { label?: string }) {
   const styles = useStyles();
 
   return (
@@ -41,7 +33,13 @@ export function EmptyState({
   );
 }
 
-export function ErrorState({error, onRetry}: {error: AppError; onRetry?: () => void}) {
+export function ErrorState({
+  error,
+  onRetry,
+}: {
+  error: AppError;
+  onRetry?: () => void;
+}) {
   const styles = useStyles();
 
   // A missing or wrong .env cannot be fixed by pressing a button, so we show
@@ -63,9 +61,12 @@ export function ErrorState({error, onRetry}: {error: AppError; onRetry?: () => v
           onPress={onRetry}
           hasTVPreferredFocus
           style={styles.button}
-          accessibilityLabel="Try again">
+          accessibilityLabel="Try again"
+        >
           {active => (
-            <Text style={[styles.buttonLabel, active && styles.buttonLabelActive]}>
+            <Text
+              style={[styles.buttonLabel, active && styles.buttonLabelActive]}
+            >
               Try again
             </Text>
           )}

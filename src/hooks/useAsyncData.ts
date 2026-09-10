@@ -1,6 +1,6 @@
-import {useCallback, useEffect, useRef, useState} from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-import {toAppError, type AppError} from '../services/errors';
+import { toAppError, type AppError } from '../services/errors';
 
 export interface AsyncState<T> {
   data: T | null;
@@ -21,7 +21,10 @@ export interface AsyncState<T> {
  * loader itself is intentionally NOT a dependency, so you can define it inline
  * without causing an infinite refetch loop.
  */
-export function useAsyncData<T>(load: () => Promise<T>, deps: unknown[] = []): AsyncState<T> {
+export function useAsyncData<T>(
+  load: () => Promise<T>,
+  deps: unknown[] = [],
+): AsyncState<T> {
   const [data, setData] = useState<T | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<AppError | null>(null);
@@ -66,5 +69,5 @@ export function useAsyncData<T>(load: () => Promise<T>, deps: unknown[] = []): A
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reloadToken, ...deps]);
 
-  return {data, isLoading, error, reload};
+  return { data, isLoading, error, reload };
 }

@@ -1,7 +1,12 @@
-import React, {useCallback, useRef, useState} from 'react';
-import {Animated, Pressable, type StyleProp, type ViewStyle} from 'react-native';
+import React, { useCallback, useRef, useState } from 'react';
+import {
+  Animated,
+  Pressable,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 
-import {colors, makeStyles, radius, useMetrics} from '../theme';
+import { colors, makeStyles, radius, useMetrics } from '../theme';
 
 interface FocusableProps {
   onPress?: () => void;
@@ -74,7 +79,7 @@ export function Focusable({
   accessibilityLabel,
   children,
 }: FocusableProps) {
-  const {focusScale, isTV, pressScale} = useMetrics();
+  const { focusScale, isTV, pressScale } = useMetrics();
   const styles = useStyles();
 
   // Tracked separately rather than as one `active` flag, because a D-pad
@@ -131,7 +136,9 @@ export function Focusable({
   }, [animateIf, isTV]);
 
   return (
-    <Animated.View style={scaleOnFocus ? {transform: [{scale}]} : undefined}>
+    <Animated.View
+      style={scaleOnFocus ? { transform: [{ scale }] } : undefined}
+    >
       <Pressable
         onPress={onPress}
         onFocus={handleFocus}
@@ -142,13 +149,14 @@ export function Focusable({
         hasTVPreferredFocus={isTV && hasTVPreferredFocus}
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
-        accessibilityState={{disabled}}
+        accessibilityState={{ disabled }}
         style={[
           styles.base,
           showFocusRing && active && styles.active,
           disabled && styles.disabled,
           style,
-        ]}>
+        ]}
+      >
         {typeof children === 'function' ? children(active) : children}
       </Pressable>
     </Animated.View>

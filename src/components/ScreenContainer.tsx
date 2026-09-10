@@ -1,8 +1,8 @@
-import React, {useMemo} from 'react';
-import {StatusBar, View} from 'react-native';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import React, { useMemo } from 'react';
+import { StatusBar, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import {colors, makeStyles, useMetrics} from '../theme';
+import { colors, makeStyles, useMetrics } from '../theme';
 
 /**
  * Root wrapper for every screen: the dark background, the status bar, and the
@@ -26,8 +26,8 @@ import {colors, makeStyles, useMetrics} from '../theme';
  * different place -- a header pads, a row's scroll content pads, a grid divides
  * it), which is why this component only owns the insets.
  */
-export function ScreenContainer({children}: {children: React.ReactNode}) {
-  const {isTV} = useMetrics();
+export function ScreenContainer({ children }: { children: React.ReactNode }) {
+  const { isTV } = useMetrics();
   const insets = useSafeAreaInsets();
   const styles = useStyles();
 

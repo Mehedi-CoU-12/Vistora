@@ -1,8 +1,8 @@
 import React from 'react';
-import {Text} from 'react-native';
+import { Text } from 'react-native';
 
-import {colors, makeStyles, radius, spacing} from '../theme';
-import {Focusable} from './Focusable';
+import { colors, makeStyles, radius, spacing } from '../theme';
+import { Focusable } from './Focusable';
 
 /**
  * A pill button. Interaction styling comes from Focusable, so it matches every
@@ -24,9 +24,12 @@ export function TextButton({
       onPress={onPress}
       hasTVPreferredFocus={hasTVPreferredFocus}
       style={styles.button}
-      accessibilityLabel={label}>
+      accessibilityLabel={label}
+    >
       {active => (
-        <Text style={[styles.label, active && styles.labelActive]}>{label}</Text>
+        <Text style={[styles.label, active && styles.labelActive]}>
+          {label}
+        </Text>
       )}
     </Focusable>
   );

@@ -1,9 +1,15 @@
-import React, {useCallback} from 'react';
-import {FlatList, Text, TVFocusGuideView, View} from 'react-native';
+import React, { useCallback } from 'react';
+import { FlatList, Text, TVFocusGuideView, View } from 'react-native';
 
-import {colors, makeStyles, spacing, useMetrics, type CardVariant} from '../theme';
-import type {ContentItem} from '../types/content';
-import {ContentCard} from './ContentCard';
+import {
+  colors,
+  makeStyles,
+  spacing,
+  useMetrics,
+  type CardVariant,
+} from '../theme';
+import type { ContentItem } from '../types/content';
+import { ContentCard } from './ContentCard';
 
 interface ContentRowProps {
   title: string;
@@ -49,11 +55,11 @@ export function ContentRow({
   onSelectItem,
   isFirstRow = false,
 }: ContentRowProps) {
-  const {isTV} = useMetrics();
+  const { isTV } = useMetrics();
   const styles = useStyles();
 
   const renderItem = useCallback(
-    ({item, index}: {item: ContentItem; index: number}) => (
+    ({ item, index }: { item: ContentItem; index: number }) => (
       <ContentCard
         item={item}
         variant={cardVariant}

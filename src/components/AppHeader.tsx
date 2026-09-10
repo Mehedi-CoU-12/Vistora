@@ -1,18 +1,8 @@
 import React from 'react';
-import {Text, View} from 'react-native';
+import { Text, View } from 'react-native';
 
-import {colors, makeStyles, spacing} from '../theme';
+import { colors, makeStyles, spacing } from '../theme';
 
-/**
- * Screen header: wordmark plus an optional title and action area.
- * Kept a plain layout component -- it owns no focus and no state.
- *
- * The one responsive detail worth naming: the titles block shrinks and the
- * action area does not. On a 390dp phone the wordmark, a screen title and an
- * "All channels" button are competing for a row that fits maybe two of them, and
- * the button is the one that must stay whole -- a clipped label is unreadable,
- * whereas a truncated subtitle still reads.
- */
 export function AppHeader({
   title,
   subtitle,

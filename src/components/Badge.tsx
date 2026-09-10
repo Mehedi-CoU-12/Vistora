@@ -1,12 +1,8 @@
 import React from 'react';
-import {Text, View} from 'react-native';
+import { Text, View } from 'react-native';
 
-import {colors, makeStyles, radius, spacing} from '../theme';
+import { colors, makeStyles, radius, spacing } from '../theme';
 
-/**
- * Small overlay tag on a card: LIVE, a channel number, 4K.
- * `tone="live"` is reserved for content that is genuinely on air now.
- */
 export function Badge({
   label,
   tone = 'neutral',
