@@ -6,8 +6,8 @@ TV** with a remote and on **Android phones and tablets** with a finger, from one
 codebase and one APK.
 
 **Phase 1 status:** project foundation, Supabase schema, a tabbed browser over
-every content kind, and a working player. Auth, favourites, watch history, search
-and the admin dashboard are deliberately not built yet.
+every content kind, search across all of them, and a working player. Auth,
+favourites, watch history and the admin dashboard are deliberately not built yet.
 
 ---
 
@@ -320,24 +320,159 @@ screen and leave nothing highlighted anywhere.
 
 ---
 
+## Search
+
+A magnifier pill in the top bar searches every content kind at once — channels,
+films, cartoons, anime and fixtures — and shows the matches as a shelf per kind:
+
+```
+VISTORA.        Home  Live TV  Movies  Cartoons  Anime  Sports    (Q)
+
+(Q) iron|                                              [Clear]
+
+Live TV · 1 channel      [tile]
+Movies · 2 films         [poster] [poster]
+Cartoons · 1 cartoon     [poster]
+```
+
+**The magnifier is drawn, not typed or imported.** `player/glyphs.ts` sets the
+rule: no icon font (a build-config change) and no SVG library (a native
+dependency) to ship a handful of shapes to a TV, and nothing from an emoji block
+either — Android renders those through the colour emoji font, so U+1F50D would
+arrive as a full-colour pictogram at a size and weight nothing else on screen
+shares. There is no usable magnifier among the geometric characters the player
+draws from: U+2315 is the closest and is not in Roboto's coverage on every
+Android build, so the failure mode is a tofu box — worse than the word it
+replaced. So `components/SearchIcon.tsx` draws it from two Views, a bordered
+circle and a rotated bar: no asset, no dependency, identical on every device, and
+size and colour are props rather than font metrics.
+
+This is not a reversal of `TabBar`'s **labels rather than icons**. That argument
+is specifically that the *tabs* are content kinds whose distinctions — cartoons
+against anime, films against fixtures — have no pictogram anyone would read
+correctly. Search is the opposite case: the magnifier is the one pictogram that
+is unambiguous at three metres and at thirty centimetres, and it is what every TV
+platform already uses here. Since the pill no longer says anything out loud,
+`TextButton`'s props make the accessible name a *type-level* requirement — a
+button with an `icon` and no `label` will not compile without an
+`accessibilityLabel`.
+
+**Search is a mode over the tabs, not a seventh tab.** `TABS` means "the content
+kinds this app browses", which is the property `HomeScreen` and `SearchScreen`
+both rely on when they derive their shelves from it — search is not a kind, it is
+a question asked of all of them. There is a measurable reason too: a phone in
+portrait puts the tab bar along the bottom, where six pills already divide a
+390dp screen into about 60dp each and "Cartoons" only just fits. A seventh takes
+that to 50dp and ellipsises the labels, so search would arrive by making
+navigation to everything else worse. As a mode it costs no navigation width at
+all, and closing it returns you to the tab you were on, still scrolled where you
+left it.
+
+**A shelf per kind, not one merged list.** A channel is a 16:9 tile and a film is
+a 2:3 poster, so a merged grid would have to pick one shape and stretch the
+other. Grouped by kind, each group keeps its own card shape and its own count, so
+"is this film in here?" is one glance rather than a scan of interleaved results.
+
+**The groups are derived, not listed.** `SearchScreen` maps over `catalogTabs()`
+and calls each spec's own loader with a `search` option, so it names no content
+kind anywhere in the file — adding one to `navigation/tabs.ts` makes it
+searchable with no edit there. That is the same derivation `HomeScreen` uses, and
+it matters more here: a kind missing from search looks exactly like a kind with
+nothing in it, so the bug would never be reported.
+
+**Queries are debounced by 300ms and need two characters.** On a phone the
+debounce saves six wasted requests per word. On a TV it does something the user
+can see: results are shelves, so a query per keystroke reflows the layout
+underneath whatever the D-pad had focused.
+
+**The field claims initial focus; the results do not.** `ContentRow` is not given
+`isFirstRow` on this screen, so the first result card never seeds focus — a card
+stealing it mid-search would send the next keystroke to the focus engine instead
+of the query. On TV the field takes `hasTVPreferredFocus`, which gives it D-pad
+focus *without* opening the leanback IME over the results; on a phone it takes
+`autoFocus` instead, because arriving at a search screen and then having to tap
+the field is a wasted tap.
+
+**What each kind matches** — the lists live in `*_SEARCH_COLUMNS` in
+`services/contentService.ts`:
+
+| Kind | Columns |
+|---|---|
+| Live TV | `name`, `description` |
+| Movies / Cartoons / Anime | `title`, `description` |
+| Sports | `title`, `competition`, `home_team`, `away_team` |
+
+`channels.channel_number` is deliberately absent — it is an integer column and
+`ilike` on one is a cast away from a 400, and the Live TV grid is already ordered
+by exactly that number. `sports_events.sport_slug` is absent for a different
+reason: it is a machine key, so searching it would make "foot" return every
+football fixture in the database and bury the team the user typed half of.
+
+**The term is quoted, and that is not cosmetic.** Searching several columns means
+`or=(name.ilike.X,description.ilike.X)`, and PostgREST parses that list with `,`
+as the separator and `()` as grouping — so an ordinary title like "Crouching
+Tiger, Hidden Dragon" or "Alien (1979)" would be read as filter syntax. The
+value is wrapped in double quotes, with any quote inside it escaped, by
+`services/searchQuery.ts`, which is a separate module precisely so that string
+surgery is unit-tested rather than checked against a live database. (It is not
+about SQL injection: supabase-js sends the value as a query-string parameter and
+PostgREST binds it into a prepared statement.)
+
+Backslashes are stripped from the term, which *is* load-bearing: `\` is `LIKE`'s
+escape character, so a term ending in one produces `'%foo\%'` and PostgreSQL
+raises "LIKE pattern must not end with escape character" — a 500 from a stray
+keystroke. `%`, `_` and `*` are left alone and reach `ILIKE` as wildcards, which
+only ever broadens a match.
+
+**Performance is a sequential scan, and at this scale that is the right plan.**
+`ilike '%term%'` cannot use a btree index — a leading wildcard means the match
+can start anywhere, so btree's ordering is no help — so PostgreSQL scans.
+Measured with `explain (analyze)` on PostgreSQL 18, against the exact query
+`contentService` generates:
+
+| Table size | Plan chosen | Time |
+|---|---|---|
+| 10,000 channels | seq scan | ~14ms |
+| 20,000 movies | seq scan | ~5ms |
+| 200,000 movies | BitmapOr over two trigram indexes | ~1.6ms (vs ~79ms scanning) |
+
+So a personal library — even a full iptv-org channel import — is already faster
+than the 300ms debounce in front of it.
+`supabase/migrations/0003_search_indexes.sql` adds the `pg_trgm` GIN indexes
+those last two rows compare; it is **optional**, the app behaves identically with
+or without it, and below roughly a hundred thousand rows in one table the planner
+ignores the indexes and is right to. Treat it as insurance against a library that
+grows, not a fix for something currently slow.
+
+> **Partly verified.** `tsc`, ESLint and 178 Jest tests pass, and migration 0003
+> was applied to a real PostgreSQL 18 instance — twice, to confirm it is
+> idempotent — where the forced plan is the expected `BitmapOr` with `is_active`
+> in the recheck condition, confirming the partial indexes match the app's query.
+> But unlike everything in [Verified](#verified) below, the *UI* has not been
+> driven on a real Android TV or phone: the D-pad path from the field into the
+> results and the leanback IME are unexercised.
+
+---
+
 ## Project structure
 
 ```
 src/
   config/env.ts          the only file that reads @env
   lib/supabase.ts        the Supabase client; nothing else creates one
-  services/              every database read, and the app's error type
+  services/              every database read, the app's error type, and the
+                         search-term → PostgREST filter translation
   types/                 database rows, app models + mappers, route params
-  hooks/                 useAsyncData (loading / error / retry)
+  hooks/                 useAsyncData (loading / error / retry), useDebouncedValue
   theme/                 colours, type scale, and the responsive metrics system
   components/            Focusable, ContentCard, ContentRow, TabBar,
-                         CategoryPicker, state views
+                         CategoryPicker, SearchField, SearchIcon, state views
   player/                the player: overlay, gestures, remote, settings panel
                          — and it knows nothing about Supabase
-  screens/               Browse (the tab host), Home, Catalog, Player
+  screens/               Browse (the tab host), Home, Catalog, Search, Player
   navigation/            native stack + tabs.ts, the list of content kinds
 supabase/
-  migrations/            schema, RLS, indexes
+  migrations/            schema, RLS, indexes (0003 is optional: search indexes)
   seed.sql               sample data with public test streams
 scripts/
   generate-android-icons.py   source logo → every icon, banner and splash raster
@@ -1018,8 +1153,11 @@ check `logcat` for `ExoPlayerImpl` and `BufferPoolAccessor` activity instead.
 
 ## Deliberately not built yet
 
-Auth, user profiles, favourites, watch history / continue watching, search,
-EPG, notifications, parental controls, subscriptions, and the admin dashboard.
+Auth, user profiles, favourites, watch history / continue watching, EPG,
+notifications, parental controls, subscriptions, and the admin dashboard.
+
+Search is built, but only as substring matching (see [Search](#search)); it does
+not rank results, tolerate a typo, or search across kinds in one merged list.
 
 The schema is shaped to absorb them: every content table already carries `slug`,
 `is_active`, `sort_order` and timestamps, so a new content type is a copy of a

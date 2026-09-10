@@ -61,7 +61,7 @@ export function HomeScreen({
     const shelves = await Promise.all(
       catalogTabs().map(async tab => ({
         tab,
-        items: await tab.catalog.load(ROW_LIMIT),
+        items: await tab.catalog.load({ limit: ROW_LIMIT }),
       })),
     );
 

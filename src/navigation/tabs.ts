@@ -22,7 +22,11 @@ import type { CategoryKind } from '../types/database';
  * used to hard-code its own list of rows, so the set of things on the home
  * screen and the set of things you could browse were two lists that had to be
  * kept in step by hand. Home now derives its shelves from `catalogTabs()`, so a
- * new kind appears in both places or neither.
+ * new kind appears in both places or neither. `SearchScreen` derives its result
+ * shelves from the same call, which is the third place that would otherwise have
+ * needed the same list written out again -- and the one where a stale copy would
+ * be hardest to notice, since a kind missing from search looks like a kind with
+ * nothing in it.
  *
  * ---------------------------------------------------------------------------
  * Anime, and empty tabs generally
@@ -34,16 +38,39 @@ import type { CategoryKind } from '../types/database';
  * shows the same navigation as a full library.
  */
 
+/** What a catalog's loader can be narrowed by. */
+export interface CatalogLoadOptions {
+  /**
+   * Cap on the number of items. Passed by the home screen, which shows a
+   * preview of each catalog rather than the whole thing, and by search, which
+   * shows a shelf per kind.
+   */
+  limit?: number;
+  /**
+   * Substring to match against the kind's own text columns -- a channel's name,
+   * a film's title, a fixture's teams. Omitted for a plain browse, which returns
+   * the whole catalog.
+   *
+   * Pass a term that has already been through `normalizeSearchTerm`; see
+   * services/searchQuery.ts for what that does and why.
+   */
+  search?: string;
+}
+
 /** A tab that browses one kind of content. */
 export interface CatalogSpec {
   /** Which categories become the filter list down the side (or along the top). */
   categoryKind: CategoryKind;
   cardVariant: CardVariant;
   /**
-   * Loads the tab's items. `limit` is passed by the home screen, which shows a
-   * preview of each catalog rather than the whole thing.
+   * Loads the tab's items, optionally capped or filtered by a search term.
+   *
+   * One loader rather than a `load` and a separate `search` per tab, which is
+   * what makes it impossible for browsing a kind and searching it to disagree
+   * about what is in it: the Cartoons tab and a cartoon search are the same
+   * query with one more filter.
    */
-  load: (limit?: number) => Promise<ContentItem[]>;
+  load: (options?: CatalogLoadOptions) => Promise<ContentItem[]>;
   /** Count wording, singular and plural: "1 channel", "42 channels". */
   countNoun: readonly [singular: string, plural: string];
   /** Shown when the query succeeds and comes back empty. */
@@ -85,7 +112,7 @@ export const TABS: readonly TabDef[] = [
       // 16:9, because a channel's artwork is a logo on a banner rather than a
       // poster.
       cardVariant: 'landscape',
-      load: limit => fetchChannels({ limit }),
+      load: options => fetchChannels(options),
       countNoun: ['channel', 'channels'],
       emptyMessage:
         'No active channels were returned. Add rows to the `channels` table, or apply supabase/seed.sql.',
@@ -98,7 +125,7 @@ export const TABS: readonly TabDef[] = [
     catalog: {
       categoryKind: 'movie',
       cardVariant: 'poster',
-      load: limit => fetchMovies({ categoryKind: 'movie', limit }),
+      load: options => fetchMovies({ ...options, categoryKind: 'movie' }),
       countNoun: ['film', 'films'],
       emptyMessage:
         'No films yet. Run `npm run import:movies`, then apply the seed file it writes.',
@@ -111,7 +138,7 @@ export const TABS: readonly TabDef[] = [
     catalog: {
       categoryKind: 'cartoon',
       cardVariant: 'poster',
-      load: limit => fetchMovies({ categoryKind: 'cartoon', limit }),
+      load: options => fetchMovies({ ...options, categoryKind: 'cartoon' }),
       countNoun: ['cartoon', 'cartoons'],
       emptyMessage:
         'No cartoons yet. Run `npm run import:cartoons`, then apply the seed file it writes.',
@@ -124,7 +151,7 @@ export const TABS: readonly TabDef[] = [
     catalog: {
       categoryKind: 'anime',
       cardVariant: 'poster',
-      load: limit => fetchMovies({ categoryKind: 'anime', limit }),
+      load: options => fetchMovies({ ...options, categoryKind: 'anime' }),
       // "1 anime / 42 animes" is wrong in both directions, so the count says
       // "title" here rather than bending the tab's own name into a plural.
       countNoun: ['title', 'titles'],
@@ -139,7 +166,7 @@ export const TABS: readonly TabDef[] = [
     catalog: {
       categoryKind: 'sports',
       cardVariant: 'poster',
-      load: limit => fetchSportsEvents({ limit }),
+      load: options => fetchSportsEvents(options),
       countNoun: ['event', 'events'],
       emptyMessage:
         'No live or upcoming fixtures. Finished events are filtered out, so this empties itself over time.',

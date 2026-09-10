@@ -2,7 +2,9 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { BackHandler, Text, View } from 'react-native';
 
 import { ScreenContainer } from '../components/ScreenContainer';
+import { SearchIcon } from '../components/SearchIcon';
 import { TabBar } from '../components/TabBar';
+import { TextButton } from '../components/TextButton';
 import {
   isCatalogTab,
   TABS,
@@ -12,6 +14,7 @@ import {
 import { colors, makeStyles, spacing, useMetrics } from '../theme';
 import { CatalogScreen } from './CatalogScreen';
 import { HomeScreen } from './HomeScreen';
+import { SearchScreen } from './SearchScreen';
 
 /** The tab the app opens on, and the one Back returns to. */
 const INITIAL_TAB: TabId = 'home';
@@ -36,6 +39,31 @@ const INITIAL_TAB: TabId = 'home';
  * Home from anywhere, and leave the app from Home.
  *
  * ---------------------------------------------------------------------------
+ * Search is a mode over the tabs, not a seventh tab
+ * ---------------------------------------------------------------------------
+ * The reflex is to add `search` to TABS and let the tab bar render it. Two
+ * things are wrong with that.
+ *
+ * The first is that TABS means "the content kinds this app browses" -- that is
+ * the property `HomeScreen` and `SearchScreen` both rely on when they derive
+ * their shelves from it. Search is not a kind; it is a question asked of all of
+ * them at once. An entry in that array would have to be filtered back out at
+ * every point that maps over it, which is the "two lists kept in step by hand"
+ * problem the array exists to prevent.
+ *
+ * The second is measurable. A phone in portrait puts the tab bar along the
+ * bottom, where six pills already divide a 390dp screen into about 60dp each and
+ * "Cartoons" only just fits. A seventh takes that to 50dp and ellipsises the
+ * labels -- so search would arrive by making navigation to everything else
+ * worse.
+ *
+ * As a mode it costs no navigation width at all: the pill lives in the top bar,
+ * which is the wordmark and a great deal of nothing on the layout where the tab
+ * bar is at the bottom. And the mode composes with the tabs rather than
+ * competing with them -- closing search returns you to the tab you were on,
+ * still scrolled where you left it.
+ *
+ * ---------------------------------------------------------------------------
  * Why the hardware key is handled with BackHandler here
  * ---------------------------------------------------------------------------
  * PlayerScreen documents that `BackHandler` does NOT work under this navigator,
@@ -46,12 +74,25 @@ const INITIAL_TAB: TabId = 'home';
  * also means the failure mode if a future version changes that is mild -- Back
  * leaves the app from a non-Home tab, exactly as it did before there were tabs.
  *
- * The listener is only registered off Home, so the handler cannot swallow the
- * press that is supposed to exit the app.
+ * The listener is only registered while there is somewhere to go back TO -- off
+ * Home, or in search -- so the handler cannot swallow the press that is supposed
+ * to exit the app.
  */
 export function BrowseScreen() {
-  const { navPlacement, isTouch } = useMetrics();
+  const { navPlacement, isTouch, typography } = useMetrics();
   const styles = useStyles();
+
+  /**
+   * The magnifier stands in for a word, so it is sized against the type scale
+   * rather than picked: 1.2x the body size puts it at about the cap height of
+   * the label it replaced, so it sits in the pill the way the text did.
+   *
+   * `body` is one of the roles that deliberately does NOT scale per device (see
+   * typography.ts on why dp is physical and the two viewing distances cancel
+   * out), which is exactly the property wanted here -- a magnifier legible on a
+   * phone at thirty centimetres is legible on a TV at three metres.
+   */
+  const searchIconSize = Math.round(typography.body.fontSize * 1.2);
 
   const [activeId, setActiveId] = useState<TabId>(INITIAL_TAB);
 
@@ -71,31 +112,67 @@ export function BrowseScreen() {
    */
   const [visited, setVisited] = useState<readonly TabId[]>([INITIAL_TAB]);
 
+  /**
+   * Whether search has taken over the content area.
+   *
+   * Separate state rather than a value of `activeId`, so the tab underneath
+   * stays selected and comes back untouched when search closes. The search term
+   * itself lives in `SearchScreen`, which unmounts with the mode -- closing
+   * search and reopening it should be a fresh question, not the last one still
+   * sitting in the field.
+   */
+  const [searching, setSearching] = useState(false);
+
   const selectTab = useCallback((id: TabId) => {
     setActiveId(id);
     setVisited(seen => (seen.includes(id) ? seen : [...seen, id]));
+    // Picking a tab is a request to browse it, so it closes search. Without
+    // this the results would stay over the tab the user just chose.
+    setSearching(false);
+  }, []);
+
+  const toggleSearch = useCallback(() => {
+    setSearching(open => !open);
   }, []);
 
   useEffect(() => {
-    if (activeId === INITIAL_TAB) {
+    if (!searching && activeId === INITIAL_TAB) {
       return undefined;
     }
 
     const subscription = BackHandler.addEventListener(
       'hardwareBackPress',
       () => {
-        setActiveId(INITIAL_TAB);
+        // Search first, then the tab: Back unwinds the modes in the order they
+        // were entered, so from a search over Anime it takes you to Anime and
+        // then to Home rather than skipping a step the user can see.
+        if (searching) {
+          setSearching(false);
+        } else {
+          setActiveId(INITIAL_TAB);
+        }
         return true;
       },
     );
 
     return () => subscription.remove();
-  }, [activeId]);
+  }, [activeId, searching]);
 
   const topNav = navPlacement === 'top';
-  const rendered = isTouch
+
+  /**
+   * Which tab pages to mount.
+   *
+   * On TV the active tab is unmounted while search is open, for the same reason
+   * only one tab is ever mounted there: a hidden subtree's cards stay in the
+   * platform's focus tree, so the D-pad could walk out of the results and into
+   * the grid behind them, leaving nothing highlighted anywhere. On touch there
+   * is no focus tree to corrupt, so the pages stay mounted and merely hidden --
+   * which is what makes closing search return you to an unchanged tab.
+   */
+  const mounted = isTouch
     ? TABS.filter(tab => visited.includes(tab.id))
-    : TABS.filter(tab => tab.id === activeId);
+    : TABS.filter(tab => tab.id === activeId && !searching);
 
   return (
     <ScreenContainer>
@@ -111,21 +188,50 @@ export function BrowseScreen() {
         {topNav ? (
           <TabBar tabs={TABS} activeId={activeId} onSelect={selectTab} />
         ) : null}
+
+        {/* `marginLeft: 'auto'` rather than a `justifyContent` on the row: it
+            pins the pill to the right edge on a phone in portrait, where the
+            wordmark is the only other thing in this bar, and resolves to nothing
+            on a layout where the tab rail beside it has already claimed the
+            free space. One rule, both layouts. */}
+        <View style={styles.searchSlot}>
+          {/* Icon-only, so `accessibilityLabel` carries the name the pill no
+              longer says out loud. It is also the one place the app spends a
+              pictogram instead of a word -- see the note in SearchIcon on why
+              the magnifier is the exception to `TabBar`'s labels-not-icons
+              rule. */}
+          <TextButton
+            accessibilityLabel="Search"
+            onPress={toggleSearch}
+            selected={searching}
+          >
+            {color => <SearchIcon size={searchIconSize} color={color} />}
+          </TextButton>
+        </View>
       </View>
 
       <View style={styles.body}>
-        {rendered.map(tab => (
+        {mounted.map(tab => (
           // `display: 'none'` rather than conditional rendering, so a hidden tab
           // keeps its state. It also drops out of flex layout entirely, which is
           // what lets every page carry `flex: 1` without dividing the height
           // between them.
           <View
             key={tab.id}
-            style={[styles.page, tab.id !== activeId && styles.pageHidden]}
+            style={[
+              styles.page,
+              (tab.id !== activeId || searching) && styles.pageHidden,
+            ]}
           >
             <TabPage tab={tab} onSeeAll={selectTab} />
           </View>
         ))}
+
+        {searching ? (
+          <View style={styles.page}>
+            <SearchScreen />
+          </View>
+        ) : null}
       </View>
 
       {topNav ? null : (
@@ -165,6 +271,10 @@ const useStyles = makeStyles(m => ({
   },
   brandAccent: {
     color: colors.accent,
+  },
+  searchSlot: {
+    marginLeft: 'auto',
+    flexShrink: 0,
   },
   body: {
     flex: 1,

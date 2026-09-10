@@ -20,6 +20,27 @@ psql "$DATABASE_URL" -f supabase/seed.sql
 `supabase db reset` against a local stack runs the migration and `seed.sql`
 automatically.
 
+### GitHub Actions
+
+`.github/workflows/migrate.yml` — run it from the Actions tab to apply every
+migration the database has not had yet, no local Postgres client needed. It
+keeps a ledger table, `public.schema_migrations`, holding one row per applied
+file, and executes only unrecorded ones; each file and its ledger row go in a
+single transaction, so a migration that fails records nothing and changes
+nothing. Migration files must therefore not contain their own `begin;` /
+`commit;` — the workflow owns the transaction.
+
+| Input | What it does |
+|---|---|
+| `dry_run` | Lists what would be applied and stops |
+| `sample_seed` | Also applies `seed.sql` afterwards |
+| `baseline` | Records migrations up to and including this one as applied *without running them* |
+
+`baseline` is for a project set up before the workflow existed: it has the
+tables but no ledger, so every migration looks pending and `0001` would fail on
+`create type`. Run it once with `baseline: 0002_add_anime_kind` (or whatever the
+last migration that database already has is), and later ones apply normally.
+
 ### Dashboard
 
 Paste `0001_initial_schema.sql` into the SQL Editor and run it, then
@@ -77,7 +98,13 @@ so you can reseed without a local Postgres client. Trigger it from the Actions
 tab; it takes the content type, filters, and a dry-run switch as inputs, and
 attaches the generated SQL to the run either way.
 
-It needs one repository secret, `SEED_DATABASE_URL`. Take it from **Project
+It applies any pending migrations first, by calling
+`.github/workflows/migrate.yml` — leave the `migrate` input on, because the
+generated SQL can need a schema the database has not got yet (importing anime
+inserts a category with `kind = 'anime'`, an enum value `0002` adds). Turn it
+off only to reseed without touching the schema.
+
+Both workflows need one repository secret, `SEED_DATABASE_URL`. Take it from **Project
 Settings → Database → Connection string → Session pooler**, *not* the direct
 connection: Supabase serves direct connections over IPv6 only and GitHub-hosted
 runners have no IPv6 route, so a direct string fails with a network error that

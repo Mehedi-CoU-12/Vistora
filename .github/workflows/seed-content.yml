@@ -24,7 +24,8 @@
 # ---------------------------------------------------------------------------
 # What a run does
 # ---------------------------------------------------------------------------
-# Generates SQL, uploads it as an artifact, then applies it. Every statement is
+# Brings the schema up to date (see .github/workflows/migrate.yml), generates
+# SQL, uploads it as an artifact, then applies it. Every statement is
 # an idempotent upsert keyed on `slug`, so re-running refreshes existing rows
 # (stream URLs rot, especially IPTV ones) rather than duplicating them. Nothing
 # is ever deleted.
@@ -47,7 +48,7 @@ on:
       limit:
         description: How many titles to import (movies/cartoons only)
         type: string
-        default: "40"
+        default: '40'
       countries:
         description: 'Live TV: ISO country codes, comma-separated (e.g. BD,IN,PK)'
         type: string
@@ -59,9 +60,9 @@ on:
       categories:
         description: 'Live TV: restrict to categories (e.g. news,sports,kids). Blank = all'
         type: string
-        default: ""
+        default: ''
       official_only:
-        description: 'Live TV: only streams served by the broadcaster''s own domain'
+        description: "Live TV: only streams served by the broadcaster's own domain"
         type: boolean
         default: false
       license:
@@ -74,9 +75,13 @@ on:
       year_range:
         description: 'Movies/cartoons: release years, e.g. 1930-1970. Blank = any'
         type: string
-        default: ""
+        default: ''
       probe:
         description: Check every stream actually plays before importing it
+        type: boolean
+        default: true
+      migrate:
+        description: Apply any pending supabase/migrations first (leave on -- the SQL below can need a schema this database has not got yet)
         type: boolean
         default: true
       dry_run:
@@ -91,7 +96,21 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Bring the schema up to date before generating anything against it. The
+  # generated SQL is written for the migrations in this checkout -- importing
+  # anime, for instance, inserts a category with kind = 'anime', which is an
+  # enum value migration 0002 adds. Skipped rather than failed when `migrate`
+  # is off, which is why the seed job below tolerates a skipped dependency.
+  migrate:
+    if: ${{ inputs.migrate }}
+    uses: ./.github/workflows/migrate.yml
+    secrets: inherit
+
   seed:
+    needs: migrate
+    # `needs` alone would skip this job whenever migrate was skipped, so the
+    # condition is spelled out: run after a successful migrate, or after none.
+    if: ${{ always() && (needs.migrate.result == 'success' || needs.migrate.result == 'skipped') }}
     runs-on: ubuntu-latest
     # Referencing an environment is free even if you have not created one. Add
     # a required reviewer to it in repo settings if you want writes to the
@@ -108,7 +127,7 @@ jobs:
         with:
           # The importers use only Node builtins -- no `npm ci` step, because
           # there is nothing to install.
-          node-version: "22"
+          node-version: '22'
 
       # Inputs are attacker-controllable text on a public repo, so they are
       # passed through `env` and quoted rather than interpolated straight into
@@ -193,9 +212,10 @@ jobs:
           # most of the time -- and under `everything` that would fail a run
           # that had already generated perfectly good channels and films.
           #
-          # Applying it needs migration 0002 on the target database first: the
+          # Applying it needs migration 0002 on the target database -- the
           # generated file inserts a category with kind = 'anime', and psql
-          # rejects an enum value the type does not have.
+          # rejects an enum value the type does not have. The migrate job above
+          # has already put it there unless `migrate` was turned off.
           if [ "$SOURCE" = "anime" ]; then
             echo "::group::Anime"
             node scripts/import-archive.mjs \

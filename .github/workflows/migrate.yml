@@ -1,0 +1,230 @@
+# Applies everything in supabase/migrations/ that the target database has not
+# had yet, in filename order.
+#
+# ---------------------------------------------------------------------------
+# How "has not had yet" is decided
+# ---------------------------------------------------------------------------
+# The workflow keeps a ledger table, public.schema_migrations, holding one row
+# per applied file. That ledger is not decoration: 0001_initial_schema.sql is
+# `create type` / `create table` with no `if not exists`, so re-running it
+# against a live database fails halfway and leaves you guessing which half
+# landed. Only unrecorded files are executed, and each file plus its ledger row
+# goes in ONE transaction -- a migration that fails records nothing and changes
+# nothing.
+#
+# Because of that, migration files must not contain their own `begin;` /
+# `commit;`. Nothing in supabase/migrations/ does, and new ones should not
+# either -- the workflow owns the transaction.
+#
+# ---------------------------------------------------------------------------
+# Pointing it at a database that already has the schema
+# ---------------------------------------------------------------------------
+# A project set up before this workflow existed has the tables but no ledger,
+# so every migration looks pending and 0001 would fail on `create type`. Run
+# once with `baseline` set to the last migration that database already has
+# (e.g. `0002_add_anime_kind`): those are recorded as applied without being
+# executed, and later ones run normally.
+#
+# ---------------------------------------------------------------------------
+# Setup
+# ---------------------------------------------------------------------------
+# The same repository secret the seed workflow uses, SEED_DATABASE_URL:
+#
+#   Supabase dashboard -> Project Settings -> Database -> Connection string
+#     -> "Session pooler"  (NOT "Direct connection")
+#
+# Supabase serves direct connections over IPv6 only and GitHub-hosted runners
+# have no IPv6 route, so a direct string fails with a bare "Network is
+# unreachable" that reads like a credentials problem and is not.
+name: Migrate database
+
+on:
+  # Run it yourself from the Actions tab.
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: List what would be applied, but do not touch the database
+        type: boolean
+        default: false
+      sample_seed:
+        description: Also apply supabase/seed.sql (sample content, idempotent)
+        type: boolean
+        default: false
+      baseline:
+        description: 'Record migrations up to and including this one as applied WITHOUT running them (e.g. 0002_add_anime_kind). Blank = normal run'
+        type: string
+        default: ''
+
+  # Called by seed-content.yml so a seed always lands on an up-to-date schema.
+  workflow_call:
+    inputs:
+      dry_run:
+        type: boolean
+        default: false
+      sample_seed:
+        type: boolean
+        default: false
+      baseline:
+        type: string
+        default: ''
+    secrets:
+      SEED_DATABASE_URL:
+        required: true
+
+# Two runs applying the same pending file would race: both read an empty
+# ledger, both execute it, the second fails on an object that now exists.
+# Queue instead of cancelling -- a migration killed mid-apply is worse.
+concurrency:
+  group: migrate-database
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    # Referencing an environment is free even if you have not created one. Add
+    # a required reviewer to it in repo settings if schema changes to the
+    # production database should need a second pair of eyes.
+    environment: database
+    permissions:
+      contents: read
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply pending migrations
+        env:
+          DATABASE_URL: ${{ secrets.SEED_DATABASE_URL }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          SAMPLE_SEED: ${{ inputs.sample_seed }}
+          BASELINE: ${{ inputs.baseline }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          if [ -z "${DATABASE_URL:-}" ]; then
+            echo "::error::secret SEED_DATABASE_URL is not set -- see the comment at the top of this workflow"
+            exit 1
+          fi
+
+          files=(supabase/migrations/*.sql)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error::no files in supabase/migrations/"
+            exit 1
+          fi
+
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql-client
+          fi
+          psql --version
+
+          # `baseline` is free text from a workflow input, so it is checked
+          # against the files on disk rather than trusted -- a typo would
+          # otherwise silently record nothing and run 0001 against a live
+          # schema.
+          if [ -n "$BASELINE" ] && [ ! -f "supabase/migrations/$BASELINE.sql" ]; then
+            echo "::error::baseline '$BASELINE' matches no file in supabase/migrations/"
+            exit 1
+          fi
+
+          # RLS with no policies, so the anon key cannot read the ledger even
+          # though `grant`s in 0001 are broad. Nothing in the app needs it.
+          echo "::group::Ensure the migration ledger exists"
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -c "
+            create table if not exists public.schema_migrations (
+              version    text primary key,
+              applied_at timestamptz not null default now()
+            );
+            alter table public.schema_migrations enable row level security;
+          "
+          echo "::endgroup::"
+
+          applied_before=$(psql "$DATABASE_URL" -At -v ON_ERROR_STOP=1 \
+            -c "select version from public.schema_migrations")
+
+          {
+            echo "## Migrate database"
+            echo
+            echo "| Migration | Result |"
+            echo "|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          pending=0
+          for file in "${files[@]}"; do
+            version=$(basename "$file" .sql)
+
+            # The filename is interpolated into SQL below. Repo files, not user
+            # input -- but a quote in a filename would still be a broken
+            # statement rather than a mystery, so refuse it outright.
+            case "$version" in
+              *[!A-Za-z0-9._-]*)
+                echo "::error::migration filename '$version' must contain only letters, digits, dot, dash or underscore"
+                exit 1
+                ;;
+            esac
+
+            if printf '%s\n' "$applied_before" | grep -qxF "$version"; then
+              echo "$version -- already applied"
+              echo "| \`$version\` | already applied |" >> "$GITHUB_STEP_SUMMARY"
+              continue
+            fi
+
+            pending=$((pending + 1))
+
+            # `[ ! a > b ]` is a <= b as strings, which is the right comparison
+            # for zero-padded numeric prefixes.
+            if [ -n "$BASELINE" ] && [ ! "$version" \> "$BASELINE" ]; then
+              if [ "$DRY_RUN" = "true" ]; then
+                echo "$version -- would be recorded as applied (baseline), not run"
+                echo "| \`$version\` | would be baselined |" >> "$GITHUB_STEP_SUMMARY"
+              else
+                psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q \
+                  -c "insert into public.schema_migrations (version) values ('$version')"
+                echo "$version -- recorded as applied (baseline), not run"
+                echo "| \`$version\` | baselined, not run |" >> "$GITHUB_STEP_SUMMARY"
+              fi
+              continue
+            fi
+
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "$version -- would be applied"
+              echo "| \`$version\` | would be applied |" >> "$GITHUB_STEP_SUMMARY"
+              continue
+            fi
+
+            echo "::group::psql -f $file"
+            # One transaction for the file and its ledger row, so the two can
+            # never disagree. ON_ERROR_STOP is what makes that real: without
+            # it psql skips past a failed statement and exits 0, and the job
+            # goes green having migrated nothing.
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q --single-transaction \
+              -f "$file" \
+              -c "insert into public.schema_migrations (version) values ('$version')"
+            echo "::endgroup::"
+            echo "| \`$version\` | **applied** |" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+          if [ "$pending" -eq 0 ]; then
+            echo "Database is up to date."
+            echo >> "$GITHUB_STEP_SUMMARY"
+            echo "Already up to date -- nothing to apply." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          if [ "$SAMPLE_SEED" = "true" ]; then
+            if [ "$DRY_RUN" = "true" ]; then
+              echo >> "$GITHUB_STEP_SUMMARY"
+              echo "Would also apply \`supabase/seed.sql\`." >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "::group::psql -f supabase/seed.sql"
+              psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f supabase/seed.sql
+              echo "::endgroup::"
+              echo >> "$GITHUB_STEP_SUMMARY"
+              echo "Applied \`supabase/seed.sql\` (sample content)." >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
+
+          if [ "$DRY_RUN" = "true" ]; then
+            echo >> "$GITHUB_STEP_SUMMARY"
+            echo "> Dry run -- the database was not changed." >> "$GITHUB_STEP_SUMMARY"
+          fi
