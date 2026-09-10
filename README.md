@@ -338,17 +338,18 @@ Movies · 2 films         [poster] [poster]
 Anime · 1 title          [poster]
 ```
 
-**The magnifier is drawn, not typed or imported.** `player/glyphs.ts` sets the
-rule: no icon font (a build-config change) and no SVG library (a native
+**The magnifier is drawn, not typed or imported.** `player/PlayerIcon.tsx` sets
+the rule: no icon font (a build-config change) and no SVG library (a native
 dependency) to ship a handful of shapes to a TV, and nothing from an emoji block
 either — Android renders those through the colour emoji font, so U+1F50D would
 arrive as a full-colour pictogram at a size and weight nothing else on screen
-shares. There is no usable magnifier among the geometric characters the player
-draws from: U+2315 is the closest and is not in Roboto's coverage on every
-Android build, so the failure mode is a tofu box — worse than the word it
-replaced. So `components/SearchIcon.tsx` draws it from two Views, a bordered
-circle and a rotated bar: no asset, no dependency, identical on every device, and
-size and colour are props rather than font metrics.
+shares. There is no usable magnifier among the geometric characters: U+2315 is
+the closest and is not in Roboto's coverage on every Android build, so the
+failure mode is a tofu box — worse than the word it replaced. So
+`components/SearchIcon.tsx` draws it from two Views, a bordered circle and a
+rotated bar: no asset, no dependency, identical on every device, and size and
+colour are props rather than font metrics. The player's whole icon set is drawn
+the same way, for the same reasons.
 
 This is not a reversal of `TabBar`'s **labels rather than icons**. That argument
 is specifically that the *tabs* are content kinds whose distinctions — anime
@@ -798,13 +799,16 @@ src/player/
   useRemoteControl.ts    D-pad + media keys          (TV)
   usePlayerGestures.ts   tap, double-tap, swipe,     (touch)
                          press-and-hold, pinch
-  PlayerControls.tsx     the overlay, in both shapes
+  PlayerControls.tsx     the overlay: three zones, both devices
   SeekBar.tsx            draggable on touch, focusable on TV
   SettingsPanel.tsx      speed, picture size, audio, subtitles
   GestureFeedback.tsx    the readouts a gesture needs and a button does not
   ControlButton.tsx      focus (TV) and press (touch) in one control
+  PlayerIcon.tsx         the icon set, drawn from Views
+  Scrim.tsx              the gradient behind the controls
+  useOverlayFade.ts      the overlay's fade, and why a TV only gets half of it
   playbackOptions.ts     rates, scaling modes, track labels, clamping — pure
-  playerLayout.ts        control sizes per device, and the screen-edge padding
+  playerLayout.ts        control sizes per device, scrim heights, edge padding
 ```
 
 What is deliberately **not** there is a layer unifying the two input systems. A
@@ -912,31 +916,117 @@ not know where it is should do nothing. And `onProgress` reporting a
 live playlist reloads, is ignored rather than stored: a zero-length timeline
 collapses the fill to the far left and maps every position on the bar to zero.
 
-### Controls on a TV, controls on a phone
+### Three zones, not one long row
 
-Same pieces, different arrangement, resolved in `playerLayout.ts`:
+Everything used to live along the bottom: the scrub bar, then a single row
+holding play, skip, speed, picture size, lock, settings and back. That is where a
+player overlay goes wrong, because one row mixes two kinds of control that want
+opposite things — the ones a hand reaches for constantly, and the ones set once
+per film and then forgotten. Eight of them in a line is a row too long to scan, a
+row in which Back sits one slip away from Pause, and a row that has to shed its
+text labels to fit on a phone.
 
-* **TV** — two focus rows and nothing else: the scrub bar, then one row of
-  buttons, skip included because a remote has no other way to ask for a
-  10-second jump. Nothing sits in the middle of the screen: a remote cannot reach
-  for it, and a second focus target there would only compete for left/right. Key
-  hints are printed, because nothing on a remote is self-evident.
-* **Touch** — one row along the bottom, play/pause at the left end as the only
-  round control in it, so the button reached for without looking is the one shape
-  that is not a rectangle. **No skip buttons**: double-tapping either side of the
-  screen already skips, and a pair of buttons doing the same job reads as clutter
-  over the picture — especially in landscape, where the row is the only chrome on
-  screen. Nothing is sized below `minTouchTarget` (48dp).
+So controls are placed by how often they are used, and the arrangement is now the
+same on both devices:
 
-The gestures are therefore the *only* way to skip on a phone, which is the
-trade this layout makes deliberately: discoverability for a clean picture. It is
-the right way round for a player people use every day rather than once.
+```
+┌───────────────────────────────────────────────────────────┐
+│  (<)  The Title            LIVE  1.5x  (=) (o) (a) (gear) │
+│       subtitle                                            │
+│                                                           │
+│                        (the film)                         │
+│                                                           │
+│  12:04 |=========o--------------------------------| 38:20 │
+│               (<<)  ( > )  (>>)                [Go live]  │
+└───────────────────────────────────────────────────────────┘
+         back / speed / picture size / pop out / lock / settings
+```
+
+* **Top left — leave.** One button, in the corner every platform has trained
+  people to look at, and nowhere near anything that changes playback.
+* **Top right — what you set once.** Picture size, pop out, lock, settings, plus
+  two readouts: the LIVE pill, and a speed chip that appears *only* when the rate
+  is not 1×, because a chip permanently reading "1x" is a label for the absence
+  of a setting. Icons rather than words: a cluster of small round shapes at the
+  edge of the frame reads as chrome, where six words read as a sentence.
+* **Bottom — the transport.** The scrub bar, and skip / play / skip beneath it,
+  with the whole strip to themselves.
+
+Nothing sits in the middle of the picture on either device: on a TV a control
+there cannot be reached without stealing left/right from the scrub bar, and on a
+phone it covers the thing being watched.
+
+What still differs between the two is only what *exists*: lock and pop out are
+touch-only, key hints are TV-only, and on a screen narrower than 560dp the
+picture-size and pop-out shortcuts drop out of the cluster (`showsOptionShortcuts`)
+because a back button plus four icons leaves a 390dp phone no room for the title.
+Both of those are also in the settings panel, which is what makes dropping them
+safe. Nothing is sized below `minTouchTarget` (48dp).
+
+**Skip buttons are now on a phone too**, which reverses an earlier decision worth
+naming. The argument against them was that double-tapping either side of the
+screen already skips and a second route is clutter — true while they were
+competing with five other buttons for one row. With the options moved up, the
+transport row holds three controls and the standard skip/play/skip group fits
+without crowding anything. More to the point, the gesture had been the *only* way
+to skip on a phone, and it is the one gesture in the player a new user has no way
+to discover.
+
+### The scrim is two gradients, not one wash
+
+The overlay used to sit on a single full-screen 55% black layer, so making the
+text legible meant dimming the entire film — including the middle of the frame,
+where there is never a control and always the thing being watched. Every four
+seconds the whole picture got darker and then lighter again.
+
+Controls only ever occupy the top and bottom strips, so that is where the scrim
+is, and it fades to nothing before it reaches the middle. Each strip can then be
+*darker* than 55% precisely because it is not covering anything worth seeing, so
+the text is more legible than before rather than less. The heights are computed
+from what each strip actually holds (`resolveScrimHeights`) rather than set as a
+percentage of the screen, which is the shortcut that does not survive the aspect
+ratios this app runs at: 40% of a phone in portrait is 340dp of gradient over
+about 140dp of controls.
+
+These are real gradients, not a stack of banded Views — React Native 0.87 draws
+them natively through the `backgroundImage` style, which needs the New
+Architecture this app already requires. The overlay also fades in and out instead
+of cutting, and only a phone gets the fade *out*: on a TV a control that is
+fading is still a control the D-pad can reach and press, and it would be
+competing for focus with the invisible layer that replaces it. See
+`useOverlayFade.ts`.
+
+### The icons are drawn from Views
+
+There is no icon font and no SVG library, and the player is not a good enough
+reason to add one — a font asset is a build-config change, a vector library is a
+native dependency, and both would ship to a TV to draw a dozen shapes. Emoji are
+out separately: Android renders those through the colour emoji font, so a play
+button arrives as a full-colour pictogram at a size and weight nothing else on
+screen shares.
+
+That used to mean a map of geometric characters (U+25B6 for play, U+2699 for the
+gear) and *words* for everything with no character to stand in — which is exactly
+why picture size said "Fit" and the lock said "Lock". Roboto has no padlock, no
+picture-in-picture mark and no aspect-ratio mark that is reliably present on
+every Android build, and the failure mode is a tofu box. Characters also arrive
+at whatever weight the font drew them, so a heavy U+25B6 next to a hairline
+U+2699 never matched, and each one needs its own nudge to centre in a round
+button.
+
+`PlayerIcon.tsx` draws all thirteen from Views instead: the shape is the box, so
+it centres by construction, the weight is one `stroke` value across the set, and
+the colour and size are props rather than font metrics. `components/SearchIcon.tsx`
+made the same trade earlier for the same reasons.
 
 The settings panel changes shape rather than scaling — a column down the side
 where there is width for one, a sheet up from the bottom below 560dp — and the
 overlay's screen-edge padding is the one part of the layout that a cached
 `makeStyles` sheet cannot hold, because safe-area insets are not part of
-`Metrics` and move independently of the window size.
+`Metrics` and move independently of the window size. That padding is applied per
+zone rather than once to the root, because the scrims are absolutely positioned
+children of that root and Yoga places an absolute child inside its parent's
+padding — padding the root would inset the gradients from the screen edge.
 
 ---
 
@@ -1026,6 +1116,26 @@ Checked against a real PostgreSQL 17 instance and a real Android TV emulator
   returns to Home with the row's focus preserved
 * Picture-size cycling applies immediately, with its readout over the video
 * Subtitles from the stream render (BipBop's "Bip!" caption)
+
+**The rebuilt overlay, on the TV emulator**
+* The three zones render as designed: back at the top left, the picture-size and
+  settings icons at the top right, and skip / play / skip under the scrub bar
+* All thirteen drawn icons render correctly at their button sizes — no tofu, no
+  clipping, and the gear and the aspect brackets are legible at 22dp
+* The accessibility tree names every control (`Leave the player`,
+  `Picture size: Fit. Change it`, `Back 10 seconds`, `Seek bar, 4:02 of 12:14`),
+  so the icon-only buttons still announce what they do and what state they are in
+* D-pad UP walks transport → scrub bar → top cluster and back down; pressing OK
+  on the picture-size icon cycles `Fit` → `Fill` and **keeps focus on the icon**
+  rather than throwing it back to Play
+* The gradient scrims render natively with no banding, and on a near-white title
+  card the subtitle and the scrub bar stay legible — which took the `hold` fix
+  in `resolveScrimHeights`, since a ramp that starts at the screen edge is
+  already two-thirds gone by the time it reaches the subtitle
+* **Paused, the overlay now stays up**: it used to vanish four seconds after any
+  key press because `revealOverlay` re-armed the auto-hide timer regardless of
+  playback state, and the effect that pins the controls up only re-runs when one
+  of its dependencies changes
 
 **Not verified on a device**
 * Every touch gesture — double-tap skip, swipe-to-scrub, the volume and
