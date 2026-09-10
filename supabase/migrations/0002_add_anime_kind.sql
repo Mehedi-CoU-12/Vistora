@@ -1,0 +1,33 @@
+-- ---------------------------------------------------------------------------
+-- 0002 -- add 'anime' to category_kind
+-- ---------------------------------------------------------------------------
+--
+-- Anime is a peer of 'movie' and 'cartoon': titles live in `public.movies` and
+-- are separated only by the kind of category they belong to, exactly as
+-- cartoons already are. So this migration adds one enum value and nothing else
+-- -- no table, no column, no index. `fetchMovies({categoryKind: 'anime'})`
+-- already filters through `categories!inner(kind)`, and the existing
+-- `categories_kind_sort_idx` covers the new value the moment it exists.
+--
+-- Two notes on running it:
+--
+--   * `add value if not exists` makes this safe to apply twice, which matters
+--     because `supabase db push` and a manual `psql -f` can both have been run
+--     against the same project.
+--
+--   * PostgreSQL will not let a new enum value be USED in the same transaction
+--     that adds it (the value is not visible to other snapshots until commit).
+--     `psql -f` runs in autocommit, so this file followed by a seed file is
+--     fine; wrapping both in a single `begin`/`commit` is not.
+--
+-- After applying, import some titles:
+--
+--     npm run import:anime
+--     psql "$DATABASE_URL" -f supabase/seed_anime.sql
+--
+-- Public-domain anime is genuinely scarce (see the note in
+-- scripts/import-archive.mjs), so expect a short list -- the Anime tab renders
+-- its empty state until there is something to show, and the app needs no
+-- change either way.
+
+alter type public.category_kind add value if not exists 'anime';

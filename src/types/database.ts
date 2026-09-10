@@ -11,7 +11,26 @@
  * and it keeps the whole schema readable in one screen.
  */
 
-export type CategoryKind = 'live_tv' | 'movie' | 'sports' | 'cartoon' | 'other';
+export type CategoryKind =
+  | 'live_tv'
+  | 'movie'
+  | 'sports'
+  | 'cartoon'
+  | 'anime'
+  | 'other';
+
+/**
+ * The kinds whose titles live in the `movies` table.
+ *
+ * Cartoons and anime are not separate tables -- they are rows in `movies` whose
+ * category carries the matching kind. Naming the subset keeps
+ * `fetchMovies({categoryKind})` from accepting 'live_tv', which would silently
+ * return nothing.
+ */
+export type MovieCategoryKind = Extract<
+  CategoryKind,
+  'movie' | 'cartoon' | 'anime'
+>;
 
 /** How the player should interpret `stream_url`. */
 export type StreamProtocol = 'hls' | 'dash' | 'mp4' | 'other';
