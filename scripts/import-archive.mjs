@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // @ts-check
 /**
- * Imports public-domain films and cartoons from the Internet Archive into a SQL
- * seed file for `public.movies`.
+ * Imports public-domain films, cartoons and anime from the Internet Archive
+ * into a SQL seed file for `public.movies`.
  *
  * ---------------------------------------------------------------------------
  * Where the data comes from
@@ -34,7 +34,9 @@
  * ---------------------------------------------------------------------------
  *   node scripts/import-archive.mjs                       # 40 PD feature films
  *   node scripts/import-archive.mjs --kind=cartoon        # PD cartoons
+ *   node scripts/import-archive.mjs --kind=anime          # PD anime (see below)
  *   node scripts/import-archive.mjs --limit=100
+ *   node scripts/import-archive.mjs --subjects=anime,manga
  *   node scripts/import-archive.mjs --min-year=1930 --max-year=1965
  *   node scripts/import-archive.mjs --collections=prelinger,classic_cartoons
  *   node scripts/import-archive.mjs --license=cc
@@ -43,6 +45,25 @@
  *
  * Then review the file and apply it:
  *   psql "$DATABASE_URL" -f supabase/seed_movies.sql
+ *
+ * ---------------------------------------------------------------------------
+ * A warning specific to --kind=anime
+ * ---------------------------------------------------------------------------
+ * Expect a SHORT list, possibly an empty one. The Archive has no anime
+ * collection, and public-domain anime barely exists: essentially only pre-1953
+ * Japanese animation has lapsed, and little of it is uploaded with the explicit
+ * license metadata this script requires. So `anime` searches the broad
+ * `animationandcartoons` umbrella narrowed by subject keywords, which is the
+ * best available and still not much.
+ *
+ * It is wired up anyway because the kind is what makes the Anime tab real: with
+ * `category_kind` carrying 'anime' (supabase/migrations/0002_add_anime_kind.sql)
+ * you can point `--subjects` at whatever you do have the rights to, or insert
+ * rows by hand against an anime category, and the app needs no change.
+ *
+ * That migration must be applied BEFORE the seed file this writes -- PostgreSQL
+ * will not let a new enum value be used in the transaction that adds it, and
+ * the generated file is one transaction.
  */
 
 import {writeFile} from 'node:fs/promises';
@@ -85,9 +106,11 @@ const number = (key, fallback) => {
   return parsed;
 };
 
+const KINDS = ['movie', 'cartoon', 'anime'];
+
 const kind = argv.get('kind') ?? 'movie';
-if (kind !== 'movie' && kind !== 'cartoon') {
-  throw new Error(`--kind must be "movie" or "cartoon", got "${kind}"`);
+if (!KINDS.includes(kind)) {
+  throw new Error(`--kind must be one of ${KINDS.join(', ')}; got "${kind}"`);
 }
 
 const DEFAULT_COLLECTIONS = {
@@ -97,11 +120,42 @@ const DEFAULT_COLLECTIONS = {
   // `feature_films` is noisy on its own; the license filter is what makes it
   // usable, cutting ~28k items down to ~7.6k with a public domain dedication.
   movie: ['feature_films'],
+  // There is no anime collection, so this has to be the broad umbrella --
+  // which is exactly why anime is the one kind that also filters by subject.
+  anime: ['animationandcartoons'],
+};
+
+/**
+ * Subject keywords the search itself requires, per kind.
+ *
+ * Empty for films and cartoons, whose collections are already the filter --
+ * `subject` on the Archive is a free-text bag of tags, so requiring one would
+ * silently drop every correctly-licensed item that simply was not tagged.
+ *
+ * Anime is the exception and has no choice: its collection is the whole of
+ * `animationandcartoons`, so without a subject clause `--kind=anime` would
+ * return the same Betty Boop shorts as `--kind=cartoon`.
+ */
+const DEFAULT_SUBJECTS = {
+  cartoon: [],
+  movie: [],
+  anime: ['anime', 'japanese animation', 'manga'],
+};
+
+/** Basename of the seed file each kind writes by default. */
+const OUT_STEM = {movie: 'movies', cartoon: 'cartoons', anime: 'anime'};
+
+/** Plural for log lines and messages. "animes" is not a word. */
+const KIND_PLURAL = {
+  movie: 'films',
+  cartoon: 'cartoons',
+  anime: 'anime titles',
 };
 
 const options = {
   kind,
   collections: list('collections', DEFAULT_COLLECTIONS[kind]),
+  subjects: list('subjects', DEFAULT_SUBJECTS[kind]),
   license: argv.get('license') ?? 'pd',
   limit: number('limit', 40),
   minYear: number('min-year', null),
@@ -111,7 +165,7 @@ const options = {
   probe: argv.get('no-probe') !== 'true',
   concurrency: number('concurrency', 8),
   timeoutMs: number('timeout', 20_000),
-  out: argv.get('out') ?? `supabase/seed_${kind === 'cartoon' ? 'cartoons' : 'movies'}.sql`,
+  out: argv.get('out') ?? `supabase/seed_${OUT_STEM[kind]}.sql`,
 };
 
 if (!['pd', 'cc', 'any'].includes(options.license)) {
@@ -143,7 +197,23 @@ const CARTOON_CATEGORIES = [
   {slug: 'kids-cartoons', name: 'Cartoons', kind: 'cartoon', sort: 10, match: []}, // fallback
 ];
 
-const CATEGORIES = options.kind === 'cartoon' ? CARTOON_CATEGORIES : MOVIE_CATEGORIES;
+// Anime gets more than one bucket even though the corpus is tiny, because the
+// Anime tab's category filter reads these: a single category would render a
+// picker with one option in it.
+const ANIME_CATEGORIES = [
+  {slug: 'anime-classic', name: 'Classic Anime', kind: 'anime', sort: 10, match: ['1930', '1940', 'senkousha', 'kenzo', 'ofuji']},
+  {slug: 'anime-shorts', name: 'Shorts', kind: 'anime', sort: 20, match: ['short', 'shorts']},
+  {slug: 'anime-series', name: 'Series', kind: 'anime', sort: 30, match: ['series', 'episode', 'tv']},
+  {slug: 'anime-films', name: 'Films', kind: 'anime', sort: 40, match: []}, // fallback
+];
+
+const CATEGORIES_BY_KIND = {
+  movie: MOVIE_CATEGORIES,
+  cartoon: CARTOON_CATEGORIES,
+  anime: ANIME_CATEGORIES,
+};
+
+const CATEGORIES = CATEGORIES_BY_KIND[options.kind];
 
 function categoryFor(tags) {
   const haystack = tags.join(' ').toLowerCase();
@@ -250,6 +320,13 @@ async function getJson(url) {
 function buildQuery() {
   const clauses = ['mediatype:(movies)'];
   clauses.push(`collection:(${options.collections.join(' OR ')})`);
+
+  // Quoted because the useful keywords are phrases ("japanese animation"), and
+  // an unquoted phrase would be parsed as two independent terms.
+  if (options.subjects.length) {
+    const terms = options.subjects.map(term => `"${term}"`).join(' OR ');
+    clauses.push(`subject:(${terms})`);
+  }
 
   if (options.license === 'pd') clauses.push('licenseurl:(*publicdomain* OR *mark\\/1.0*)');
   else if (options.license === 'cc') clauses.push('licenseurl:(*creativecommons.org*)');
@@ -438,7 +515,9 @@ for (const entry of enriched) {
   });
 }
 
-console.log(`${rows.length} importable ${options.kind}s (license-filtered, deduplicated)`);
+console.log(
+  `${rows.length} importable ${KIND_PLURAL[options.kind]} (license-filtered, deduplicated)`,
+);
 
 let final = rows;
 if (options.probe) {
@@ -450,6 +529,13 @@ if (options.probe) {
 
 if (!final.length) {
   console.error('nothing to import -- refusing to write an empty seed file');
+  if (options.kind === 'anime') {
+    console.error(
+      'For anime this is the expected outcome more often than not: see the\n' +
+        'warning in this script\'s header. Try --license=cc, a wider\n' +
+        '--subjects, or your own --collections.',
+    );
+  }
   process.exit(1);
 }
 
@@ -460,6 +546,8 @@ const usedCategories = CATEGORIES.filter(rule => final.some(r => r.category.slug
 const sql = `-- Generated by scripts/import-archive.mjs on ${new Date().toISOString().slice(0, 10)}
 -- Source: https://archive.org (hosts the files it indexes)
 -- Filters: kind=${options.kind} collections=${options.collections.join(',')} license=${options.license}${
+  options.subjects.length ? ` subjects=${options.subjects.join(',')}` : ''
+}${
   options.minYear !== null || options.maxYear !== null
     ? ` years=${options.minYear ?? '*'}..${options.maxYear ?? '*'}`
     : ''
@@ -511,5 +599,7 @@ commit;
 await writeFile(options.out, sql, 'utf8');
 
 console.log(`\nwrote ${options.out}`);
-console.log(`  ${final.length} ${options.kind}s, ${usedCategories.length} categories`);
+console.log(
+  `  ${final.length} ${KIND_PLURAL[options.kind]}, ${usedCategories.length} categories`,
+);
 console.log(`\nreview it, then:  psql "$DATABASE_URL" -f ${options.out}`);
