@@ -6,7 +6,13 @@ import {
   movieToContentItem,
   sportsEventToContentItem,
 } from '../types/content';
-import type {CategoryRow, ChannelRow, MovieRow, SportsEventRow} from '../types/database';
+import type {
+  CategoryRow,
+  ChannelRow,
+  MovieCategoryKind,
+  MovieRow,
+  SportsEventRow,
+} from '../types/database';
 import {AppError, toAppError} from './errors';
 
 /**
@@ -100,7 +106,7 @@ export async function fetchChannelsByCategory(categoryId: string): Promise<Conte
 }
 
 // ---------------------------------------------------------------------------
-// Movies and cartoons
+// Movies, cartoons and anime
 // ---------------------------------------------------------------------------
 
 const MOVIE_COLUMNS =
@@ -108,11 +114,11 @@ const MOVIE_COLUMNS =
 
 /**
  * `categoryKind` filters via the related category rather than a column on
- * `movies`, which is what lets cartoons share the movies table: they are simply
- * titles whose category has kind = 'cartoon'.
+ * `movies`, which is what lets cartoons and anime share the movies table: they
+ * are simply titles whose category has kind = 'cartoon' or 'anime'.
  */
 export async function fetchMovies(
-  options: {categoryKind?: 'movie' | 'cartoon'; limit?: number} = {},
+  options: {categoryKind?: MovieCategoryKind; limit?: number} = {},
 ): Promise<ContentItem[]> {
   const {categoryKind, limit} = options;
 
