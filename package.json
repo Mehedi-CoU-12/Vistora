@@ -12,7 +12,9 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "jest",
-    "import:iptv": "node scripts/import-iptv.mjs"
+    "import:iptv": "node scripts/import-iptv.mjs",
+    "import:movies": "node scripts/import-archive.mjs --kind=movie",
+    "import:cartoons": "node scripts/import-archive.mjs --kind=cartoon"
   },
   "dependencies": {
     "@react-navigation/native": "^7.3.18",

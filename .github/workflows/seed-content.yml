@@ -1,0 +1,288 @@
+# Seeds the Supabase database with fresh content: live TV channels from the
+# iptv-org catalogue, and public-domain films and cartoons from the Internet
+# Archive.
+#
+# ---------------------------------------------------------------------------
+# One-time setup
+# ---------------------------------------------------------------------------
+# Add a repository secret named SEED_DATABASE_URL:
+#
+#   Supabase dashboard -> Project Settings -> Database -> Connection string
+#     -> "Session pooler"  (NOT "Direct connection")
+#
+# The session pooler matters. Supabase serves direct connections over IPv6
+# only, and GitHub-hosted runners have no IPv6 route, so a direct connection
+# string fails here with a bare "Network is unreachable" that looks like a
+# credentials problem and is not. The pooler answers on IPv4.
+#
+# The connection string contains the database password and bypasses RLS, which
+# is exactly why it lives in Actions secrets and never in .env -- everything in
+# .env is inlined into the app bundle that ships on the device.
+#
+# ---------------------------------------------------------------------------
+# What a run does
+# ---------------------------------------------------------------------------
+# Generates SQL, uploads it as an artifact, then applies it. Every statement is
+# an idempotent upsert keyed on `slug`, so re-running refreshes existing rows
+# (stream URLs rot, especially IPTV ones) rather than duplicating them. Nothing
+# is ever deleted.
+name: Seed content
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: What to import
+        type: choice
+        default: everything
+        options:
+          - everything
+          - live-tv
+          - movies
+          - cartoons
+          - movies-and-cartoons
+      limit:
+        description: How many titles to import (movies/cartoons only)
+        type: string
+        default: "40"
+      countries:
+        description: 'Live TV: ISO country codes, comma-separated (e.g. BD,IN,PK)'
+        type: string
+        default: BD
+      languages:
+        description: 'Live TV: ISO 639-3 language codes (e.g. ben,hin,eng)'
+        type: string
+        default: ben
+      categories:
+        description: 'Live TV: restrict to categories (e.g. news,sports,kids). Blank = all'
+        type: string
+        default: ""
+      official_only:
+        description: 'Live TV: only streams served by the broadcaster''s own domain'
+        type: boolean
+        default: false
+      license:
+        description: 'Movies/cartoons: pd = public domain only, cc = also Creative Commons'
+        type: choice
+        default: pd
+        options:
+          - pd
+          - cc
+      year_range:
+        description: 'Movies/cartoons: release years, e.g. 1930-1970. Blank = any'
+        type: string
+        default: ""
+      probe:
+        description: Check every stream actually plays before importing it
+        type: boolean
+        default: true
+      dry_run:
+        description: Generate the SQL and upload it, but do not touch the database
+        type: boolean
+        default: false
+
+# Two overlapping runs would race on the same upserts. Queue instead of
+# cancelling: a half-applied seed is worse than a slow one.
+concurrency:
+  group: seed-content
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    # Referencing an environment is free even if you have not created one. Add
+    # a required reviewer to it in repo settings if you want writes to the
+    # production database to need a second pair of eyes.
+    environment: database
+    permissions:
+      contents: read
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # The importers use only Node builtins -- no `npm ci` step, because
+          # there is nothing to install.
+          node-version: "22"
+
+      # Inputs are attacker-controllable text on a public repo, so they are
+      # passed through `env` and quoted rather than interpolated straight into
+      # the shell with ${{ }}, which would let a crafted value run commands.
+      - name: Generate seed SQL
+        id: generate
+        env:
+          SOURCE: ${{ inputs.source }}
+          LIMIT: ${{ inputs.limit }}
+          COUNTRIES: ${{ inputs.countries }}
+          LANGUAGES: ${{ inputs.languages }}
+          CATEGORIES: ${{ inputs.categories }}
+          OFFICIAL_ONLY: ${{ inputs.official_only }}
+          LICENSE: ${{ inputs.license }}
+          YEAR_RANGE: ${{ inputs.year_range }}
+          PROBE: ${{ inputs.probe }}
+        run: |
+          set -euo pipefail
+          mkdir -p seed-out
+
+          case "$LIMIT" in
+            ''|*[!0-9]*) echo "::error::limit must be a whole number, got '$LIMIT'"; exit 1 ;;
+          esac
+
+          # Written as if/then, not `[ cond ] && var=x`: under `set -e` that
+          # one-liner exits the job whenever the condition is false, because
+          # the failed test becomes the statement's exit status.
+          probe_flag=""
+          if [ "$PROBE" != "true" ]; then probe_flag="--no-probe"; fi
+
+          # "1930-1970" -> --min-year=1930 --max-year=1970
+          years=""
+          if [ -n "$YEAR_RANGE" ]; then
+            if ! printf '%s' "$YEAR_RANGE" | grep -Eq '^[0-9]{4}-[0-9]{4}$'; then
+              echo "::error::year_range must look like 1930-1970, got '$YEAR_RANGE'"
+              exit 1
+            fi
+            years="--min-year=${YEAR_RANGE%-*} --max-year=${YEAR_RANGE#*-}"
+          fi
+
+          want() {
+            [ "$SOURCE" = "everything" ] && return 0
+            [ "$SOURCE" = "$1" ] && return 0
+            { [ "$SOURCE" = "movies-and-cartoons" ] && { [ "$1" = "movies" ] || [ "$1" = "cartoons" ]; }; }
+          }
+
+          if want live-tv; then
+            echo "::group::Live TV channels"
+            official=""
+            if [ "$OFFICIAL_ONLY" = "true" ]; then official="--official-only"; fi
+            cats=""
+            if [ -n "$CATEGORIES" ]; then cats="--categories=$CATEGORIES"; fi
+            node scripts/import-iptv.mjs \
+              --countries="$COUNTRIES" \
+              --languages="$LANGUAGES" \
+              $cats $official $probe_flag \
+              --out=seed-out/10_channels.sql
+            echo "::endgroup::"
+          fi
+
+          if want movies; then
+            echo "::group::Movies"
+            node scripts/import-archive.mjs \
+              --kind=movie --limit="$LIMIT" --license="$LICENSE" \
+              $years $probe_flag \
+              --out=seed-out/20_movies.sql
+            echo "::endgroup::"
+          fi
+
+          if want cartoons; then
+            echo "::group::Cartoons"
+            node scripts/import-archive.mjs \
+              --kind=cartoon --limit="$LIMIT" --license="$LICENSE" \
+              $years $probe_flag \
+              --out=seed-out/30_cartoons.sql
+            echo "::endgroup::"
+          fi
+
+          if [ -z "$(ls -A seed-out)" ]; then
+            echo "::error::no seed files were generated for source='$SOURCE'"
+            exit 1
+          fi
+
+      # Uploaded before the database is touched, so a failed apply still leaves
+      # you the exact SQL to inspect and run by hand.
+      - name: Upload generated SQL
+        if: always() && hashFiles('seed-out/*.sql') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: seed-sql-${{ github.run_id }}
+          path: seed-out/*.sql
+          retention-days: 30
+
+      - name: Apply to the database
+        if: ${{ !inputs.dry_run }}
+        env:
+          DATABASE_URL: ${{ secrets.SEED_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${DATABASE_URL:-}" ]; then
+            echo "::error::secret SEED_DATABASE_URL is not set -- see the comment at the top of this workflow"
+            exit 1
+          fi
+
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql-client
+          fi
+          psql --version
+
+          # ON_ERROR_STOP makes psql exit non-zero on the first failed
+          # statement. Without it psql reports success after skipping every
+          # statement in a broken file, and the job goes green having imported
+          # nothing. Each generated file wraps itself in begin/commit, so a
+          # file that fails partway leaves no rows behind.
+          for file in seed-out/*.sql; do
+            echo "::group::psql -f $file"
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$file"
+            echo "::endgroup::"
+          done
+
+      - name: Summarise
+        if: always()
+        env:
+          DATABASE_URL: ${{ secrets.SEED_DATABASE_URL }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          SOURCE: ${{ inputs.source }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## Seed content"
+            echo
+            echo "Source: \`$SOURCE\`"
+            echo
+
+            if [ -d seed-out ] && [ -n "$(ls -A seed-out 2>/dev/null)" ]; then
+              echo "### Generated"
+              echo
+              echo "| File | Rows |"
+              echo "|---|---|"
+              for file in seed-out/*.sql; do
+                # Count only the content tuples. Each file also opens with an
+                # `insert into public.categories` whose rows have the same
+                # shape, so a plain grep for value tuples reports 88 for a file
+                # that imported 79 channels and 9 categories.
+                rows=$(awk '
+                  /^insert into public\.(channels|movies)/ { target = 1; next }
+                  target && /^values/       { target = 0; counting = 1; next }
+                  /^on conflict/            { counting = 0 }
+                  counting && /^  \(./      { n++ }
+                  END { print n + 0 }
+                ' "$file")
+                echo "| \`$(basename "$file")\` | $rows |"
+              done
+              echo
+            fi
+
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "> Dry run -- the database was not touched. The SQL is attached as an artifact."
+            elif [ -n "${DATABASE_URL:-}" ]; then
+              echo "### Now in the database"
+              echo
+              echo "| Content | Active rows |"
+              echo "|---|---|"
+              # This step runs with `if: always()`, so it must not fail the job
+              # when it is reporting on an apply that already failed.
+              psql "$DATABASE_URL" -At -F ' | ' -c "
+                select 'Live TV channels', count(*) from public.channels where is_active
+                union all
+                select 'Movies', count(*) from public.movies m
+                  join public.categories c on c.id = m.category_id
+                  where m.is_active and c.kind = 'movie'
+                union all
+                select 'Cartoons', count(*) from public.movies m
+                  join public.categories c on c.id = m.category_id
+                  where m.is_active and c.kind = 'cartoon';
+              " 2>/dev/null | sed 's/^/| /; s/$/ |/' || echo "| _could not query the database_ | |"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

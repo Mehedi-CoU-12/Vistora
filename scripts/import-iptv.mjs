@@ -1,4 +1,46 @@
-
+#!/usr/bin/env node
+// @ts-check
+/**
+ * Imports free-to-air live channels from the iptv-org catalogue into a SQL seed
+ * file for `public.channels`.
+ *
+ * ---------------------------------------------------------------------------
+ * Where the data comes from
+ * ---------------------------------------------------------------------------
+ * https://iptv-org.github.io/api/ -- an open, community-maintained INDEX of
+ * publicly reachable stream URLs. It stores no video and hosts no channel: it
+ * is a list of links, which is exactly what this project needs, because Vistora
+ * hands a URL to the device and never touches the bytes (see README, "The one
+ * architectural rule").
+ *
+ * ---------------------------------------------------------------------------
+ * What this script deliberately refuses to import
+ * ---------------------------------------------------------------------------
+ * iptv-org publishes a `blocklist.json` of channels removed after a rights
+ * holder complained (`dmca`) or for adult content (`nsfw`). Both are filtered
+ * out here with no flag to turn that off -- a takedown that is honoured
+ * upstream but ignored downstream is not honoured at all.
+ *
+ * That blocklist is a floor, not a guarantee. An open HLS URL for a channel
+ * that is normally sold as part of a pay-TV package is very likely an
+ * unauthorised restream even when nobody has filed a complaint yet, and such a
+ * link is also the first to die. `--official-only` keeps just the channels
+ * whose stream is published by the broadcaster itself.
+ *
+ * ---------------------------------------------------------------------------
+ * Usage
+ * ---------------------------------------------------------------------------
+ *   node scripts/import-iptv.mjs                        # BD + Bengali, probed
+ *   node scripts/import-iptv.mjs --countries=BD,IN,PK
+ *   node scripts/import-iptv.mjs --languages=ben,hin,eng
+ *   node scripts/import-iptv.mjs --categories=news,sports,kids
+ *   node scripts/import-iptv.mjs --official-only        # broadcaster-run only
+ *   node scripts/import-iptv.mjs --no-probe             # skip the liveness check
+ *   node scripts/import-iptv.mjs --out=supabase/seed_iptv.sql
+ *
+ * Then review the file and apply it:
+ *   psql "$DATABASE_URL" -f supabase/seed_iptv.sql
+ */
 import {writeFile} from 'node:fs/promises';
 
 const API = 'https://iptv-org.github.io/api';
@@ -25,6 +67,12 @@ const options = {
   languages: list('languages', ['ben']),
   categories: list('categories', null),
   officialOnly: argv.get('official-only') === 'true',
+  /**
+   * Release builds ship `usesCleartextTraffic="false"` (set by the React Native
+   * gradle plugin, not by us), so an `http://` stream that plays in debug fails
+   * with a bare network error in the APK you actually distribute. Importing one
+   * is importing a channel that is broken for every real user.
+   */
   allowHttp: argv.get('allow-http') === 'true',
   probe: argv.get('no-probe') !== 'true',
   concurrency: Number(argv.get('concurrency') ?? 24),

@@ -25,6 +25,43 @@ automatically.
 Paste `0001_initial_schema.sql` into the SQL Editor and run it, then do the same
 with `seed.sql`.
 
+## Seeding real content
+
+`seed.sql` is sample data. Two importers fetch real catalogues instead, each
+writing a SQL file of idempotent upserts keyed on `slug` — review it, then apply
+it. Re-running refreshes existing rows rather than duplicating them, which
+matters because stream URLs rot.
+
+| Script | Source | Fills |
+|---|---|---|
+| `npm run import:iptv` | [iptv-org](https://iptv-org.github.io/api/) — an index of public stream URLs | `channels` |
+| `npm run import:movies` | [archive.org](https://archive.org) — public-domain films | `movies` (`kind = 'movie'`) |
+| `npm run import:cartoons` | archive.org — public-domain cartoons | `movies` (`kind = 'cartoon'`) |
+
+```bash
+npm run import:movies -- --limit=60 --min-year=1930 --max-year=1970
+psql "$DATABASE_URL" -f supabase/seed_movies.sql
+```
+
+Each script's header comment explains what it refuses to import and why. The
+short version: the IPTV importer honours the upstream DMCA/NSFW blocklist, and
+the Archive importer requires an explicit public-domain licence in the item's
+metadata rather than inferring one from the release year.
+
+### From GitHub Actions
+
+`.github/workflows/seed-content.yml` runs both importers and applies the result,
+so you can reseed without a local Postgres client. Trigger it from the Actions
+tab; it takes the content type, filters, and a dry-run switch as inputs, and
+attaches the generated SQL to the run either way.
+
+It needs one repository secret, `SEED_DATABASE_URL`. Take it from **Project
+Settings → Database → Connection string → Session pooler**, *not* the direct
+connection: Supabase serves direct connections over IPv6 only and GitHub-hosted
+runners have no IPv6 route, so a direct string fails with a network error that
+looks like bad credentials. That string bypasses RLS, which is why it belongs in
+Actions secrets and never in `.env`.
+
 ## Tables
 
 ```
