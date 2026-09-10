@@ -2,6 +2,7 @@ import React, { useCallback, useRef, useState } from 'react';
 import {
   Animated,
   Pressable,
+  type AccessibilityRole,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
@@ -25,6 +26,16 @@ interface FocusableProps {
   /** Set false to draw your own focus treatment instead of the default ring. */
   showFocusRing?: boolean;
   accessibilityLabel?: string;
+  /** Defaults to 'button'. Set 'tab' for a tab, 'radio' for a filter. */
+  accessibilityRole?: AccessibilityRole;
+  /**
+   * Marks this element as the chosen one of a set -- the current tab, the
+   * applied filter. Announced by TalkBack, and distinct from focus and from
+   * pressed: selection says what the app is showing, focus says where the D-pad
+   * is. Callers still draw their own selected treatment; this is the
+   * accessibility half of it.
+   */
+  selected?: boolean;
   /**
    * Render-prop form lets children react to the active state without
    * duplicating it. "Active" is focus on TV and a finger held down on touch --
@@ -77,6 +88,8 @@ export function Focusable({
   scaleOnFocus = true,
   showFocusRing = true,
   accessibilityLabel,
+  accessibilityRole = 'button',
+  selected,
   children,
 }: FocusableProps) {
   const { focusScale, isTV, pressScale } = useMetrics();
@@ -147,9 +160,9 @@ export function Focusable({
         onPressOut={handlePressOut}
         disabled={disabled}
         hasTVPreferredFocus={isTV && hasTVPreferredFocus}
-        accessibilityRole="button"
+        accessibilityRole={accessibilityRole}
         accessibilityLabel={accessibilityLabel}
-        accessibilityState={{ disabled }}
+        accessibilityState={{ disabled, selected }}
         style={[
           styles.base,
           showFocusRing && active && styles.active,
