@@ -1,7 +1,7 @@
 # Vistora
 
-An app for personal content consumption — live TV, sport, films, cartoons and
-anime — built with React Native, TypeScript and Supabase. It runs on **Android
+An app for personal content consumption — live TV, films and anime — built with
+React Native, TypeScript and Supabase. It runs on **Android
 TV** with a remote and on **Android phones and tablets** with a finger, from one
 codebase and one APK.
 
@@ -283,7 +283,7 @@ Three things about this worth knowing before you change any of it:
 
 ---
 
-## Navigation: two routes, six tabs
+## Navigation: two routes, four tabs
 
 The stack has exactly two routes — `Browse` and `Player` — and everything
 browsable lives behind tabs inside `Browse`:
@@ -293,9 +293,12 @@ browsable lives behind tabs inside `Browse`:
 | Home | A shelf per kind, twelve items each | mixed |
 | Live TV | `channels` | 16:9 tile |
 | Movies | `movies` where the category is `kind = 'movie'` | poster |
-| Cartoons | `movies` where `kind = 'cartoon'` | poster |
 | Anime | `movies` where `kind = 'anime'` | poster |
-| Sports | `sports_events`, live first then soonest | poster |
+
+Sport is not a tab of its own: sports channels are Live TV categories, so they
+are browsed there rather than in a second place. `cartoon` remains a
+`category_kind` in the schema and `npm run import:cartoons` still works, but
+nothing browses it — the Anime tab covers what that tab was for.
 
 **The tabs are component state, not navigator routes.** Routes would push a
 screen per switch, so Back would walk you through your own browsing history one
@@ -323,16 +326,16 @@ screen and leave nothing highlighted anywhere.
 ## Search
 
 A magnifier pill in the top bar searches every content kind at once — channels,
-films, cartoons, anime and fixtures — and shows the matches as a shelf per kind:
+films and anime — and shows the matches as a shelf per kind:
 
 ```
-VISTORA.        Home  Live TV  Movies  Cartoons  Anime  Sports    (Q)
+VISTORA.        Home  Live TV  Movies  Anime               (Q)
 
 (Q) iron|                                              [Clear]
 
 Live TV · 1 channel      [tile]
 Movies · 2 films         [poster] [poster]
-Cartoons · 1 cartoon     [poster]
+Anime · 1 title          [poster]
 ```
 
 **The magnifier is drawn, not typed or imported.** `player/glyphs.ts` sets the
@@ -348,8 +351,8 @@ circle and a rotated bar: no asset, no dependency, identical on every device, an
 size and colour are props rather than font metrics.
 
 This is not a reversal of `TabBar`'s **labels rather than icons**. That argument
-is specifically that the *tabs* are content kinds whose distinctions — cartoons
-against anime, films against fixtures — have no pictogram anyone would read
+is specifically that the *tabs* are content kinds whose distinctions — anime
+against films, a channel against either — have no pictogram anyone would read
 correctly. Search is the opposite case: the magnifier is the one pictogram that
 is unambiguous at three metres and at thirty centimetres, and it is what every TV
 platform already uses here. Since the pill no longer says anything out loud,
@@ -357,14 +360,15 @@ platform already uses here. Since the pill no longer says anything out loud,
 button with an `icon` and no `label` will not compile without an
 `accessibilityLabel`.
 
-**Search is a mode over the tabs, not a seventh tab.** `TABS` means "the content
+**Search is a mode over the tabs, not one more tab.** `TABS` means "the content
 kinds this app browses", which is the property `HomeScreen` and `SearchScreen`
 both rely on when they derive their shelves from it — search is not a kind, it is
 a question asked of all of them. There is a measurable reason too: a phone in
-portrait puts the tab bar along the bottom, where six pills already divide a
-390dp screen into about 60dp each and "Cartoons" only just fits. A seventh takes
-that to 50dp and ellipsises the labels, so search would arrive by making
-navigation to everything else worse. As a mode it costs no navigation width at
+portrait puts the tab bar along the bottom, where the pills divide a 390dp screen
+between them — at six of them that is about 60dp each, which a label like
+"Cartoons" only just fits, and one more ellipsises them all. Every entry in
+`TABS` takes width from every other, so search would arrive by making navigation
+to everything else worse. As a mode it costs no navigation width at
 all, and closing it returns you to the tab you were on, still scrolled where you
 left it.
 
@@ -399,8 +403,8 @@ the field is a wasted tap.
 | Kind | Columns |
 |---|---|
 | Live TV | `name`, `description` |
-| Movies / Cartoons / Anime | `title`, `description` |
-| Sports | `title`, `competition`, `home_team`, `away_team` |
+| Movies / Anime | `title`, `description` |
+| Sports (`fetchSportsEvents`, no tab) | `title`, `competition`, `home_team`, `away_team` |
 
 `channels.channel_number` is deliberately absent — it is an integer column and
 `ilike` on one is a cast away from a 400, and the Live TV grid is already ordered

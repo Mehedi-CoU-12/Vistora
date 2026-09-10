@@ -42,7 +42,7 @@ import { SearchIcon } from './SearchIcon';
 export function SearchField({
   value,
   onChangeText,
-  placeholder = 'Search channels, films, cartoons, anime…',
+  placeholder = 'Search channels, films, anime…',
 }: {
   value: string;
   onChangeText: (next: string) => void;

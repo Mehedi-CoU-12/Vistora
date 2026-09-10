@@ -1,8 +1,4 @@
-import {
-  fetchChannels,
-  fetchMovies,
-  fetchSportsEvents,
-} from '../services/contentService';
+import { fetchChannels, fetchMovies } from '../services/contentService';
 import type { CardVariant } from '../theme';
 import type { ContentItem } from '../types/content';
 import type { CategoryKind } from '../types/database';
@@ -15,8 +11,8 @@ import type { CategoryKind } from '../types/database';
  * ---------------------------------------------------------------------------
  * Every tab except Home is the same screen -- a category filter beside a grid --
  * pointed at a different query. Describing that difference as DATA rather than
- * as five near-identical screen components means `CatalogScreen` is written
- * once, and adding a content kind is an entry in this array.
+ * as a near-identical screen component per kind means `CatalogScreen` is
+ * written once, and adding a content kind is an entry in this array.
  *
  * It also removes a class of bug the previous shape invited. The home screen
  * used to hard-code its own list of rows, so the set of things on the home
@@ -67,7 +63,7 @@ export interface CatalogSpec {
    *
    * One loader rather than a `load` and a separate `search` per tab, which is
    * what makes it impossible for browsing a kind and searching it to disagree
-   * about what is in it: the Cartoons tab and a cartoon search are the same
+   * about what is in it: the Anime tab and an anime search are the same
    * query with one more filter.
    */
   load: (options?: CatalogLoadOptions) => Promise<ContentItem[]>;
@@ -77,19 +73,13 @@ export interface CatalogSpec {
   emptyMessage: string;
 }
 
-export type TabId =
-  | 'home'
-  | 'live-tv'
-  | 'movies'
-  | 'cartoons'
-  | 'anime'
-  | 'sports';
+export type TabId = 'home' | 'live-tv' | 'movies' | 'anime';
 
 export interface TabDef {
   id: TabId;
   /**
-   * Nav label. Kept short deliberately: six tabs across a 390dp phone leaves
-   * about 60dp each, so a two-word label is the ceiling.
+   * Nav label. Kept short deliberately: the bar has to survive a 390dp phone
+   * in portrait even as kinds are added, so a two-word label is the ceiling.
    */
   label: string;
   /** Heading on the tab's own screen, and on its home shelf. */
@@ -132,19 +122,6 @@ export const TABS: readonly TabDef[] = [
     },
   },
   {
-    id: 'cartoons',
-    label: 'Cartoons',
-    title: 'Cartoons',
-    catalog: {
-      categoryKind: 'cartoon',
-      cardVariant: 'poster',
-      load: options => fetchMovies({ ...options, categoryKind: 'cartoon' }),
-      countNoun: ['cartoon', 'cartoons'],
-      emptyMessage:
-        'No cartoons yet. Run `npm run import:cartoons`, then apply the seed file it writes.',
-    },
-  },
-  {
     id: 'anime',
     label: 'Anime',
     title: 'Anime',
@@ -157,19 +134,6 @@ export const TABS: readonly TabDef[] = [
       countNoun: ['title', 'titles'],
       emptyMessage:
         'No anime yet. Apply supabase/migrations/0002_add_anime_kind.sql, then run `npm run import:anime`.',
-    },
-  },
-  {
-    id: 'sports',
-    label: 'Sports',
-    title: 'Live & Upcoming Sport',
-    catalog: {
-      categoryKind: 'sports',
-      cardVariant: 'poster',
-      load: options => fetchSportsEvents(options),
-      countNoun: ['event', 'events'],
-      emptyMessage:
-        'No live or upcoming fixtures. Finished events are filtered out, so this empties itself over time.',
     },
   },
 ];

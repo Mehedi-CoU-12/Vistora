@@ -36,11 +36,11 @@ interface CatalogData {
  * One tab's catalog: a category filter beside a grid of everything in it.
  *
  * ---------------------------------------------------------------------------
- * Written once, pointed at five queries
+ * Written once, pointed at one query per kind
  * ---------------------------------------------------------------------------
- * Live TV, Movies, Cartoons, Anime and Sports differ only in which query fills
- * the grid, which categories the filter offers, and whether the artwork is a
- * poster or a 16:9 tile. All three are fields on the `CatalogSpec` this screen
+ * Live TV, Movies and Anime differ only in which query fills the grid, which
+ * categories the filter offers, and whether the artwork is a poster or a 16:9
+ * tile. All three are fields on the `CatalogSpec` this screen
  * is handed (see navigation/tabs.ts), so there is one grid implementation, one
  * set of focus guides, and one place where a bug in any of it can live.
  *

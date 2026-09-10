@@ -29,8 +29,8 @@ const INITIAL_TAB: TabId = 'home';
  * Live TV used to be a pushed stack route, which is why it had a heading and no
  * way back except the hardware key. Making the tabs routes instead would push a
  * screen per switch, so Back would walk you through your own browsing history
- * one tab at a time -- Sports, Anime, Cartoons, Movies -- which is not what a
- * tab bar means anywhere. `@react-navigation/bottom-tabs` would solve that and
+ * one tab at a time -- Anime, Movies, Live TV -- which is not what a tab bar
+ * means anywhere. `@react-navigation/bottom-tabs` would solve that and
  * bring a bottom bar this app cannot use on a television, plus a dependency to
  * style around.
  *
@@ -39,7 +39,7 @@ const INITIAL_TAB: TabId = 'home';
  * Home from anywhere, and leave the app from Home.
  *
  * ---------------------------------------------------------------------------
- * Search is a mode over the tabs, not a seventh tab
+ * Search is a mode over the tabs, not one more tab
  * ---------------------------------------------------------------------------
  * The reflex is to add `search` to TABS and let the tab bar render it. Two
  * things are wrong with that.
@@ -52,10 +52,10 @@ const INITIAL_TAB: TabId = 'home';
  * problem the array exists to prevent.
  *
  * The second is measurable. A phone in portrait puts the tab bar along the
- * bottom, where six pills already divide a 390dp screen into about 60dp each and
- * "Cartoons" only just fits. A seventh takes that to 50dp and ellipsises the
- * labels -- so search would arrive by making navigation to everything else
- * worse.
+ * bottom, where the pills divide a 390dp screen between them -- at six of them
+ * that is about 60dp each, which a label like "Cartoons" only just fits. Every
+ * entry in TABS takes width from every other, so search would arrive by making
+ * navigation to everything else worse.
  *
  * As a mode it costs no navigation width at all: the pill lives in the top bar,
  * which is the wordmark and a great deal of nothing on the layout where the tab

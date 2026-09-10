@@ -38,9 +38,9 @@ interface TabBarProps {
  * ---------------------------------------------------------------------------
  * There is no icon font in this project (see player/glyphs.ts on why one is not
  * worth adding), but that is not the reason. The reason is that these tabs are
- * content KINDS, and the distinctions that matter here -- cartoons against
- * anime, films against fixtures -- have no pictogram anyone would read
- * correctly. A word is unambiguous at three metres and at thirty centimetres.
+ * content KINDS, and the distinctions that matter here -- anime against films,
+ * a channel against either -- have no pictogram anyone would read correctly.
+ * A word is unambiguous at three metres and at thirty centimetres.
  *
  * ---------------------------------------------------------------------------
  * Selection and focus are drawn differently, on purpose
@@ -65,8 +65,8 @@ function Rail({ tabs, activeId, onSelect }: TabBarProps) {
   const styles = useStyles();
 
   return (
-    // The focus guide gives the rail focus memory: walk right to Sports, press
-    // DOWN into the grid, press UP again, and you land back on Sports rather
+    // The focus guide gives the rail focus memory: walk right to Anime, press
+    // DOWN into the grid, press UP again, and you land back on Anime rather
     // than at Home. Without it the platform picks by raw geometry, which from
     // the middle of a grid is whichever pill happens to be overhead.
     <TVFocusGuideView autoFocus style={styles.rail}>

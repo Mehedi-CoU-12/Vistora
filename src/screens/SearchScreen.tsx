@@ -43,7 +43,7 @@ interface ResultShelf {
 }
 
 /**
- * Search across every content kind: channels, films, cartoons, anime, fixtures.
+ * Search across every content kind: channels, films, anime.
  *
  * ---------------------------------------------------------------------------
  * A shelf per kind, not one merged list
@@ -52,7 +52,7 @@ interface ResultShelf {
  * wrong one, for a reason that is visible before it is architectural: a channel
  * is a 16:9 tile and a film is a 2:3 poster, so a merged grid has to pick one
  * shape and stretch the other. Worse, "Iron" matching a channel called Iron
- * Sports and the film Iron Giant would interleave them in whatever order the
+ * Sport and the film Iron Giant would interleave them in whatever order the
  * database happened to return, and the user's actual question -- "is this film
  * in here?" -- gets harder to answer the more results there are.
  *
@@ -181,7 +181,7 @@ export function SearchScreen() {
       {!canSearch ? (
         <EmptyState
           title="What are you looking for?"
-          message={`Type at least ${MIN_SEARCH_LENGTH} characters to search across channels, films, cartoons, anime and fixtures.`}
+          message={`Type at least ${MIN_SEARCH_LENGTH} characters to search across channels, films and anime.`}
         />
       ) : data === null ? (
         // The first search for this term, with nothing to keep on screen. A
@@ -221,8 +221,8 @@ export function SearchScreen() {
                 items={shelf.items}
                 cardVariant={shelf.tab.catalog.cardVariant}
                 onSelectItem={openItem}
-                // No "See all": beside a heading reading "Cartoons · 4 cartoons"
-                // it would mean either "all four matches" or "the whole Cartoons
+                // No "See all": beside a heading reading "Movies · 4 films"
+                // it would mean either "all four matches" or "the whole Movies
                 // tab", and there is no way for the user to tell which. The tab
                 // bar is the unambiguous route to the latter.
               />

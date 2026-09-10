@@ -29,8 +29,8 @@ import { makeStyles } from '../theme';
  * This is not a reversal of "labels rather than icons"
  * ---------------------------------------------------------------------------
  * `TabBar` argues for words, and the argument is specifically that the tabs are
- * content KINDS whose distinctions -- cartoons against anime, films against
- * fixtures -- have no pictogram anyone would read correctly. Search is the
+ * content KINDS whose distinctions -- anime against films, a channel against
+ * either -- have no pictogram anyone would read correctly. Search is the
  * opposite case: the magnifier is the one pictogram that is unambiguous at three
  * metres and at thirty centimetres, and it is what every TV platform already
  * uses for this. The reasoning is unchanged; only the subject is different.
