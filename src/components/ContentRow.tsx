@@ -4,12 +4,14 @@ import { FlatList, Text, TVFocusGuideView, View } from 'react-native';
 import {
   colors,
   makeStyles,
+  radius,
   spacing,
   useMetrics,
   type CardVariant,
 } from '../theme';
 import type { ContentItem } from '../types/content';
 import { ContentCard } from './ContentCard';
+import { Focusable } from './Focusable';
 
 interface ContentRowProps {
   title: string;
@@ -18,6 +20,11 @@ interface ContentRowProps {
   onSelectItem: (item: ContentItem) => void;
   /** True for the first row on a screen, to seed initial focus. */
   isFirstRow?: boolean;
+  /**
+   * Jump to the tab that holds all of this row's content. Rendered as a "See
+   * all" beside the heading, and TOUCH ONLY -- see the note below.
+   */
+  onSeeAll?: () => void;
 }
 
 /**
@@ -54,9 +61,22 @@ export function ContentRow({
   cardVariant,
   onSelectItem,
   isFirstRow = false,
+  onSeeAll,
 }: ContentRowProps) {
-  const { isTV } = useMetrics();
+  const { isTV, isTouch } = useMetrics();
   const styles = useStyles();
+
+  /**
+   * "See all" is a touch affordance and deliberately absent on TV.
+   *
+   * On a phone it is the only way to get from a shelf to the whole catalog
+   * without hunting for the tab bar at the bottom of the screen. On a TV it
+   * would be a focus stop between every card and the tab rail -- press UP from
+   * a card and you would land on a button rather than on the navigation --
+   * which is exactly the "ported phone app" feel the rest of this file exists
+   * to avoid. The rail is already one press away up there.
+   */
+  const seeAll = isTouch ? onSeeAll : undefined;
 
   const renderItem = useCallback(
     ({ item, index }: { item: ContentItem; index: number }) => (
@@ -87,7 +107,28 @@ export function ContentRow({
     // focused view to the nearest ancestor carrying this prop, which is why
     // marking the section rather than the card is what fixes it.
     <View style={styles.section} scrollSnapAlign="start">
-      <Text style={styles.heading}>{title}</Text>
+      <View style={styles.headingRow}>
+        <Text style={styles.heading} numberOfLines={1}>
+          {title}
+        </Text>
+
+        {seeAll ? (
+          <Focusable
+            onPress={seeAll}
+            scaleOnFocus={false}
+            style={styles.seeAll}
+            accessibilityLabel={`See all ${title}`}
+          >
+            {active => (
+              <Text
+                style={[styles.seeAllLabel, active && styles.seeAllLabelActive]}
+              >
+                See all
+              </Text>
+            )}
+          </Focusable>
+        ) : null}
+      </View>
 
       <TVFocusGuideView autoFocus>
         <FlatList
@@ -118,11 +159,36 @@ const useStyles = makeStyles(m => ({
   section: {
     marginBottom: spacing.lg,
   },
+  headingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+    paddingHorizontal: m.gutter.horizontal,
+  },
   heading: {
     ...m.typography.sectionTitle,
     color: colors.textPrimary,
-    marginBottom: spacing.sm,
-    paddingHorizontal: m.gutter.horizontal,
+    flexShrink: 1,
+  },
+  seeAll: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+    flexShrink: 0,
+    // Only ever rendered on touch, so the minimum is unconditional here -- but
+    // it comes from the metrics anyway, so a tablet gets the same number a
+    // phone does rather than a second constant.
+    minHeight: m.minTouchTarget,
+    justifyContent: 'center',
+  },
+  seeAllLabel: {
+    ...m.typography.caption,
+    color: colors.accent,
+  },
+  seeAllLabelActive: {
+    color: colors.textPrimary,
   },
   listContent: {
     // Left padding aligns cards with the heading, less the card's own padding.
