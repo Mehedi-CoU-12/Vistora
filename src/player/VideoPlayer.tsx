@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   AppState,
   BackHandler,
   Pressable,
@@ -51,6 +52,7 @@ import {
 import { PlayerControls } from './PlayerControls';
 import { resolveOverlayEdges } from './playerLayout';
 import { SettingsPanel } from './SettingsPanel';
+import { useOverlayFade } from './useOverlayFade';
 import {
   usePlayerGestures,
   type DragAxis,
@@ -220,6 +222,8 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       timelineEnd,
       canSeek,
       pendingSeek,
+      isPaused,
+      scrubbing: scrubPreview !== null,
       overlayVisible,
       settingsOpen,
       locked,
@@ -234,6 +238,8 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       timelineEnd,
       canSeek,
       pendingSeek,
+      isPaused,
+      scrubbing: scrubPreview !== null,
       overlayVisible,
       settingsOpen,
       locked,
@@ -257,11 +263,32 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       }
     }, []);
 
-    /** Show the overlay and restart its auto-hide countdown. */
+    /**
+     * Show the overlay and restart its auto-hide countdown -- unless the player
+     * is in a state that pins the controls up.
+     *
+     * That last clause is load-bearing, and leaving it out was a real bug found
+     * on the emulator: pause the film and the effect below clears the timer, but
+     * the very next key press calls this and arms a fresh one, so the controls
+     * faded away four seconds later while playback sat paused behind them. The
+     * effect could not undo it either -- it only runs when one of its deps
+     * changes, and pressing a key changes none of them.
+     *
+     * The three states are the same three the effect tests, read off the live
+     * ref rather than from props so this callback stays referentially stable:
+     * every input handler in the player depends on it, and a `revealOverlay`
+     * that changed identity on each pause would rebuild all of them.
+     */
     const revealOverlay = useCallback(() => {
       setOverlayVisible(true);
       live.current.overlayVisible = true;
       clearHideTimer();
+
+      const l = live.current;
+      if (l.isPaused || l.settingsOpen || l.scrubbing) {
+        return;
+      }
+
       hideTimer.current = setTimeout(
         () => setOverlayVisible(false),
         OVERLAY_TIMEOUT_MS,
@@ -287,6 +314,12 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
     }, [clearHideTimer, isPaused, revealOverlay, scrubbing, settingsOpen]);
 
     useEffect(() => clearHideTimer, [clearHideTimer]);
+
+    /**
+     * Drives the overlay's fade. `metrics.isTouch` is the `animateOut` argument
+     * rather than a constant -- see `useOverlayFade` for why a TV cuts instead.
+     */
+    const overlayFade = useOverlayFade(overlayVisible, metrics.isTouch);
 
     // -------------------------------------------------------------------------
     // Feedback readouts
@@ -965,13 +998,24 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
           />
         ) : null}
 
-        {overlayVisible ? (
-          <>
-            {/* A scrim, not full black: the viewer should still see the picture
-              behind the controls, but the text has to stay legible over any
-              frame. pointerEvents="none" so it never eats a gesture. */}
-            <View style={styles.scrim} pointerEvents="none" />
+        {/*
+        Mounted on `overlayFade.mounted` rather than on `overlayVisible`, which
+        is what lets the controls fade out rather than vanish between frames --
+        see `useOverlayFade`, including why the fade-out is a touch-only
+        behaviour. The scrims that make the text legible are inside
+        `PlayerControls`, so they fade with the controls they back.
 
+        pointerEvents follows `overlayVisible`, not the animation: while the
+        overlay is on its way out it is still on screen, and a tap that lands on
+        a button in that quarter second should reach the gesture layer under it
+        and bring the controls back -- not press the button the user watched
+        leave.
+      */}
+        {overlayFade.mounted ? (
+          <Animated.View
+            style={[styles.overlayLayer, { opacity: overlayFade.opacity }]}
+            pointerEvents={overlayVisible ? 'box-none' : 'none'}
+          >
             <PlayerControls
               keyHandlers={remote.keyHandlers}
               title={title}
@@ -997,9 +1041,12 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
               onCycleScaling={() => applyScaling(nextScalingMode(scaling))}
               onToggleLock={toggleLock}
               onGoLive={goLive}
+              onPictureInPicture={
+                metrics.isTouch ? enterPictureInPicture : undefined
+              }
               onExit={onExit}
             />
-          </>
+          </Animated.View>
         ) : null}
 
         <GestureFeedback feedback={feedback} />
@@ -1170,13 +1217,12 @@ const useStyles = makeStyles(metrics => ({
     // Invisible on purpose: it is a focus holder and a key target, not a
     // control. Anything drawn here would be furniture over a film.
   },
-  scrim: {
+  overlayLayer: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(4, 6, 12, 0.55)',
   },
   bufferingLayer: {
     position: 'absolute',
