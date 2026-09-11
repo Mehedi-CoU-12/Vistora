@@ -87,4 +87,5 @@ supabase/seed_iptv.sql
 supabase/seed_movies.sql
 supabase/seed_cartoons.sql
 supabase/seed_anime.sql
+supabase/seed_anime_series.sql
 seed-out/
