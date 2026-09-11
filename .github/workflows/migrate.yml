@@ -105,6 +105,22 @@ jobs:
           applied_before=$(psql "$DATABASE_URL" -At -v ON_ERROR_STOP=1 \
             -c "select version from public.schema_migrations")
 
+          # A database with objects but an empty ledger is the one case where a
+          # normal run is guaranteed to fail: it starts at the first migration
+          # and tries to create types that are already there. `baseline` is the
+          # answer, so say so here rather than letting Postgres' "type already
+          # exists" be the only clue. A genuinely fresh database has no tables
+          # and falls straight through.
+          if [ -z "$BASELINE" ] && [ -z "$applied_before" ]; then
+            existing=$(psql "$DATABASE_URL" -At -v ON_ERROR_STOP=1 -c "
+              select count(*) from pg_tables
+               where schemaname = 'public' and tablename <> 'schema_migrations'")
+            if [ "$existing" -gt 0 ]; then
+              echo "::error::This database already has $existing table(s) in schema public, but the migration ledger is empty -- a normal run would replay the first migration against a live schema and fail on an object that already exists. Set the 'baseline' input to the newest migration this database already has (e.g. 0002_add_anime_kind): it records everything up to and including that one as applied WITHOUT running it, then applies the rest normally."
+              exit 1
+            fi
+          fi
+
           {
             echo "## Migrate database"
             echo
