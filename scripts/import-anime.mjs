@@ -41,7 +41,27 @@ const number = (key, fallback) => {
   return parsed;
 };
 
-const DEFAULT_CHANNELS = ['@MuseAsia', '@Ani-One', '@AnimeLogTV'];
+// Official licensor channels that publish FULL episodes, not just trailers.
+// Every handle here was resolved against youtube.com before being added --
+// `@Ani-One` and `@AnimeLogTV`, which used to be in this list, are both 404
+// now (AnimeLog shut its channel down, Ani-One renamed to @AniOneAsia), and a
+// dead handle is silent: resolveChannelId warns and skips, so the run simply
+// imported less and said nothing about why.
+//
+// Ordered by how much currently-airing, English-subtitled catalogue each one
+// carries, because `--limit` counts SERIES and trims from the tail.
+//
+// Quota: a channel costs one playlists call plus one playlistItems call per
+// playlist, so six channels is a few thousand units of the 10,000/day a free
+// key gets. Pass --channels to narrow it if you are sharing a key.
+const DEFAULT_CHANNELS = [
+  '@MuseAsia', //              Muse Communication, licensed for South/SE Asia
+  '@AniOneAsia', //            Medialink's Ani-One Asia
+  '@MuseIndonesia', //         Muse again, a different regional catalogue
+  '@GundamInfo', //            Sunrise -- the Gundam TV series, free and whole
+  '@TOEIAnimationOfficial', // Toei
+  '@YuGiOh', //                Konami, full Yu-Gi-Oh! runs
+];
 
 const options = {
   apiKey: process.env.YOUTUBE_API_KEY ?? '',

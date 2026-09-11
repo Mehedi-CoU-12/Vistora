@@ -172,6 +172,7 @@ adb shell uiautomator dump /sdcard/ui.xml && adb pull /sdcard/ui.xml
 | `npm run import:cartoons` | Build a cartoon seed file from archive.org |
 | `npm run import:anime` | Build an anime **series** seed file from official YouTube channels — needs `YOUTUBE_API_KEY` |
 | `npm run import:anime-pd` | Build a seed file of the handful of public-domain anime *films* on archive.org |
+| `npm run scrape -- --source=jikan` | Build an anime **catalogue** seed file from MyAnimeList — no API key needed |
 | `npm run scrape` | Scrape a website for on-demand titles — `-- --list` shows the sources, `-- --source=<name>` picks one |
 | `npm run scrape:tmdb` | Build a film seed file from TMDB — catalogue metadata with the official trailer as the stream; needs `TMDB_API_KEY` |
 | `python3 scripts/generate-android-icons.py <logo>` | Regenerate every launcher, banner and splash asset from the source logo |
@@ -348,14 +349,33 @@ archive.org licence filter exist to enforce, they rot within weeks (which is
 what every importer's liveness probe is for), and they are the one category of
 source that gets an app removed rather than merely broken.
 
-Two legal routes remain, and the app uses both.
+Three legal routes remain, and the app uses all of them, because they are good
+at opposite things. The first two below return content you can genuinely sit
+and watch — licensed episodes, public-domain films — and between them they will
+fill a tab with dozens of titles, not thousands. The third returns the
+*catalogue*: poster, synopsis, year and genre for the whole of MyAnimeList,
+with the publisher's own trailer as the stream, so a card plays ninety seconds
+rather than an episode.
+
+Run only the watchable ones and the Anime tab is honest and nearly bare. Run
+only the catalogue and it is a browsable library that mostly plays trailers.
+Running all three is the point, and every importer upserts on `slug`, so a
+later catalogue refresh leaves the real episode rows exactly where they were.
 
 ### 1. Official YouTube channels — real series, real episodes
 
 Several licensors publish full episodes free, with subtitles, on their own
 channels. **Muse Asia** and **Ani-One Asia** between them cover most of what is
 currently airing, licensed for South and Southeast Asia — which includes
-Bangladesh, the country `import-iptv.mjs` already defaults to.
+Bangladesh, the country `import-iptv.mjs` already defaults to. `Muse Indonesia`,
+`GUNDAM CHANNEL INTL`, `Toei Animation` and `Official Yu-Gi-Oh!` fill in the
+back catalogue, and `--channels` takes any handle you would rather walk instead.
+
+Handles rot, and they rot quietly — `resolveChannelId` warns and skips, so a
+dead one costs you a third of the import with nothing in the log to explain the
+shortfall. Both `@Ani-One` and `@AnimeLogTV` had gone 404 by the time the list
+above replaced them. If a run comes back thinner than you expected, open each
+handle in a browser before touching anything else.
 
 `npm run import:anime` walks those channels' **playlists** (not their uploads
 feed — the feed is every episode of every show interleaved, whereas a playlist
@@ -387,6 +407,37 @@ the explicit licence metadata that importer requires. It writes *films*, which
 have no episodes and are not series in any useful sense — so the Anime tab
 loads both tables and interleaves them alphabetically. A tab that showed one and
 not the other would be lying about what is in the library.
+
+### 3. The MyAnimeList catalogue — `npm run scrape -- --source=jikan`
+
+The two routes above are honest and small. This one is what makes the Anime tab
+look like a library: [Jikan](https://jikan.moe) is a free, keyless, read-only
+mirror of MyAnimeList, and it will hand you the whole catalogue — 30,000-odd
+titles — with a 2:3 poster, a synopsis, a year and a genre for each. The stream
+is the publisher's own trailer on YouTube, exactly as `--source=tmdb` does for
+films, so a card plays ninety seconds rather than an episode. Roughly four
+titles in five have one; the rest are dropped rather than imported streamless.
+
+```bash
+npm run scrape -- --source=jikan --limit=200 --pages=4
+```
+
+No credential at all, which is the point — unlike `tmdb` and `import-anime.mjs`
+it runs on a fork with no secrets configured. It writes `public.movies` rows
+under the same `anime-*` categories the other two importers use, so the shelves
+line up instead of doubling.
+
+Two things to know. Jikan proxies MyAnimeList, and when MyAnimeList wobbles
+Jikan answers `504` for anything not already in its cache — the source retries
+in seconds rather than milliseconds and skips a page it cannot get, because a
+partial catalogue beats an aborted run. And it is rate limited to 3 requests a
+second and 60 a minute; `--pace` (default 1200ms) is what keeps it under that.
+
+AniList would have been the obvious choice here — `import-anime.mjs` already
+enriches from it — but its GraphQL API is currently answering every query with
+`403 The AniList API has been temporarily disabled due to severe stability
+issues`. Jikan is a different upstream, so an outage of one does not take out
+the other.
 
 ### `youtube` is a protocol, and it means "do not decode this"
 
