@@ -88,4 +88,7 @@ supabase/seed_movies.sql
 supabase/seed_cartoons.sql
 supabase/seed_anime.sql
 supabase/seed_anime_series.sql
+# scripts/scrape.mjs, and the "Scrape content" workflow.
+supabase/seed_scrape_*.sql
 seed-out/
+scrape-out/

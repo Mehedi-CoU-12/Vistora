@@ -171,6 +171,71 @@ runners have no IPv6 route, so a direct string fails with a network error that
 looks like bad credentials. That string bypasses RLS, which is why it belongs in
 Actions secrets and never in `.env`.
 
+## Scraping a site
+
+The importers above each target one catalogue API. `npm run scrape` targets a
+*website*, and is split so that changing which website means writing one small
+module rather than editing a script or a workflow.
+
+```bash
+npm run scrape -- --list                        # what sources exist
+npm run scrape                                  # the default: test-videos
+npm run scrape -- --source=mysite --limit=100
+psql "$DATABASE_URL" -f supabase/seed_scrape_mysite.sql
+```
+
+`scripts/scrape.mjs` is the runner, and owns everything that stays the same
+whatever site you point it at: throttled fetching, HTML helpers, normalising,
+validating against the schema, slugs, deduplication, the liveness probe, and the
+idempotent SQL. `scripts/sources/<name>.mjs` owns only what is specific to one
+site — where the listing is, and which markup holds the title, the poster and
+the stream URL.
+
+The source that ships is `test-videos`: three ten-second open-licensed clips
+from [test-videos.co.uk](https://test-videos.co.uk). It is the wiring test,
+proving fetch → parse → probe → SQL → psql → a card on the television before you
+point the scraper at anything you care about. They arrive in a `Sample Clips`
+shelf sorted to the bottom of the Movies tab, and
+
+```sql
+delete from public.movies     where slug like 'sample-%';
+delete from public.categories where slug = 'sample-clips';
+```
+
+takes them out again. Their slugs are prefixed for exactly that reason, and to
+keep them from upserting over the `sintel` and `big-buck-bunny` rows that
+`seed.sql` already ships.
+
+### Adding a source
+
+Copy `scripts/sources/_template.mjs`, which documents the contract. Export
+`meta` — one line of description, the licence you are claiming, and the
+categories rows may land in — and `scrape(ctx)`, which returns plain objects.
+
+Sources are allowed to be sloppy: a half-filled item is dropped with a printed
+reason rather than written to the database. That `dropped:` list is the thing to
+read when a site changes its markup, because it names the field that stopped
+being found.
+
+**The one architectural rule applies here too.** Vistora stores a link and hands
+it to the device; it never re-hosts, proxies or decrypts. A site whose stream URL
+has to be prised out of a signed token or a DRM licence is not one to add — that
+is the site saying no, and the link would rot at the next rotation anyway. Check
+`robots.txt`, keep `--delay` civil, and put what you find in `meta.license`: it
+is copied into the header of the generated SQL, where whoever applies it can see
+what they are taking on.
+
+### From GitHub Actions
+
+`.github/workflows/scrape.yml` runs it and applies the result. `source` is a
+free-text input rather than a dropdown, so committing a new module is all it
+takes to scrape somewhere new — the workflow itself never needs editing.
+`options` passes extra flags through to the source (`--quality=1080`); it reaches
+Node in an environment variable and is never split by a shell.
+
+Point it at a site for the first time with `dry_run` on: you get the generated
+SQL as a run artifact and the database is not touched.
+
 ## Tables
 
 ```

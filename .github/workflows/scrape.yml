@@ -1,0 +1,186 @@
+name: Scrape content
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: 'Module in scripts/sources (run `node scripts/scrape.mjs --list` to see them)'
+        type: string
+        default: test-videos
+      limit:
+        description: Most titles to import
+        type: string
+        default: '40'
+      options:
+        description: 'Extra flags for the source, e.g. --quality=1080 (overrides the inputs above)'
+        type: string
+        default: ''
+      probe:
+        description: Check every stream actually plays before importing it
+        type: boolean
+        default: true
+      migrate:
+        description: Apply any pending supabase/migrations first (leave on -- the SQL below can need a schema this database has not got yet)
+        type: boolean
+        default: true
+      dry_run:
+        description: Generate the SQL and upload it, but do not touch the database
+        type: boolean
+        default: false
+
+concurrency:
+  group: scrape-content
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    if: ${{ inputs.migrate }}
+    uses: ./.github/workflows/migrate.yml
+    secrets: inherit
+
+  scrape:
+    needs: migrate
+    if: ${{ always() && (needs.migrate.result == 'success' || needs.migrate.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    environment: database
+    permissions:
+      contents: read
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Scrape
+        env:
+          SOURCE: ${{ inputs.source }}
+          LIMIT: ${{ inputs.limit }}
+          SCRAPE_OPTIONS: ${{ inputs.options }}
+          PROBE: ${{ inputs.probe }}
+        run: |
+          set -euo pipefail
+          mkdir -p scrape-out
+
+          # Checked here as well as in scrape.mjs because the value is also a
+          # path fragment below, and this fails with a readable message.
+          if ! printf '%s' "$SOURCE" | grep -Eq '^[a-z0-9][a-z0-9-]*$'; then
+            echo "::error::source must be lowercase letters, digits and dashes, got '$SOURCE'"
+            exit 1
+          fi
+
+          case "$LIMIT" in
+            ''|*[!0-9]*) echo "::error::limit must be a whole number, got '$LIMIT'"; exit 1 ;;
+          esac
+
+          # Written as if/then, not `[ cond ] && var=x`: under `set -e` that
+          # one-liner exits the job whenever the condition is false, because the
+          # failed test becomes the statement's exit status.
+          probe_flag=""
+          if [ "$PROBE" != "true" ]; then probe_flag="--no-probe"; fi
+
+          echo "::group::scrape --source=$SOURCE"
+          node scripts/scrape.mjs \
+            --source="$SOURCE" \
+            --limit="$LIMIT" \
+            $probe_flag \
+            --out="scrape-out/${SOURCE}.sql"
+          echo "::endgroup::"
+
+      - name: Upload generated SQL
+        if: always() && hashFiles('scrape-out/*.sql') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: scrape-sql-${{ github.run_id }}
+          path: scrape-out/*.sql
+          retention-days: 30
+
+      - name: Apply to the database
+        if: ${{ !inputs.dry_run }}
+        env:
+          DATABASE_URL: ${{ secrets.SEED_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${DATABASE_URL:-}" ]; then
+            echo "::error::secret SEED_DATABASE_URL is not set -- see the comment at the top of this workflow"
+            exit 1
+          fi
+
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql-client
+          fi
+          psql --version
+
+          # ON_ERROR_STOP makes psql exit non-zero on the first failed
+          # statement. Without it psql reports success after skipping every
+          # statement in a broken file, and the job goes green having imported
+          # nothing. The generated file is one transaction, so a file that fails
+          # partway leaves no rows behind.
+          for file in scrape-out/*.sql; do
+            echo "::group::psql -f $file"
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$file"
+            echo "::endgroup::"
+          done
+
+      - name: Summarise
+        if: always()
+        env:
+          DATABASE_URL: ${{ secrets.SEED_DATABASE_URL }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          SOURCE: ${{ inputs.source }}
+          SCRAPE_OPTIONS: ${{ inputs.options }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## Scrape content"
+            echo
+            echo "Source: \`$SOURCE\`"
+            if [ -n "$SCRAPE_OPTIONS" ]; then echo "Options: \`$SCRAPE_OPTIONS\`"; fi
+            echo
+
+            if [ -d scrape-out ] && [ -n "$(ls -A scrape-out 2>/dev/null)" ]; then
+              echo "### Generated"
+              echo
+              echo "| File | Titles |"
+              echo "|---|---|"
+              for file in scrape-out/*.sql; do
+                # Count only the movie tuples. The file also opens with an
+                # `insert into public.categories` whose rows have the same
+                # shape, and each movie row is preceded by a provenance comment
+                # and followed by indented continuation lines -- only the tuple
+                # itself starts with exactly two spaces and a bracket.
+                rows=$(awk '
+                  /^insert into public\.movies/ { target = 1; next }
+                  target && /^values/       { target = 0; counting = 1; next }
+                  /^on conflict/            { counting = 0 }
+                  counting && /^  \(./      { n++ }
+                  END { print n + 0 }
+                ' "$file")
+                echo "| \`$(basename "$file")\` | $rows |"
+              done
+              echo
+            fi
+
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "> Dry run -- the database was not touched. The SQL is attached as an artifact."
+            elif [ -n "${DATABASE_URL:-}" ]; then
+              echo "### Now in the database"
+              echo
+              echo "| Category | Active titles |"
+              echo "|---|---|"
+              # This step runs with `if: always()`, so it must not fail the job
+              # when it is reporting on an apply that already failed.
+              psql "$DATABASE_URL" -At -F ' | ' -c "
+                select c.slug, count(*)
+                  from public.movies m
+                  join public.categories c on c.id = m.category_id
+                  where m.is_active
+                  group by c.slug
+                  order by c.slug;
+              " 2>/dev/null | sed 's/^/| /; s/$/ |/' || echo "| _could not query the database_ | |"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

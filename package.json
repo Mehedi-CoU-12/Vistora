@@ -16,7 +16,8 @@
     "import:movies": "node scripts/import-archive.mjs --kind=movie",
     "import:cartoons": "node scripts/import-archive.mjs --kind=cartoon",
     "import:anime": "node scripts/import-anime.mjs",
-    "import:anime-pd": "node scripts/import-archive.mjs --kind=anime"
+    "import:anime-pd": "node scripts/import-archive.mjs --kind=anime",
+    "scrape": "node scripts/scrape.mjs"
   },
   "dependencies": {
     "@react-navigation/native": "^7.3.18",
