@@ -10,6 +10,7 @@ Migrations apply in filename order, then a seed:
 | `migrations/0004_add_youtube_protocol.sql` | adds `'youtube'` to `stream_protocol` |
 | `migrations/0005_series_and_episodes.sql` | `series` + `episodes`, their RLS and the episode-count trigger |
 | `seed.sql` | sample content for development (idempotent) |
+| `cleanup_sample_data.sql` | removes everything `seed.sql` inserts, once you have real content |
 
 `0002` and `0004` are alone in their files on purpose: PostgreSQL will not let a
 new enum value be *used* in the transaction that adds it, so anything that
@@ -53,6 +54,36 @@ last migration that database already has is), and later ones apply normally.
 
 Paste each migration into the SQL Editor and run it in filename order, then
 `seed.sql`. Migrations are safe to re-run.
+
+## Removing the sample content
+
+`seed.sql` exists so a fresh clone has something to look at: nine placeholder
+channels on Apple's reference HLS streams, six Blender short films, six invented
+fixtures. Once you have imported real content they are just noise — and the
+channels are the worst of it, since they were inserted first and so sit at the
+top of the Live TV grid.
+
+```bash
+psql "$DATABASE_URL" -f supabase/cleanup_sample_data.sql
+```
+
+It deletes those 21 rows **by slug**, so nothing you imported is at risk
+whatever it is called. It prints what it is about to remove before removing it,
+runs in one transaction, and is safe to run twice.
+
+It deliberately leaves the **categories** alone, and that is the part worth
+understanding: `seed.sql` and the importers share category slugs on purpose
+(`import-iptv.mjs` writes `news`, `sports-tv` and `entertainment`;
+`import-archive.mjs` writes `action` and `animation`) so re-running an importer
+does not reshuffle a rail you have arranged by hand. Those foreign keys are
+`on delete set null`, so deleting a category because seed.sql happens to mention
+it would quietly move every real channel and film in it to *uncategorised*.
+There is an opt-in sweep at the bottom of the file for categories that genuinely
+end up empty.
+
+Note that this does not stop the sample data coming back: anything that applies
+`seed.sql` again reinserts it — `supabase db reset`, or the migrate workflow
+with `sample_seed` ticked.
 
 ## Seeding real content
 
