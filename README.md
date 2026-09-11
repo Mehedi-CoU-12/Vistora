@@ -173,6 +173,7 @@ adb shell uiautomator dump /sdcard/ui.xml && adb pull /sdcard/ui.xml
 | `npm run import:anime` | Build an anime **series** seed file from official YouTube channels — needs `YOUTUBE_API_KEY` |
 | `npm run import:anime-pd` | Build a seed file of the handful of public-domain anime *films* on archive.org |
 | `npm run scrape` | Scrape a website for on-demand titles — `-- --list` shows the sources, `-- --source=<name>` picks one |
+| `npm run scrape:tmdb` | Build a film seed file from TMDB — catalogue metadata with the official trailer as the stream; needs `TMDB_API_KEY` |
 | `python3 scripts/generate-android-icons.py <logo>` | Regenerate every launcher, banner and splash asset from the source logo |
 
 ---

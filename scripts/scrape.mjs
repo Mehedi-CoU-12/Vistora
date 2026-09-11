@@ -254,7 +254,23 @@ const fetchJson = async (url, init) =>
  * only find out on the television. One ranged byte proves the file is served
  * without pulling a feature film through the runner.
  */
-async function isPlayable(url) {
+async function isPlayable(url, protocol = protocolFor(url)) {
+  // A youtube.com/watch URL serves an HTML page, so a ranged GET proves only
+  // that the page exists -- it says nothing about the video behind it. oEmbed
+  // does: 200 while the video is public, a 4xx once it has been removed, made
+  // private or pulled everywhere, which is the rot this probe is here to catch.
+  if (protocol === 'youtube') {
+    const endpoint =
+      'https://www.youtube.com/oembed?format=json&url=' +
+      encodeURIComponent(url);
+    try {
+      await request(endpoint);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   try {
     const response = await request(url, { headers: { Range: 'bytes=0-0' } });
     const type = (response.headers.get('content-type') ?? '').toLowerCase();
@@ -603,7 +619,7 @@ if (options.probe) {
     `\nprobing ${final.length} stream(s) with ${options.concurrency} in flight...`,
   );
   const verdicts = await mapPool(final, options.concurrency, row =>
-    isPlayable(row.streamUrl),
+    isPlayable(row.streamUrl, row.protocol),
   );
   const dead = final.filter((_, index) => !verdicts[index]);
   for (const row of dead)
