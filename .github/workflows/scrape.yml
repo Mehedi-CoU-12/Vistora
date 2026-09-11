@@ -60,6 +60,7 @@ jobs:
           LIMIT: ${{ inputs.limit }}
           SCRAPE_OPTIONS: ${{ inputs.options }}
           PROBE: ${{ inputs.probe }}
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
         run: |
           set -euo pipefail
           mkdir -p scrape-out
@@ -80,6 +81,11 @@ jobs:
           # failed test becomes the statement's exit status.
           probe_flag=""
           if [ "$PROBE" != "true" ]; then probe_flag="--no-probe"; fi
+
+          if [ "$SOURCE" = "tmdb" ] && [ -z "${TMDB_API_KEY:-}" ]; then
+            echo "::error::source='tmdb' needs a TMDB_API_KEY secret. Create a free key at https://www.themoviedb.org/settings/api and add it under Settings -> Secrets and variables -> Actions (repository level, or the 'database' environment)."
+            exit 1
+          fi
 
           echo "::group::scrape --source=$SOURCE"
           node scripts/scrape.mjs \
