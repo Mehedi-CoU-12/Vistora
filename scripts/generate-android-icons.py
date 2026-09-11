@@ -58,43 +58,18 @@ DENSITIES = {"mdpi": 1.0, "hdpi": 1.5, "xhdpi": 2.0, "xxhdpi": 3.0, "xxxhdpi": 4
 LEGACY_DP = 48    # legacy ic_launcher canvas
 ADAPTIVE_DP = 108  # adaptive icon canvas
 
-# Share of the 108dp adaptive canvas the mark may occupy. The system reserves
-# everything outside the centre 66/108 (0.611) for masking and parallax, so stay
-# just inside that.
 ADAPTIVE_MARK_SCALE = 0.58
-# Legacy icons are drawn unmasked, so the mark can sit closer to the edge.
 LEGACY_MARK_SCALE = 0.78
-# The legacy *round* icon is its own bitmap rather than the square one behind a
-# circular mask: a circle inscribed in the square clips the V's outer arms, so the
-# mark is composited smaller to begin with.
 LEGACY_ROUND_MARK_SCALE = 0.62
-# Share of the 320x180 TV banner the lock-up may fill.
 BANNER_LOGO_SCALE = 0.82
-# Splash icon geometry, dictated by the Android 12+ platform splash screen and NOT
-# free to choose. From API 31 the system draws its own splash from
-# windowSplashScreenAnimatedIcon before the app gets control, rendering that
-# drawable on a 288dp canvas and expecting the artwork to stay inside the inner
-# 192dp circle (192/288 = 0.667) so its reveal animation and any OEM mask have
-# room. We generate at exactly that geometry and then reuse the SAME drawable for
-# the pre-API-31 window background, so every phase of startup draws identical
-# pixels in an identical place. That is the whole anti-flicker strategy: not
-# careful timing, but leaving nothing that could differ.
 SPLASH_ICON_DP = 288
 SPLASH_ICON_SCALE = 0.64
-# The platform's branding slot, which is where the name and the motto go on API 31+.
-# 200x80dp is the documented size and, like the icon slot, is not ours to choose --
-# the platform pins this image to the bottom of its own splash. The wordmark plus
-# tagline is a wide, short block, so it fits the width and lands well under 80dp.
 SPLASH_BRANDING_DP = (200, 80)
-# The full lock-up, for the pre-API-31 window background where we own the whole
-# screen and can show mark, name and motto together at a comfortable size.
 SPLASH_LOCKUP_DP = 280
 
 RES = Path("android/app/src/main/res")
 
-# Channel distance from the backdrop at which a pixel is fully opaque artwork.
-# Below KNOCKOUT_LO it is fully transparent; between the two, alpha ramps, which is
-# what keeps anti-aliased edges smooth.
+
 KNOCKOUT_LO = 10
 KNOCKOUT_HI = 44
 

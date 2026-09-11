@@ -196,11 +196,7 @@ const defaultCategory = categories[0];
 const USER_AGENT =
   'Vistora-scraper/1.0 (+https://github.com/Mehedi-CoU-12/Vistora)';
 
-/**
- * One request at a time, `--delay` apart. A scraper that opens twenty sockets
- * on a small site is how you get the runner's IP blocked, and a blocked IP
- * looks exactly like a parser bug from in here.
- */
+
 let nextSlot = 0;
 async function throttle() {
   const now = Date.now();
@@ -290,14 +286,6 @@ async function mapPool(items, limit, worker) {
   return results;
 }
 
-// ---------------------------------------------------------------------------
-// HTML
-//
-// Regex, not a DOM. The importers take no dependencies and neither does this,
-// which is the whole reason the workflow has no `npm ci` step. Regex is the
-// wrong tool for parsing arbitrary HTML and the right one for pulling known
-// fields out of one site's templates, which is all a source ever does.
-// ---------------------------------------------------------------------------
 
 const NAMED_ENTITIES = {
   amp: '&',
@@ -413,11 +401,7 @@ function toSlug(...parts) {
   return base.length >= 2 ? base : null;
 }
 
-/**
- * `mp4` in this enum means "progressive download", not literally an MP4
- * container -- see the comment on the type in 0001. So webm and mkv belong
- * there too: Media3 streams them the same way.
- */
+
 function protocolFor(url) {
   let parsed;
   try {
