@@ -1,34 +1,3 @@
-# Seeds the Supabase database with fresh content: live TV channels from the
-# iptv-org catalogue, and public-domain films, cartoons and anime from the
-# Internet Archive.
-#
-# Anime is deliberately NOT part of `everything` -- see the note on its step.
-#
-# ---------------------------------------------------------------------------
-# One-time setup
-# ---------------------------------------------------------------------------
-# Add a repository secret named SEED_DATABASE_URL:
-#
-#   Supabase dashboard -> Project Settings -> Database -> Connection string
-#     -> "Session pooler"  (NOT "Direct connection")
-#
-# The session pooler matters. Supabase serves direct connections over IPv6
-# only, and GitHub-hosted runners have no IPv6 route, so a direct connection
-# string fails here with a bare "Network is unreachable" that looks like a
-# credentials problem and is not. The pooler answers on IPv4.
-#
-# The connection string contains the database password and bypasses RLS, which
-# is exactly why it lives in Actions secrets and never in .env -- everything in
-# .env is inlined into the app bundle that ships on the device.
-#
-# ---------------------------------------------------------------------------
-# What a run does
-# ---------------------------------------------------------------------------
-# Brings the schema up to date (see .github/workflows/migrate.yml), generates
-# SQL, uploads it as an artifact, then applies it. Every statement is
-# an idempotent upsert keyed on `slug`, so re-running refreshes existing rows
-# (stream URLs rot, especially IPTV ones) rather than duplicating them. Nothing
-# is ever deleted.
 name: Seed content
 
 on:
