@@ -86,13 +86,18 @@ interface PlayerControlsProps {
  *                the frame rather than a sentence to read -- and because the
  *                words were what made the old bottom row too long to scan.
  *
- *   Bottom       The transport: the scrub bar, and skip / play / skip under it.
- *                These are what a hand actually reaches for while watching, and
- *                they now have the whole bottom strip to themselves.
+ *   Bottom       The scrub bar and its readouts -- and, on a TV, the skip /
+ *                play / skip group under it. These are what a hand actually
+ *                reaches for while watching.
  *
- * The corollary is that nothing sits in the middle of the picture, on either
- * device. On a TV a control there cannot be reached without stealing left/right
- * from the scrub bar; on a phone it covers the thing being watched.
+ *   Centre       The transport, on touch only. See `transportPlacement`: a
+ *                thumb reaches the middle of a phone without the hand moving,
+ *                every phone video app puts it there, and -- the reason it had
+ *                to move -- a bottom strip carrying the bar AND a 60dp play
+ *                button is 120dp of chrome, which on a handset in landscape is
+ *                a third of the screen. A remote keeps the bottom arrangement,
+ *                because D-pad focus cannot reach the middle of the picture
+ *                without taking left/right away from the scrub bar.
  *
  * ---------------------------------------------------------------------------
  * The two devices differ in what exists, not where it goes
@@ -108,6 +113,14 @@ interface PlayerControlsProps {
  *                settings panel as well, and on a 390dp phone four icons plus a
  *                back button leave no room for the title.
  *   Key hints    TV only, because nothing on a remote is self-evident.
+ *   Transport    Centre of the picture on touch, bottom strip on a TV -- the
+ *                zone list above says why.
+ *   Scrims       TV only. See `showsScrims`: the gradients are sized from the
+ *                controls they back, and on a phone in landscape the pair came
+ *                to about 310dp of a 390dp screen and met in the middle, so
+ *                raising the controls drew a curtain over the film. On touch the
+ *                chrome backs itself -- the buttons are already translucent
+ *                pills and discs, and the loose text gets a shadow.
  *
  * Skip buttons are now on *both*, which is the other change worth naming. The
  * argument for leaving them off a phone was that double-tapping either side of
@@ -219,6 +232,65 @@ function UnlockedControls({
     : elapsed;
   const rightLabel = isLive ? null : total;
 
+  const centred = chrome.transportPlacement === 'centre';
+
+  /**
+   * The skip / play / skip group, built once and placed by `transportPlacement`.
+   *
+   * One node rather than one per placement, because the group is the same group
+   * either way -- same sizes, same order, same handlers, same preferred focus.
+   * Writing it twice would mean two places to keep a 10-second step or a
+   * disabled state in sync, and the two copies would be next to each other,
+   * which is exactly how they stop matching.
+   */
+  const transport = (
+    // box-none: the row itself is only a container, and on touch it is stretched
+    // across the middle of the picture where every swipe starts. Without it a
+    // drag beginning in the gap between Play and a skip button dies here instead
+    // of reaching the gesture layer.
+    <View style={styles.transport} pointerEvents="box-none">
+      <ControlButton
+        icon="rewind"
+        variant="skip"
+        accessibilityLabel={`Back ${SEEK_STEP_SECONDS} seconds`}
+        onPress={() => onSkip(-SEEK_STEP_SECONDS)}
+        disabled={!canSeek}
+      />
+      <ControlButton
+        icon={isPaused ? 'play' : 'pause'}
+        variant="play"
+        accessibilityLabel={isPaused ? 'Play' : 'Pause'}
+        onPress={onTogglePlay}
+        // The one control that claims focus when the overlay appears.
+        hasTVPreferredFocus
+      />
+      <ControlButton
+        icon="forward"
+        variant="skip"
+        accessibilityLabel={`Forward ${SEEK_STEP_SECONDS} seconds`}
+        onPress={() => onSkip(SEEK_STEP_SECONDS)}
+        disabled={!canSeek}
+      />
+    </View>
+  );
+
+  /**
+   * Kept out of the transport group and pinned to the end of its own row.
+   *
+   * It appears and disappears as the viewer drifts off the live edge, and a
+   * button that materialises next to Play would move the controls under a thumb
+   * already on its way down -- which is why it stays in the bottom strip even
+   * where the transport has gone to the middle of the picture.
+   */
+  const goLive = behindLive ? (
+    <ControlButton
+      icon="live"
+      label="Go live"
+      accessibilityLabel="Jump to live"
+      onPress={onGoLive}
+    />
+  ) : null;
+
   return (
     <View style={styles.root} pointerEvents="box-none" {...keyHandlers}>
       {/* Behind everything, and outside the padded rows on purpose: an
@@ -303,6 +375,23 @@ function UnlockedControls({
         </View>
       </View>
 
+      {/*
+        The transport, floating over the middle of the picture on touch.
+
+        Absolutely positioned over the whole overlay rather than placed as a
+        third flex child, because the root distributes its children with
+        `space-between` and a middle child would be centred in whatever is left
+        between the two bars -- which is not the middle of the screen, and moves
+        every time the title wraps or the live pill appears. Pinned to all four
+        edges and centred in both axes, it is the middle of the *picture*, which
+        is what a thumb aims at.
+      */}
+      {centred ? (
+        <View style={styles.centreTransport} pointerEvents="box-none">
+          {transport}
+        </View>
+      ) : null}
+
       {/* autoFocus so waking the overlay puts focus on a real control rather
           than leaving it lost behind the video surface.
 
@@ -346,45 +435,21 @@ function UnlockedControls({
           </View>
         )}
 
-        <View style={styles.transportRow} pointerEvents="box-none">
-          <View style={styles.transport}>
-            <ControlButton
-              icon="rewind"
-              variant="skip"
-              accessibilityLabel={`Back ${SEEK_STEP_SECONDS} seconds`}
-              onPress={() => onSkip(-SEEK_STEP_SECONDS)}
-              disabled={!canSeek}
-            />
-            <ControlButton
-              icon={isPaused ? 'play' : 'pause'}
-              variant="play"
-              accessibilityLabel={isPaused ? 'Play' : 'Pause'}
-              onPress={onTogglePlay}
-              // The one control that claims focus when the overlay appears.
-              hasTVPreferredFocus
-            />
-            <ControlButton
-              icon="forward"
-              variant="skip"
-              accessibilityLabel={`Forward ${SEEK_STEP_SECONDS} seconds`}
-              onPress={() => onSkip(SEEK_STEP_SECONDS)}
-              disabled={!canSeek}
-            />
+        {/* Nothing at all on touch unless the viewer has drifted off the live
+            edge: the transport is in the middle of the picture, so the bottom
+            strip is the bar and its readouts and no more. */}
+        {centred ? (
+          goLive ? (
+            <View style={styles.goLiveRow} pointerEvents="box-none">
+              {goLive}
+            </View>
+          ) : null
+        ) : (
+          <View style={styles.transportRow} pointerEvents="box-none">
+            {transport}
+            {goLive}
           </View>
-
-          {/* At the far end of the row rather than in the transport group, and
-              it keeps its label: it appears and disappears as the viewer drifts
-              off the live edge, and a button that materialises next to Play
-              would move the controls under a thumb already on its way down. */}
-          {behindLive ? (
-            <ControlButton
-              icon="live"
-              label="Go live"
-              accessibilityLabel="Jump to live"
-              onPress={onGoLive}
-            />
-          ) : null}
-        </View>
+        )}
 
         {chrome.showsKeyHints ? (
           <Text style={styles.hint}>
@@ -453,6 +518,30 @@ function bottomPadding(edges: EdgeInsets) {
 const useStyles = makeStyles(metrics => {
   const chrome = resolvePlayerChrome(metrics);
 
+  /**
+   * What backs the loose text where there is no scrim behind it.
+   *
+   * The buttons need nothing: they are translucent pills and discs with a
+   * hairline border, so they carry their own contrast onto any frame. The text
+   * that is not inside one -- the title, the subtitle, the two time readouts,
+   * the live-stream hint -- had been relying on the gradient, and white type on
+   * a white sky with the gradient gone is simply not there.
+   *
+   * A shadow is what replaces it because it costs the picture a couple of dp
+   * around each glyph instead of a third of the screen, and it scales with the
+   * content rather than with the layout: no geometry to keep in sync, nothing to
+   * recompute when the phone is turned. Offset down by a dp as well as blurred,
+   * so the darkest part sits where the eye reads the letterform against, not
+   * evenly around it as a halo.
+   */
+  const shadow = chrome.showsScrims
+    ? null
+    : {
+        textShadowColor: 'rgba(4, 6, 12, 0.9)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 5,
+      };
+
   return {
     root: {
       position: 'absolute',
@@ -481,10 +570,12 @@ const useStyles = makeStyles(metrics => {
     title: {
       ...metrics.typography.title,
       color: colors.textPrimary,
+      ...shadow,
     },
     subtitle: {
       ...metrics.typography.body,
       color: colors.textSecondary,
+      ...shadow,
     },
     cluster: {
       flexDirection: 'row',
@@ -511,6 +602,7 @@ const useStyles = makeStyles(metrics => {
       color: colors.textSecondary,
       // Stops the readout jittering as the digits change.
       fontVariant: ['tabular-nums'],
+      ...shadow,
     },
     transportRow: {
       flexDirection: 'row',
@@ -518,10 +610,38 @@ const useStyles = makeStyles(metrics => {
       justifyContent: 'space-between',
       gap: chrome.gap,
     },
+    /**
+     * The middle of the picture, for the touch placement of the transport.
+     *
+     * Not inset by `edges`: it is centred in the screen, and a safe-area inset
+     * applied to a centred thing only moves it off centre. The insets exist to
+     * keep chrome out from under a cutout or a system bar, and the middle of the
+     * screen is not under either.
+     */
+    centreTransport: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    /** Where "Go live" sits once the transport has left the bottom strip. */
+    goLiveRow: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+    },
     transport: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: chrome.gap,
+      // Wider apart in the middle of the picture than in a bottom strip. In a
+      // strip the group is bounded by the bar above it and the screen edge below,
+      // so a tight gap is what makes it read as one group; floating over the
+      // film there is nothing to bound it, and three discs 8dp apart read as one
+      // lozenge -- with Play, the control aimed at without looking, sharing an
+      // edge with a skip button a thumb can land on by mistake.
+      gap: chrome.transportPlacement === 'centre' ? spacing.xl : chrome.gap,
     },
     lockRow: {
       flex: 1,
@@ -531,6 +651,7 @@ const useStyles = makeStyles(metrics => {
     hint: {
       ...metrics.typography.caption,
       color: colors.textMuted,
+      ...shadow,
     },
     livePill: {
       flexDirection: 'row',

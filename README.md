@@ -926,20 +926,20 @@ per film and then forgotten. Eight of them in a line is a row too long to scan, 
 row in which Back sits one slip away from Pause, and a row that has to shed its
 text labels to fit on a phone.
 
-So controls are placed by how often they are used, and the arrangement is now the
-same on both devices:
+So controls are placed by how often they are used. The zones are the same on both
+devices; the one thing that moves between them is the transport.
 
 ```
-┌───────────────────────────────────────────────────────────┐
-│  (<)  The Title            LIVE  1.5x  (=) (o) (a) (gear) │
-│       subtitle                                            │
-│                                                           │
-│                        (the film)                         │
-│                                                           │
-│  12:04 |=========o--------------------------------| 38:20 │
-│               (<<)  ( > )  (>>)                [Go live]  │
-└───────────────────────────────────────────────────────────┘
-         back / speed / picture size / pop out / lock / settings
+  TV                                        Phone
+┌─────────────────────────────────┐   ┌─────────────────────────────────┐
+│ (<) The Title   LIVE (a) (gear) │   │ (<) The Title   LIVE (o) (gear) │
+│     subtitle                    │   │     subtitle                    │
+│                                 │   │                                 │
+│           (the film)            │   │     (<<)   ( > )   (>>)         │
+│                                 │   │                                 │
+│ 12:04 |====o----------- | 38:20 │   │ 12:04 |====o------------| 38:20 │
+│       (<<)  ( > )  (>>)         │   │                      [Go live]  │
+└─────────────────────────────────┘   └─────────────────────────────────┘
 ```
 
 * **Top left — leave.** One button, in the corner every platform has trained
@@ -949,19 +949,22 @@ same on both devices:
   is not 1×, because a chip permanently reading "1x" is a label for the absence
   of a setting. Icons rather than words: a cluster of small round shapes at the
   edge of the frame reads as chrome, where six words read as a sentence.
-* **Bottom — the transport.** The scrub bar, and skip / play / skip beneath it,
-  with the whole strip to themselves.
+* **Bottom — the scrub bar** and its two readouts; on a TV, skip / play / skip
+  beneath it as well.
+* **Centre — the transport, on touch only** (`transportPlacement`). A thumb
+  reaches the middle of a phone without the hand moving, it is where every phone
+  video app has taught people to look, and it is the only place a control can go
+  that adds nothing to the height of a strip of chrome — a bottom strip carrying
+  the bar *and* a 60dp play button is 120dp, about a third of a handset in
+  landscape. A TV keeps the bottom arrangement, because D-pad focus cannot reach
+  the middle of the picture without stealing left/right from the scrub bar.
 
-Nothing sits in the middle of the picture on either device: on a TV a control
-there cannot be reached without stealing left/right from the scrub bar, and on a
-phone it covers the thing being watched.
-
-What still differs between the two is only what *exists*: lock and pop out are
-touch-only, key hints are TV-only, and on a screen narrower than 560dp the
-picture-size and pop-out shortcuts drop out of the cluster (`showsOptionShortcuts`)
-because a back button plus four icons leaves a 390dp phone no room for the title.
-Both of those are also in the settings panel, which is what makes dropping them
-safe. Nothing is sized below `minTouchTarget` (48dp).
+What else differs between the two is only what *exists*: lock and pop out are
+touch-only, key hints and the scrims are TV-only, and on a screen narrower than
+560dp the picture-size and pop-out shortcuts drop out of the cluster
+(`showsOptionShortcuts`) because a back button plus four icons leaves a 390dp
+phone no room for the title. Both of those are also in the settings panel, which
+is what makes dropping them safe. Nothing is sized below `minTouchTarget` (48dp).
 
 **Skip buttons are now on a phone too**, which reverses an earlier decision worth
 naming. The argument against them was that double-tapping either side of the
@@ -972,7 +975,7 @@ without crowding anything. More to the point, the gesture had been the *only* wa
 to skip on a phone, and it is the one gesture in the player a new user has no way
 to discover.
 
-### The scrim is two gradients, not one wash
+### The scrim is two gradients on a TV, and nothing on a phone
 
 The overlay used to sit on a single full-screen 55% black layer, so making the
 text legible meant dimming the entire film — including the middle of the frame,
@@ -990,7 +993,21 @@ about 140dp of controls.
 
 These are real gradients, not a stack of banded Views — React Native 0.87 draws
 them natively through the `backgroundImage` style, which needs the New
-Architecture this app already requires. The overlay also fades in and out instead
+Architecture this app already requires.
+
+**A phone gets neither of them** (`showsScrims`), because it does not have the
+room. Sizing each strip from what it holds is right, and on a handset what it
+holds is most of the screen: in landscape the top bar, the bottom strip and their
+two 48dp ramps came to roughly 310dp of a 390dp viewport, so the two gradients
+met in the middle with no picture left between them and tapping to raise the
+controls drew a curtain over the film. Moving the transport to the centre pays
+part of that back, but not enough to be worth a band across the frame. So on
+touch the chrome backs itself: every control is already a translucent pill or
+disc with a hairline border, and the text that is not inside one — title,
+subtitle, the two readouts, the live-stream hint — gets a text shadow, which
+costs a couple of dp around each glyph rather than a third of the screen.
+
+The overlay also fades in and out instead
 of cutting, and only a phone gets the fade *out*: on a TV a control that is
 fading is still a control the D-pad can reach and press, and it would be
 competing for focus with the invisible layer that replaces it. See

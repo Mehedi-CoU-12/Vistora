@@ -391,9 +391,16 @@ function Shape({ name, size, color }: PlayerIconProps) {
 
     /**
      * A tick, which is the same corner trick as the chevron with one arm made
-     * longer than the other. Turning a rectangle rather than a square by -45
-     * degrees is what gives the short stroke down to the left and the long one
-     * up to the right.
+     * longer than the other.
+     *
+     * Which arm ends up long is decided by the box's proportions, and it is
+     * easy to get backwards -- it shipped that way. Counter-clockwise by 45
+     * degrees swings the LEFT border to the upper left and the BOTTOM border to
+     * the upper right, so the bottom border is the one that has to be the long
+     * stroke: hence a box that is wider than it is tall. Built the other way up
+     * the two arms are the same two arms, mirrored, and a mirrored tick at
+     * 14dp does not read as a wrong tick -- it reads as a small `v`, which is
+     * what the selected rows in the settings panel were showing.
      */
     case 'tick':
       return (
@@ -401,16 +408,16 @@ function Shape({ name, size, color }: PlayerIconProps) {
           style={[
             styles.chevron,
             {
-              width: size * 0.4,
-              height: size * 0.72,
+              width: size * 0.72,
+              height: size * 0.4,
               borderBottomWidth: stroke,
               borderLeftWidth: stroke,
               borderColor: color,
-              // Rotation happens about the centre of the box, and the ink is
-              // only along two of its sides, so the finished mark sits low and
-              // left of centre. This lifts it back.
-              marginLeft: size * 0.1,
-              marginBottom: size * 0.12,
+              // Rotation happens about the centre of the box and the ink is
+              // only along two of its sides, so the finished mark hangs below
+              // the centre by about 0.14 of the box. A margin in a centred flex
+              // parent moves its child by half itself, so this is that doubled.
+              marginBottom: size * 0.28,
             },
           ]}
         />

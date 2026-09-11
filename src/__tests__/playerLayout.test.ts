@@ -106,6 +106,42 @@ describe('resolvePlayerChrome', () => {
     expect(resolvePlayerChrome(tvMetrics).panelMode).toBe('side');
   });
 
+  // A thumb reaches the middle of a phone without the hand moving, and a bottom
+  // strip carrying both the scrub bar and a 60dp play button is a third of a
+  // handset in landscape. A D-pad cannot reach the middle of the picture at all
+  // without taking left/right away from the bar, so a TV keeps the strip.
+  it('floats the transport in the middle of the picture on touch only', () => {
+    expect(resolvePlayerChrome(tvMetrics).transportPlacement).toBe('bottom');
+
+    for (const [width, height] of [
+      [390, 844],
+      [844, 390],
+      [800, 1280],
+    ]) {
+      expect(
+        resolvePlayerChrome(resolveMetrics(width, height)).transportPlacement,
+      ).toBe('centre');
+    }
+  });
+
+  // The scrims are sized from the controls they back, and on a handset the pair
+  // came to about 310dp of a 390dp landscape screen -- the two gradients met in
+  // the middle and raising the controls drew a curtain over the film. A TV has
+  // the height to spare and text that is read at three metres.
+  it('draws the scrims on a TV and not on a phone', () => {
+    expect(resolvePlayerChrome(tvMetrics).showsScrims).toBe(true);
+
+    for (const [width, height] of [
+      [390, 844],
+      [844, 390],
+      [800, 1280],
+    ]) {
+      expect(
+        resolvePlayerChrome(resolveMetrics(width, height)).showsScrims,
+      ).toBe(false);
+    }
+  });
+
   it('keeps a side panel narrower than the window it sits in', () => {
     for (const [width, height] of [
       [844, 390],
@@ -125,9 +161,8 @@ describe('resolveScrimHeights', () => {
   // the picture stays undimmed, so each strip has to be big enough to cover its
   // own controls and no bigger.
   it('covers the controls at each edge', () => {
-    const metrics = resolveMetrics(844, 390);
-    const chrome = resolvePlayerChrome(metrics);
-    const edges = resolveOverlayEdges(metrics, noInsets);
+    const chrome = resolvePlayerChrome(tvMetrics);
+    const edges = resolveOverlayEdges(tvMetrics, noInsets);
     const scrim = resolveScrimHeights(chrome, edges);
 
     expect(scrim.top.height).toBeGreaterThan(edges.top + chrome.iconButton);
@@ -143,9 +178,8 @@ describe('resolveScrimHeights', () => {
    * two-line title block beside it is taller.
    */
   it('holds full strength across the whole title block, not just the buttons', () => {
-    const metrics = resolveMetrics(844, 390);
-    const chrome = resolvePlayerChrome(metrics);
-    const edges = resolveOverlayEdges(metrics, noInsets);
+    const chrome = resolvePlayerChrome(tvMetrics);
+    const edges = resolveOverlayEdges(tvMetrics, noInsets);
     const { top } = resolveScrimHeights(chrome, edges);
 
     expect(chrome.titleBlock).toBeGreaterThan(chrome.iconButton);
@@ -157,21 +191,37 @@ describe('resolveScrimHeights', () => {
   // Everything past the held region is ramp, and it is the same distance on
   // every device -- so the fraction is whatever is left over, never 0 or 1.
   it('leaves a ramp at both edges', () => {
+    const scrim = resolveScrimHeights(
+      resolvePlayerChrome(tvMetrics),
+      resolveOverlayEdges(tvMetrics, noInsets),
+    );
+
+    for (const edge of [scrim.top, scrim.bottom]) {
+      expect(edge.hold).toBeGreaterThan(0);
+      expect(edge.hold).toBeLessThan(1);
+    }
+  });
+
+  /**
+   * The complaint this pins: on a phone the two gradients were tall enough to
+   * meet, so tapping the screen to raise the controls blacked out the film
+   * instead of backing the chrome drawn on it. Where the chrome backs itself --
+   * translucent pills, discs and a text shadow -- there is no scrim at all,
+   * rather than a shorter one that would still be a band across the picture.
+   */
+  it('draws nothing where the chrome carries its own contrast', () => {
     for (const [width, height] of [
       [390, 844],
       [844, 390],
-      [960, 540],
     ]) {
       const metrics = resolveMetrics(width, height);
       const scrim = resolveScrimHeights(
         resolvePlayerChrome(metrics),
-        resolveOverlayEdges(metrics, noInsets),
+        resolveOverlayEdges(metrics, { top: 36, right: 0, bottom: 24, left: 0 }),
       );
 
-      for (const edge of [scrim.top, scrim.bottom]) {
-        expect(edge.hold).toBeGreaterThan(0);
-        expect(edge.hold).toBeLessThan(1);
-      }
+      expect(scrim.top.height).toBe(0);
+      expect(scrim.bottom.height).toBe(0);
     }
   });
 
@@ -179,10 +229,9 @@ describe('resolveScrimHeights', () => {
   // carries one row. A symmetrical pair of scrims would either fail to cover the
   // bottom or dim twice as much of the picture as the top needs.
   it('makes the bottom taller than the top', () => {
-    const metrics = resolveMetrics(390, 844);
     const scrim = resolveScrimHeights(
-      resolvePlayerChrome(metrics),
-      resolveOverlayEdges(metrics, noInsets),
+      resolvePlayerChrome(tvMetrics),
+      resolveOverlayEdges(tvMetrics, noInsets),
     );
 
     expect(scrim.bottom.height).toBeGreaterThan(scrim.top.height);
@@ -192,8 +241,11 @@ describe('resolveScrimHeights', () => {
   // behind them has to grow by the same amount or its ramp ends up underneath
   // them.
   it('grows with the safe-area insets', () => {
+    // A phone's chrome with the scrims switched on, because the insets are the
+    // thing under test and a real TV reports none: the platform gives a TV zeros
+    // and the overscan allowance takes their place.
     const metrics = resolveMetrics(390, 844);
-    const chrome = resolvePlayerChrome(metrics);
+    const chrome = { ...resolvePlayerChrome(metrics), showsScrims: true };
 
     const bare = resolveScrimHeights(
       chrome,
