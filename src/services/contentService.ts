@@ -1,16 +1,20 @@
 import { configError } from '../config/env';
 import { supabase } from '../lib/supabase';
-import type { Category, ContentItem } from '../types/content';
+import type { Category, ContentItem, Season } from '../types/content';
 import {
   channelToContentItem,
+  groupEpisodesBySeason,
   movieToContentItem,
+  seriesToContentItem,
   sportsEventToContentItem,
 } from '../types/content';
 import type {
   CategoryRow,
   ChannelRow,
+  EpisodeRow,
   MovieCategoryKind,
   MovieRow,
+  SeriesRow,
   SportsEventRow,
 } from '../types/database';
 import { AppError, toAppError } from './errors';
@@ -201,6 +205,174 @@ export async function fetchMovies(
   });
 
   return rows.map(movieToContentItem);
+}
+
+// ---------------------------------------------------------------------------
+// Series and episodes
+// ---------------------------------------------------------------------------
+
+const SERIES_COLUMNS =
+  'id, slug, title, description, poster_url, backdrop_url, release_year, content_rating, source, source_id, episode_count, category_id, sort_order, is_active, created_at, updated_at';
+
+/**
+ * A series' searchable text -- and, by omission, a decision about what search
+ * means here.
+ *
+ * Episodes are not searched. They could be: the rows are there and the join is
+ * cheap. But a series of seventy-five episodes titles most of them with the
+ * series name, so searching them would answer "attack" with one series card and
+ * seventy-five near-identical episode cards underneath it, burying every OTHER
+ * show that matched. The thing the user is looking for is the show; the episode
+ * is one press further in, on a screen built to list them.
+ */
+const SERIES_SEARCH_COLUMNS = ['title', 'description'] as const;
+
+const EPISODE_COLUMNS =
+  'id, series_id, slug, title, description, thumbnail_url, stream_url, stream_protocol, stream_headers, season, episode_number, duration_seconds, air_date, is_active, created_at, updated_at';
+
+/**
+ * Series of one kind, for a grid. Mirrors `fetchMovies` exactly -- same inner
+ * join onto the category to filter by kind, same reason it cannot be a column.
+ */
+export async function fetchSeries(
+  options: {
+    categoryKind?: MovieCategoryKind;
+    limit?: number;
+    search?: string;
+  } = {},
+): Promise<ContentItem[]> {
+  const { categoryKind, limit, search } = options;
+
+  const rows = await selectRows<SeriesRow>(() => {
+    const query = categoryKind
+      ? supabase
+          .from('series')
+          .select(`${SERIES_COLUMNS}, categories!inner(kind)`)
+          .eq('categories.kind', categoryKind)
+      : supabase.from('series').select(SERIES_COLUMNS);
+
+    const matched = search
+      ? query.or(ilikeFilter(SERIES_SEARCH_COLUMNS, search))
+      : query;
+
+    const ordered = matched
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true })
+      .order('title', { ascending: true });
+
+    return limit ? ordered.limit(limit) : ordered;
+  });
+
+  return rows.map(seriesToContentItem);
+}
+
+/** Everything `SeriesScreen` renders. */
+export interface SeriesDetail {
+  id: string;
+  title: string;
+  description?: string;
+  posterUrl: string | null;
+  backdropUrl: string | null;
+  /** "2021 · 24 episodes", built by the same mapper the grid card uses. */
+  subtitle?: string;
+  seasons: Season[];
+  /** Total across every season, for the heading. */
+  episodeCount: number;
+}
+
+/**
+ * One series and its episodes, in two queries fired together.
+ *
+ * Not one query with an embedded `episodes(...)`. PostgREST would happily do
+ * it, and it would put the ordering of the episode list inside a nested
+ * resource where `order` applies per-parent and is the single easiest thing to
+ * get wrong here -- an episode list in the wrong order is a bug you only notice
+ * at episode 10, next to episode 1. Two flat queries in a `Promise.all` cost
+ * one round trip between them and keep the ordering somewhere obvious.
+ */
+export async function fetchSeriesDetail(
+  seriesId: string,
+): Promise<SeriesDetail> {
+  const [seriesRows, episodeRows] = await Promise.all([
+    selectRows<SeriesRow>(() =>
+      supabase
+        .from('series')
+        .select(SERIES_COLUMNS)
+        .eq('id', seriesId)
+        .eq('is_active', true)
+        .limit(1),
+    ),
+    selectRows<EpisodeRow>(() =>
+      supabase
+        .from('episodes')
+        .select(EPISODE_COLUMNS)
+        .eq('series_id', seriesId)
+        .eq('is_active', true)
+        .order('season', { ascending: true })
+        .order('episode_number', { ascending: true }),
+    ),
+  ]);
+
+  const row = seriesRows[0];
+
+  // `.limit(1)` rather than `.single()`, so "no such series" arrives here as an
+  // empty array instead of as a PostgREST error the catch-all would relabel
+  // "Something went wrong". A series can legitimately vanish between the grid
+  // being loaded and a card being selected -- it was deactivated -- and that
+  // deserves its own sentence and no Retry button.
+  if (!row) {
+    throw new AppError(
+      'notFound',
+      'This series is no longer available. It may have been removed from the library.',
+    );
+  }
+
+  const card = seriesToContentItem(row);
+
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description ?? undefined,
+    posterUrl: row.poster_url,
+    backdropUrl: row.backdrop_url,
+    subtitle: card.subtitle,
+    seasons: groupEpisodesBySeason(episodeRows),
+    episodeCount: episodeRows.length,
+  };
+}
+
+/**
+ * The Anime tab: series and standalone films, in one list.
+ *
+ * Both, rather than only series, because both genuinely exist and dropping
+ * either would lose content that is already imported. `scripts/import-anime.mjs`
+ * writes series of YouTube episodes; `import-archive.mjs --kind=anime` writes
+ * the handful of public-domain anime FILMS, which have no episodes and are not
+ * series in any useful sense. A tab that showed one and not the other would be
+ * a tab that lies about what is in the library.
+ *
+ * They interleave rather than appearing in two blocks: `sort_order` is assigned
+ * by the importers and `title` breaks the tie, so the grid reads as one
+ * alphabetised catalogue. The card tells you which is which without a label --
+ * a series card carries an episode count and opens a list.
+ *
+ * The `limit` is applied per source and then again to the merged list, which is
+ * not redundant: without the second application a home shelf asking for 12
+ * would receive up to 24.
+ */
+export async function fetchAnime(
+  options: { limit?: number; search?: string } = {},
+): Promise<ContentItem[]> {
+  const [series, films] = await Promise.all([
+    fetchSeries({ ...options, categoryKind: 'anime' }),
+    fetchMovies({ ...options, categoryKind: 'anime' }),
+  ]);
+
+  const merged = [...series, ...films].sort((a, b) =>
+    a.title.localeCompare(b.title),
+  );
+
+  return options.limit ? merged.slice(0, options.limit) : merged;
 }
 
 // ---------------------------------------------------------------------------

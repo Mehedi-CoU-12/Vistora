@@ -8,6 +8,7 @@ import React from 'react';
 
 import { BrowseScreen } from '../screens/BrowseScreen';
 import { PlayerScreen } from '../screens/PlayerScreen';
+import { SeriesScreen } from '../screens/SeriesScreen';
 import { colors } from '../theme';
 import type { RootStackParamList } from '../types/navigation';
 
@@ -25,10 +26,13 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  * Headers are off everywhere. A TV app has no room for a navigation bar and no
  * way to tap one; the browse screen presents its own chrome instead.
  *
- * There are only two routes, and that is the point. Everything browsable lives
- * behind tabs inside `Browse`, so the stack is never deeper than "what I am
- * looking at" and "what is playing" -- which is what makes Back unambiguous on
- * a remote that has exactly one of them.
+ * The stack is deliberately shallow: everything browsable lives behind tabs
+ * inside `Browse`, so Back is unambiguous on a remote that has exactly one of
+ * it. `Series` is the only screen between browsing and playing, and it earns
+ * the depth -- an episode list cannot be a tab (there is one per series) and
+ * cannot be a modal over the grid (it is where you spend time, not a glance).
+ * Back from an episode returns you to the list you chose it from, which is the
+ * behaviour that would be impossible if the list were part of the grid screen.
  */
 const navigationTheme: Theme = {
   ...DarkTheme,
@@ -56,6 +60,7 @@ export function RootNavigator() {
         }}
       >
         <Stack.Screen name="Browse" component={BrowseScreen} />
+        <Stack.Screen name="Series" component={SeriesScreen} />
         <Stack.Screen
           name="Player"
           component={PlayerScreen}

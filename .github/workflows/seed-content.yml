@@ -45,6 +45,7 @@ on:
           - cartoons
           - movies-and-cartoons
           - anime
+          - anime-pd
       limit:
         description: How many titles to import (movies/cartoons only)
         type: string
@@ -144,6 +145,10 @@ jobs:
           LICENSE: ${{ inputs.license }}
           YEAR_RANGE: ${{ inputs.year_range }}
           PROBE: ${{ inputs.probe }}
+          # Only the `anime` source needs this. Absent is a normal state for a
+          # fork that has not set the secret, and the branch below says so
+          # rather than letting the importer's own error be the first clue.
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         run: |
           set -euo pipefail
           mkdir -p seed-out
@@ -206,18 +211,34 @@ jobs:
             echo "::endgroup::"
           fi
 
-          # Anime only runs when it is asked for BY NAME, which is why `want`
-          # is not used here. The public-domain anime corpus is close to empty
-          # (see scripts/import-archive.mjs), so the importer exits non-zero
-          # most of the time -- and under `everything` that would fail a run
-          # that had already generated perfectly good channels and films.
+          # Both anime sources run only when asked for BY NAME, which is why
+          # `want` is not used for either. Each needs something a general run
+          # cannot assume -- an API key, or a corpus that is usually empty --
+          # so under `everything` they would fail a run that had already
+          # generated perfectly good channels and films.
           #
-          # Applying it needs migration 0002 on the target database -- the
-          # generated file inserts a category with kind = 'anime', and psql
+          # Applying either needs the migrations on the target database: 0002
+          # for the 'anime' category kind, and for `anime` also 0004 (the
+          # 'youtube' protocol) and 0005 (the series/episodes tables). psql
           # rejects an enum value the type does not have. The migrate job above
-          # has already put it there unless `migrate` was turned off.
+          # has already applied them unless `migrate` was turned off.
           if [ "$SOURCE" = "anime" ]; then
-            echo "::group::Anime"
+            echo "::group::Anime series"
+            if [ -z "${YOUTUBE_API_KEY:-}" ]; then
+              echo "::error::source='anime' needs a YOUTUBE_API_KEY repository secret. See scripts/import-anime.mjs for how to get a free key, or pick source='anime-pd' for the public-domain films instead."
+              exit 1
+            fi
+            node scripts/import-anime.mjs \
+              --limit="$LIMIT" \
+              --out=seed-out/40_anime.sql
+            echo "::endgroup::"
+          fi
+
+          # The public-domain FILMS, from archive.org. Kept as its own source
+          # because it fills a different table and because it comes back empty
+          # most of the time -- see the header of scripts/import-archive.mjs.
+          if [ "$SOURCE" = "anime-pd" ]; then
+            echo "::group::Anime (public domain films)"
             node scripts/import-archive.mjs \
               --kind=anime --limit="$LIMIT" --license="$LICENSE" \
               $years $probe_flag \

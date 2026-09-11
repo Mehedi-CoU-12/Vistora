@@ -15,7 +15,8 @@
     "import:iptv": "node scripts/import-iptv.mjs",
     "import:movies": "node scripts/import-archive.mjs --kind=movie",
     "import:cartoons": "node scripts/import-archive.mjs --kind=cartoon",
-    "import:anime": "node scripts/import-archive.mjs --kind=anime"
+    "import:anime": "node scripts/import-anime.mjs",
+    "import:anime-pd": "node scripts/import-archive.mjs --kind=anime"
   },
   "dependencies": {
     "@react-navigation/native": "^7.3.18",

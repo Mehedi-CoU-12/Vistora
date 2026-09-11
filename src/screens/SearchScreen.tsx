@@ -1,5 +1,4 @@
-import { useNavigation } from '@react-navigation/native';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ScrollView, TVFocusGuideView, View } from 'react-native';
 
 import { ContentRow } from '../components/ContentRow';
@@ -7,6 +6,7 @@ import { SearchField } from '../components/SearchField';
 import { EmptyState, ErrorState, LoadingState } from '../components/StateViews';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { useOpenItem } from '../hooks/useOpenItem';
 import { catalogTabs, formatCount, type CatalogTab } from '../navigation/tabs';
 import {
   isSearchable,
@@ -80,7 +80,6 @@ interface ResultShelf {
  * that press lands on the card the user was last looking at.
  */
 export function SearchScreen() {
-  const navigation = useNavigation();
   const { isTV, isTouch } = useMetrics();
   const styles = useStyles();
 
@@ -127,23 +126,7 @@ export function SearchScreen() {
     return shelves.filter(shelf => shelf.items.length > 0);
   }, [term, canSearch]);
 
-  const openItem = useCallback(
-    (item: ContentItem) => {
-      // Not every item is playable -- a fixture whose stream URL has not been
-      // published yet has `stream: null`. Guarding here is what keeps the player
-      // free of "what if there is no URL" logic.
-      if (!item.stream) {
-        return;
-      }
-
-      navigation.navigate('Player', {
-        stream: item.stream,
-        title: item.title,
-        subtitle: item.subtitle,
-      });
-    },
-    [navigation],
-  );
+  const openItem = useOpenItem();
 
   /**
    * Headings carry their own count -- "Movies · 2 films" -- rather than the

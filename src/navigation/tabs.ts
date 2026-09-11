@@ -1,4 +1,8 @@
-import { fetchChannels, fetchMovies } from '../services/contentService';
+import {
+  fetchAnime,
+  fetchChannels,
+  fetchMovies,
+} from '../services/contentService';
 import type { CardVariant } from '../theme';
 import type { ContentItem } from '../types/content';
 import type { CategoryKind } from '../types/database';
@@ -128,12 +132,18 @@ export const TABS: readonly TabDef[] = [
     catalog: {
       categoryKind: 'anime',
       cardVariant: 'poster',
-      load: options => fetchMovies({ ...options, categoryKind: 'anime' }),
+      // Series AND films, merged -- see fetchAnime for why the tab would be
+      // lying if it showed only one of them. This is the only tab whose loader
+      // reads two tables, which is also why it is a named function in the
+      // service rather than an inline Promise.all here.
+      load: options => fetchAnime(options),
       // "1 anime / 42 animes" is wrong in both directions, so the count says
-      // "title" here rather than bending the tab's own name into a plural.
+      // "title" here rather than bending the tab's own name into a plural. It
+      // also happens to be the honest noun now that a "title" may be a
+      // twenty-six episode series or a single film.
       countNoun: ['title', 'titles'],
       emptyMessage:
-        'No anime yet. Apply supabase/migrations/0002_add_anime_kind.sql, then run `npm run import:anime`.',
+        'No anime yet. Apply the migrations in supabase/migrations/, then run `npm run import:anime` and apply the seed file it writes.',
     },
   },
 ];

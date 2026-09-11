@@ -32,10 +32,24 @@ export type MovieCategoryKind = Extract<
   'movie' | 'cartoon' | 'anime'
 >;
 
-/** How the player should interpret `stream_url`. */
-export type StreamProtocol = 'hls' | 'dash' | 'mp4' | 'other';
+/**
+ * How the player should interpret `stream_url`.
+ *
+ * Three of these name a container the device decodes itself. `youtube` is the
+ * odd one and the difference is load-bearing: it means the URL is a PAGE, not
+ * media, and the app hands it to the YouTube app rather than to Media3. See
+ * supabase/migrations/0004_add_youtube_protocol.sql for why that is the only
+ * honest way to carry one, and services/externalPlayback.ts for what the app
+ * does with it.
+ */
+export type StreamProtocol = 'hls' | 'dash' | 'mp4' | 'youtube' | 'other';
 
-export type EventStatus = 'scheduled' | 'live' | 'finished' | 'cancelled' | 'postponed';
+export type EventStatus =
+  | 'scheduled'
+  | 'live'
+  | 'finished'
+  | 'cancelled'
+  | 'postponed';
 
 export interface CategoryRow {
   id: string;
@@ -85,6 +99,53 @@ export interface MovieRow {
   updated_at: string;
 }
 
+/**
+ * A title made of episodes. Note what is NOT here: `stream_url`. A series has
+ * nothing to play -- selecting one opens its episode list -- and the schema
+ * says so by omitting the column rather than by making it nullable. See the
+ * header of supabase/migrations/0005_series_and_episodes.sql.
+ */
+export interface SeriesRow {
+  id: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  poster_url: string | null;
+  backdrop_url: string | null;
+  release_year: number | null;
+  content_rating: string | null;
+  /** Provenance, e.g. 'youtube'. Written by importers; never read by the app. */
+  source: string | null;
+  source_id: string | null;
+  /** Denormalised, maintained by a trigger. Counts every episode, active or not. */
+  episode_count: number;
+  category_id: string | null;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EpisodeRow {
+  id: string;
+  series_id: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  /** 16:9 still, not a portrait poster -- which is why it is not `poster_url`. */
+  thumbnail_url: string | null;
+  stream_url: string;
+  stream_protocol: StreamProtocol;
+  stream_headers: Record<string, string> | null;
+  season: number;
+  episode_number: number;
+  duration_seconds: number | null;
+  air_date: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface SportRow {
   slug: string;
   name: string;
@@ -122,11 +183,13 @@ export interface SportsEventRow {
 export interface Database {
   public: {
     Tables: {
-      categories: {Row: CategoryRow; Insert: never; Update: never};
-      channels: {Row: ChannelRow; Insert: never; Update: never};
-      movies: {Row: MovieRow; Insert: never; Update: never};
-      sports: {Row: SportRow; Insert: never; Update: never};
-      sports_events: {Row: SportsEventRow; Insert: never; Update: never};
+      categories: { Row: CategoryRow; Insert: never; Update: never };
+      channels: { Row: ChannelRow; Insert: never; Update: never };
+      movies: { Row: MovieRow; Insert: never; Update: never };
+      series: { Row: SeriesRow; Insert: never; Update: never };
+      episodes: { Row: EpisodeRow; Insert: never; Update: never };
+      sports: { Row: SportRow; Insert: never; Update: never };
+      sports_events: { Row: SportsEventRow; Insert: never; Update: never };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

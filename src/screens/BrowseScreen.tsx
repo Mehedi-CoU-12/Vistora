@@ -34,9 +34,10 @@ const INITIAL_TAB: TabId = 'home';
  * bring a bottom bar this app cannot use on a television, plus a dependency to
  * style around.
  *
- * So the tabs are one piece of state in one screen, the stack keeps exactly two
- * routes (Browse and Player), and Back does the one thing it should: return to
- * Home from anywhere, and leave the app from Home.
+ * So the tabs are one piece of state in one screen, the stack stays shallow
+ * (Browse, Series, Player -- and Series is the only one that is not either
+ * "what I am looking at" or "what is playing"), and Back does the one thing it
+ * should: return to Home from anywhere, and leave the app from Home.
  *
  * ---------------------------------------------------------------------------
  * Search is a mode over the tabs, not one more tab

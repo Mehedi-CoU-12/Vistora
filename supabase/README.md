@@ -1,11 +1,19 @@
 # Database
 
-Two files, applied in order:
+Migrations apply in filename order, then a seed:
 
 | File | Contents |
 |---|---|
 | `migrations/0001_initial_schema.sql` | enums, tables, indexes, triggers, RLS policies, grants |
+| `migrations/0002_add_anime_kind.sql` | adds `'anime'` to `category_kind` |
+| `migrations/0003_search_indexes.sql` | `pg_trgm` GIN indexes (optional — see its header) |
+| `migrations/0004_add_youtube_protocol.sql` | adds `'youtube'` to `stream_protocol` |
+| `migrations/0005_series_and_episodes.sql` | `series` + `episodes`, their RLS and the episode-count trigger |
 | `seed.sql` | sample content for development (idempotent) |
+
+`0002` and `0004` are alone in their files on purpose: PostgreSQL will not let a
+new enum value be *used* in the transaction that adds it, so anything that
+inserts a row carrying one has to come after a commit.
 
 ## Applying
 
@@ -43,13 +51,8 @@ last migration that database already has is), and later ones apply normally.
 
 ### Dashboard
 
-Paste `0001_initial_schema.sql` into the SQL Editor and run it, then
-`0002_add_anime_kind.sql`, then `seed.sql`.
-
-Migrations apply in order and are safe to re-run. `0002` only adds `'anime'` to
-the `category_kind` enum — but note that PostgreSQL will not let a new enum value
-be *used* in the transaction that adds it, so it has to be its own statement
-before any seed file that inserts an anime category.
+Paste each migration into the SQL Editor and run it in filename order, then
+`seed.sql`. Migrations are safe to re-run.
 
 ## Seeding real content
 
@@ -63,23 +66,49 @@ matters because stream URLs rot.
 | `npm run import:iptv` | [iptv-org](https://iptv-org.github.io/api/) — an index of public stream URLs | `channels` |
 | `npm run import:movies` | [archive.org](https://archive.org) — public-domain films | `movies` (`kind = 'movie'`) |
 | `npm run import:cartoons` | archive.org — public-domain cartoons | `movies` (`kind = 'cartoon'`) |
-| `npm run import:anime` | archive.org — see the warning below | `movies` (`kind = 'anime'`) |
+| `npm run import:anime` | official YouTube channels + [AniList](https://anilist.co) metadata | `series` + `episodes` |
+| `npm run import:anime-pd` | archive.org — public-domain anime *films*; see the warning below | `movies` (`kind = 'anime'`) |
 
-**`import:anime` will usually come back empty, and that is expected.** The
-Archive has no anime collection, and public-domain anime barely exists:
-essentially only pre-1953 Japanese animation has lapsed, and little of it is
-uploaded with the explicit licence metadata these scripts require. So the anime
-importer searches the broad `animationandcartoons` umbrella narrowed by subject
-keywords, which is the best available and still not much:
+### `import:anime` — series with episodes
+
+Every anime made in the last seventy years is exclusively licensed and no
+licensee publishes a stream URL, so the only legal source of full episodes is
+the licensors' own YouTube channels: **Muse Asia** and **Ani-One Asia** between
+them cover most of what is currently airing for South and Southeast Asia.
+
+The importer walks those channels' *playlists* (a playlist is the channel
+telling you where one series ends and the next begins; the uploads feed is
+everything interleaved), reads each as a series, and pulls a 2:3 poster from
+AniList — YouTube gives a playlist only the 16:9 thumbnail of its first video,
+which would letterbox every card in the grid.
+
+Needs a free YouTube Data API v3 key, exported in your shell rather than put in
+`.env` (anything reaching `@env` is inlined into the shipped bundle):
 
 ```bash
-npm run import:anime -- --subjects=anime,manga --license=cc
+export YOUTUBE_API_KEY=...
+npm run import:anime
+psql "$DATABASE_URL" -f supabase/seed_anime_series.sql
 ```
 
-The kind is wired up regardless, because that is what makes the Anime tab real:
-with `category_kind` carrying `'anime'` you can point `--subjects` at whatever
-you do have the rights to, or insert rows by hand against an anime category, and
-the app needs no change. Until then the tab renders its empty state.
+Episodes are stored with `stream_protocol = 'youtube'` and opened in the YouTube
+app rather than decoded, so the rights holder receives the view and the ad
+revenue. See `src/services/externalPlayback.ts`.
+
+### `import:anime-pd` — the public-domain films
+
+**This one usually comes back empty, and that is expected.** The Archive has no
+anime collection, and public-domain anime barely exists: essentially only
+pre-1953 Japanese animation has lapsed, and little of it is uploaded with the
+explicit licence metadata these scripts require.
+
+```bash
+npm run import:anime-pd -- --subjects=anime,manga --license=cc
+```
+
+It writes *films*, which have no episodes. The Anime tab loads `series` and
+`movies` together and interleaves them alphabetically, so whatever this finds
+appears beside the series rather than instead of them.
 
 ```bash
 npm run import:movies -- --limit=60 --min-year=1930 --max-year=1970
@@ -115,16 +144,31 @@ Actions secrets and never in `.env`.
 
 ```
 categories ─┬─< channels
-            ├─< movies          (cartoons and anime live here too,
+            ├─< movies          (cartoons and anime FILMS live here too,
             │                    via category kind)
+            ├─< series ─< episodes
             └─< sports_events >─ sports
 ```
 
 `categories.kind` is what separates content types that share a table: a cartoon
-is a row in `movies` whose category has `kind = 'cartoon'`, and an anime is the
-same row with `kind = 'anime'`. That is why `fetchMovies({categoryKind})` filters
-through `categories!inner(kind)` rather than a column on `movies` — and why
-adding the Anime tab needed one enum value and no new table.
+is a row in `movies` whose category has `kind = 'cartoon'`, and an anime film is
+the same row with `kind = 'anime'`. That is why `fetchMovies({categoryKind})`
+filters through `categories!inner(kind)` rather than a column on `movies` — and
+why adding the Anime *tab* needed one enum value and no new table.
+
+`series` is the one place that trick does not stretch to, and the reason is a
+constraint rather than a preference. `movies.stream_url` is `not null`, because
+a film you cannot play is not a film; a series has no stream of its own, so
+reusing the table would mean making that column nullable for every row to
+accommodate the handful that are containers. Split out, each table keeps the
+constraint that is true of it — and "tapping this opens a player" becomes
+something the schema states rather than something the app checks.
+
+`series.episode_count` is denormalised and maintained by a trigger that
+*recounts* rather than incrementing. An increment has to get insert, delete, an
+episode moving between series and every rolled-back transaction individually
+right, and when it is wrong the only symptom is a number on a card that is
+quietly off by one forever.
 
 ## Conventions every table follows
 

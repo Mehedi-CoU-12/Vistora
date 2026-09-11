@@ -296,10 +296,18 @@ export type TrackSelection = 'auto' | 'off' | number;
  *
  * `undefined` for 'other' is deliberate: no hint at all is better than a wrong
  * hint, because Media3 then falls back to inferring from the URL.
+ *
+ * 'youtube' is undefined for a different reason: there is no extension that
+ * would help, because that URL is an HTML page and Media3 must never be handed
+ * it at all. `useOpenItem` routes those to the YouTube app before the player
+ * mounts, so this entry should be unreachable -- it exists because the map is
+ * exhaustive over the protocol union, which is exactly the property that made
+ * the compiler point here the moment the new value was added.
  */
 export const MEDIA3_EXTENSION: Record<StreamProtocol, string | undefined> = {
   hls: 'm3u8',
   dash: 'mpd',
   mp4: 'mp4',
+  youtube: undefined,
   other: undefined,
 };

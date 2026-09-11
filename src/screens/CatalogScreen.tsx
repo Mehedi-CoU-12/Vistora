@@ -1,4 +1,3 @@
-import { useNavigation } from '@react-navigation/native';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   FlatList,
@@ -13,6 +12,7 @@ import { CategoryPicker } from '../components/CategoryPicker';
 import { ContentCard } from '../components/ContentCard';
 import { EmptyState, ErrorState, LoadingState } from '../components/StateViews';
 import { useAsyncData } from '../hooks/useAsyncData';
+import { useOpenItem } from '../hooks/useOpenItem';
 import { formatCount, type CatalogTab } from '../navigation/tabs';
 import { fetchCategories } from '../services/contentService';
 import {
@@ -70,7 +70,6 @@ interface CatalogData {
  * properly.
  */
 export function CatalogScreen({ tab }: { tab: CatalogTab }) {
-  const navigation = useNavigation();
   const metrics = useMetrics();
   const styles = useStyles();
   const { isTouch, usesSidebar } = metrics;
@@ -139,22 +138,7 @@ export function CatalogScreen({ tab }: { tab: CatalogTab }) {
     return data.items.filter(item => item.categoryId === selectedCategoryId);
   }, [data, selectedCategoryId]);
 
-  const openItem = useCallback(
-    (item: ContentItem) => {
-      // Not every item is playable -- a fixture whose stream URL has not been
-      // published yet has `stream: null`. Guarding here is what keeps the player
-      // free of "what if there is no URL" logic.
-      if (!item.stream) {
-        return;
-      }
-      navigation.navigate('Player', {
-        stream: item.stream,
-        title: item.title,
-        subtitle: item.subtitle,
-      });
-    },
-    [navigation],
-  );
+  const openItem = useOpenItem();
 
   const cardWidth =
     gridWidth > 0

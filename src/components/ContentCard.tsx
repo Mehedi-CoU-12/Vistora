@@ -41,8 +41,6 @@ export function ContentCard({
       ? cardSize[variant]
       : { width, height: Math.floor(width * cardAspect[variant]) };
 
-  const isPlayable = item.stream !== null;
-
   return (
     <Focusable
       onPress={() => onPress(item)}
@@ -83,9 +81,14 @@ export function ContentCard({
               </View>
             ) : null}
 
-            {!isPlayable ? (
+            {/* Driven by an explicit label rather than by `stream === null`.
+                Those used to be the same thing; since series exist they are
+                not -- a series has no stream BY DESIGN, and stamping it "Not
+                started" would call every show in the Anime tab broken. The
+                mapper that knows which situation it is now says so. */}
+            {item.unavailableLabel ? (
               <View style={styles.badgeSlotBottom}>
-                <Badge label="Not started" />
+                <Badge label={item.unavailableLabel} />
               </View>
             ) : null}
           </View>

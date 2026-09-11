@@ -170,7 +170,8 @@ adb shell uiautomator dump /sdcard/ui.xml && adb pull /sdcard/ui.xml
 | `npm run import:iptv` | Build a channel seed file from iptv-org |
 | `npm run import:movies` | Build a film seed file from archive.org |
 | `npm run import:cartoons` | Build a cartoon seed file from archive.org |
-| `npm run import:anime` | Build an anime seed file — see `supabase/README.md`; the public-domain corpus is tiny |
+| `npm run import:anime` | Build an anime **series** seed file from official YouTube channels — needs `YOUTUBE_API_KEY` |
+| `npm run import:anime-pd` | Build a seed file of the handful of public-domain anime *films* on archive.org |
 | `python3 scripts/generate-android-icons.py <logo>` | Regenerate every launcher, banner and splash asset from the source logo |
 
 ---
@@ -283,9 +284,9 @@ Three things about this worth knowing before you change any of it:
 
 ---
 
-## Navigation: two routes, four tabs
+## Navigation: three routes, four tabs
 
-The stack has exactly two routes — `Browse` and `Player` — and everything
+The stack has three routes — `Browse`, `Series` and `Player` — and everything
 browsable lives behind tabs inside `Browse`:
 
 | Tab | Content | Card |
@@ -293,7 +294,12 @@ browsable lives behind tabs inside `Browse`:
 | Home | A shelf per kind, twelve items each | mixed |
 | Live TV | `channels` | 16:9 tile |
 | Movies | `movies` where the category is `kind = 'movie'` | poster |
-| Anime | `movies` where `kind = 'anime'` | poster |
+| Anime | `series` **and** `movies` where `kind = 'anime'` | poster |
+
+`Series` is the only screen between browsing and playing, and it earns the
+depth: an episode list cannot be a tab (there is one per series) and should not
+be a modal over the grid (it is where you spend time, not a glance). Back from
+an episode returns you to the list you chose it from.
 
 Sport is not a tab of its own: sports channels are Live TV categories, so they
 are browsed there rather than in a second place. `cartoon` remains a
@@ -320,6 +326,98 @@ keeps scroll position and the selected category, which is what a tab bar implies
 On a TV it would be a bug: a hidden subtree's cards stay in the platform's focus
 tree, so the D-pad could walk out of the visible grid into a tab that is not on
 screen and leave nothing highlighted anywhere.
+
+---
+
+## Anime: series, episodes, and where they legally come from
+
+The Anime tab used to be a shelf of one-offs, because the unit of anime is not
+a title — it is a title with twenty-six of them inside it. It now browses
+`series`, each of which opens an episode list.
+
+### There is no source that gives you "any anime"
+
+Worth stating plainly, because it is the question that leads here. Everything
+made in the last seventy years is **exclusively licensed** — Crunchyroll,
+Netflix, Disney+, HIDIVE — and none of those publish a stream URL or an API a
+third party can read. The sites that do offer any anime on demand are
+unlicensed restreams: they break the same rule the iptv-org blocklist and the
+archive.org licence filter exist to enforce, they rot within weeks (which is
+what every importer's liveness probe is for), and they are the one category of
+source that gets an app removed rather than merely broken.
+
+Two legal routes remain, and the app uses both.
+
+### 1. Official YouTube channels — real series, real episodes
+
+Several licensors publish full episodes free, with subtitles, on their own
+channels. **Muse Asia** and **Ani-One Asia** between them cover most of what is
+currently airing, licensed for South and Southeast Asia — which includes
+Bangladesh, the country `import-iptv.mjs` already defaults to.
+
+`npm run import:anime` walks those channels' **playlists** (not their uploads
+feed — the feed is every episode of every show interleaved, whereas a playlist
+is the channel telling you where one series ends and the next begins), reads
+each playlist as a series, and enriches it from [AniList](https://anilist.co)
+for the thing YouTube cannot provide: a 2:3 poster. A playlist's only artwork is
+the 16:9 thumbnail of its first video, so without that step every card in the
+grid is a letterboxed still.
+
+It needs a free YouTube Data API v3 key. A full run costs a few hundred units
+against a 10,000/day quota:
+
+```bash
+export YOUTUBE_API_KEY=...            # see the header of scripts/import-anime.mjs
+psql "$DATABASE_URL" -f supabase/migrations/0004_add_youtube_protocol.sql
+psql "$DATABASE_URL" -f supabase/migrations/0005_series_and_episodes.sql
+npm run import:anime
+psql "$DATABASE_URL" -f supabase/seed_anime_series.sql
+```
+
+The migrations must go first, and separately: PostgreSQL will not let a new enum
+value be *used* in the transaction that adds it.
+
+### 2. Public-domain films — `npm run import:anime-pd`
+
+The archive.org path still exists and still works, and still returns almost
+nothing: only pre-1953 Japanese animation has lapsed, and little of it carries
+the explicit licence metadata that importer requires. It writes *films*, which
+have no episodes and are not series in any useful sense — so the Anime tab
+loads both tables and interleaves them alphabetically. A tab that showed one and
+not the other would be lying about what is in the library.
+
+### `youtube` is a protocol, and it means "do not decode this"
+
+A `youtube.com/watch` URL is an HTML page, not media. The video behind it is
+reachable only by defeating a signature scheme that exists to stop exactly that
+— against YouTube's Terms of Service, and in practice a player that breaks every
+few weeks. So the app does not try: `stream_protocol = 'youtube'` routes through
+`src/services/externalPlayback.ts`, which opens the link in the YouTube app,
+where the rights holder is credited with the view and collects the advertising
+that pays for the episode to be free.
+
+This does not bend [the one architectural rule](#the-one-architectural-rule) —
+it restates it. Supabase still stores nothing but a link and this app still
+never touches a byte of video. Only the component consuming the link differs,
+and it differs *because* pretending otherwise is what would break the rule.
+
+### Why `series` and `episodes` are new tables
+
+The cheap version is `movies.parent_id` plus an episode number. It is wrong for
+a reason visible in the very first constraint: `movies.stream_url` is `not
+null`, because a film you cannot play is not a film. A series has no stream of
+its own, so the self-referencing version has to make that column nullable for
+every row in the table to accommodate the few that are containers — trading a
+real guarantee about 100% of films for convenience about the parents.
+
+Split in two, each table keeps the constraint that is true of it. "Tapping this
+opens a player" stops being a runtime check and becomes something the schema
+states.
+
+One consequence worth knowing: a series and an unpublished fixture both have
+`stream: null`, and they mean opposite things. The card used to infer "broken"
+from that and would have stamped *Not started* on every show in the Anime tab,
+so the distinction is now carried explicitly by `ContentItem.unavailableLabel`.
 
 ---
 
@@ -465,21 +563,28 @@ grows, not a fix for something currently slow.
 src/
   config/env.ts          the only file that reads @env
   lib/supabase.ts        the Supabase client; nothing else creates one
-  services/              every database read, the app's error type, and the
-                         search-term → PostgREST filter translation
+  services/              every database read, the app's error type, the
+                         search-term → PostgREST filter translation, and the
+                         hand-off for streams the app must not decode itself
   types/                 database rows, app models + mappers, route params
-  hooks/                 useAsyncData (loading / error / retry), useDebouncedValue
+  hooks/                 useAsyncData (loading / error / retry), useDebouncedValue,
+                         useOpenItem (what selecting a card does, in one place)
   theme/                 colours, type scale, and the responsive metrics system
   components/            Focusable, ContentCard, ContentRow, TabBar,
                          CategoryPicker, SearchField, SearchIcon, state views
   player/                the player: overlay, gestures, remote, settings panel
                          — and it knows nothing about Supabase
-  screens/               Browse (the tab host), Home, Catalog, Search, Player
+  screens/               Browse (the tab host), Home, Catalog, Series, Search,
+                         Player
   navigation/            native stack + tabs.ts, the list of content kinds
 supabase/
-  migrations/            schema, RLS, indexes (0003 is optional: search indexes)
+  migrations/            schema, RLS, indexes (0003 is optional: search indexes;
+                         0004 adds the 'youtube' protocol, 0005 series+episodes)
   seed.sql               sample data with public test streams
 scripts/
+  import-anime.mjs            official YouTube channels → series + episodes
+  animeTitles.mjs             episode-number parsing; the one silently-failing
+                              step, so it is the one with unit tests
   generate-android-icons.py   source logo → every icon, banner and splash raster
 assets/
   vistora-logo.png       the one hand-made image in the repo

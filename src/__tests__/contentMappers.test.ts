@@ -1,9 +1,18 @@
 import {
   channelToContentItem,
+  episodeToContentItem,
+  groupEpisodesBySeason,
   movieToContentItem,
+  seriesToContentItem,
   sportsEventToContentItem,
 } from '../types/content';
-import type {ChannelRow, MovieRow, SportsEventRow} from '../types/database';
+import type {
+  ChannelRow,
+  EpisodeRow,
+  MovieRow,
+  SeriesRow,
+  SportsEventRow,
+} from '../types/database';
 
 const timestamps = {created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z'};
 
@@ -133,5 +142,135 @@ describe('sportsEventToContentItem', () => {
     expect(sportsEventToContentItem({...event, status: 'finished'}).subtitle).toBe(
       'Cup · Full time',
     );
+  });
+});
+
+
+// ---------------------------------------------------------------------------
+// Series and episodes
+// ---------------------------------------------------------------------------
+
+const series: SeriesRow = {
+  id: 's1',
+  slug: 'a-show',
+  title: 'A Show',
+  description: 'About a show.',
+  poster_url: 'https://cdn.example.com/poster.jpg',
+  backdrop_url: 'https://cdn.example.com/banner.jpg',
+  release_year: 2021,
+  content_rating: null,
+  source: 'youtube',
+  source_id: 'PL123',
+  episode_count: 24,
+  category_id: 'cat-anime',
+  sort_order: 0,
+  is_active: true,
+  ...timestamps,
+};
+
+const episode: EpisodeRow = {
+  id: 'ep1',
+  series_id: 's1',
+  slug: 'a-show-s1e1',
+  title: 'The First One',
+  description: 'Things happen.',
+  thumbnail_url: 'https://cdn.example.com/still.jpg',
+  stream_url: 'https://www.youtube.com/watch?v=abc',
+  stream_protocol: 'youtube',
+  stream_headers: null,
+  season: 1,
+  episode_number: 1,
+  duration_seconds: 1420,
+  air_date: '2021-04-07',
+  is_active: true,
+  ...timestamps,
+};
+
+describe('seriesToContentItem', () => {
+  it('summarises a series as year and episode count', () => {
+    expect(seriesToContentItem(series).subtitle).toBe('2021 \u00b7 24 episodes');
+  });
+
+  it('says "1 episode" for a single-episode series', () => {
+    expect(
+      seriesToContentItem({...series, episode_count: 1}).subtitle,
+    ).toBe('2021 \u00b7 1 episode');
+  });
+
+  it('omits the count entirely when there are no episodes yet', () => {
+    expect(seriesToContentItem({...series, episode_count: 0}).subtitle).toBe(
+      '2021',
+    );
+  });
+
+  it('has no stream, because a series is not a thing you can play', () => {
+    expect(seriesToContentItem(series).stream).toBeNull();
+  });
+
+  it('carries NO unavailableLabel, unlike an unplayable fixture', () => {
+    // This is the distinction the card relies on. Both a series and an
+    // unpublished fixture have `stream: null`; only the fixture is broken, and
+    // stamping "Not started" on every show in the Anime tab would be a lie.
+    expect(seriesToContentItem(series).unavailableLabel).toBeUndefined();
+    expect(sportsEventToContentItem(event).unavailableLabel).toBe('Not started');
+  });
+});
+
+describe('episodeToContentItem', () => {
+  it('badges the episode number and subtitles the running time', () => {
+    const item = episodeToContentItem(episode);
+    expect(item.badge).toBe('E1');
+    expect(item.subtitle).toBe('24m');
+  });
+
+  it('keeps the youtube protocol, so the app knows not to decode it', () => {
+    expect(episodeToContentItem(episode).stream).toEqual({
+      url: 'https://www.youtube.com/watch?v=abc',
+      protocol: 'youtube',
+      headers: undefined,
+      isLive: false,
+    });
+  });
+
+  it('has no categoryId, so a category filter can never match one', () => {
+    expect(episodeToContentItem(episode).categoryId).toBeNull();
+  });
+});
+
+describe('groupEpisodesBySeason', () => {
+  const make = (season: number, episode_number: number): EpisodeRow => ({
+    ...episode,
+    id: `s${season}e${episode_number}`,
+    slug: `a-show-s${season}e${episode_number}`,
+    season,
+    episode_number,
+  });
+
+  it('orders seasons and the episodes inside them, whatever order they arrive in', () => {
+    // Deliberately shuffled. The query does order these, but the grouping is
+    // only correct if this function does not depend on that.
+    const grouped = groupEpisodesBySeason([
+      make(2, 2),
+      make(1, 3),
+      make(2, 1),
+      make(1, 1),
+      make(1, 2),
+    ]);
+
+    expect(grouped.map(s => s.season)).toEqual([1, 2]);
+    expect(grouped[0].episodes.map(e => e.badge)).toEqual(['E1', 'E2', 'E3']);
+    expect(grouped[1].episodes.map(e => e.badge)).toEqual(['E1', 'E2']);
+  });
+
+  it('handles a gap in the numbering without renumbering', () => {
+    // Episodes go missing -- a promo dropped by the importer, an upload pulled
+    // by the channel. Closing the gap would silently relabel every episode
+    // after it, so the list must show what is actually there.
+    const grouped = groupEpisodesBySeason([make(1, 1), make(1, 4)]);
+    expect(grouped[0].episodes.map(e => e.badge)).toEqual(['E1', 'E4']);
+  });
+
+  it('returns no seasons for no episodes', () => {
+    expect(groupEpisodesBySeason([])).toEqual([]);
   });
 });

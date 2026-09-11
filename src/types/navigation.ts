@@ -1,4 +1,4 @@
-import type {Stream} from './content';
+import type { Stream } from './content';
 
 /**
  * Route names and their parameters.
@@ -17,6 +17,23 @@ export type RootStackParamList = {
    * than routes -- see the note in screens/BrowseScreen.tsx on why.
    */
   Browse: undefined;
+  /**
+   * One series and its episodes.
+   *
+   * Takes an id and re-fetches, which is the opposite of what `Player` does
+   * below and for a reason that does not contradict it. The player is handed a
+   * whole `Stream` because the screen that navigated already had every field
+   * it needs; a series card does NOT already have the episode list, so passing
+   * the metadata it does have would save nothing and put a list of a hundred
+   * episodes into navigation state, which React Navigation serialises.
+   *
+   * `title` rides along anyway, purely so the screen can render its heading
+   * during the fetch instead of an empty bar above a spinner.
+   */
+  Series: {
+    seriesId: string;
+    title: string;
+  };
   Player: {
     stream: Stream;
     title: string;

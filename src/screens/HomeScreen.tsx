@@ -1,10 +1,10 @@
-import { useNavigation } from '@react-navigation/native';
-import React, { useCallback } from 'react';
+import React from 'react';
 import { RefreshControl, ScrollView } from 'react-native';
 
 import { ContentRow } from '../components/ContentRow';
 import { EmptyState, ErrorState, LoadingState } from '../components/StateViews';
 import { useAsyncData } from '../hooks/useAsyncData';
+import { useOpenItem } from '../hooks/useOpenItem';
 import { catalogTabs, type CatalogTab, type TabId } from '../navigation/tabs';
 import { colors, makeStyles, spacing, useMetrics } from '../theme';
 import type { ContentItem } from '../types/content';
@@ -53,7 +53,6 @@ export function HomeScreen({
   /** Switch to a tab. Supplied by BrowseScreen, which owns the tab state. */
   onSeeAll: (id: TabId) => void;
 }) {
-  const navigation = useNavigation();
   const { isTV, isTouch } = useMetrics();
   const styles = useStyles();
 
@@ -72,23 +71,7 @@ export function HomeScreen({
     return shelves.filter(shelf => shelf.items.length > 0);
   }, []);
 
-  const openItem = useCallback(
-    (item: ContentItem) => {
-      // Not every item is playable -- a fixture whose stream URL has not been
-      // published yet has `stream: null`. Guarding here is what keeps the player
-      // free of "what if there is no URL" logic.
-      if (!item.stream) {
-        return;
-      }
-
-      navigation.navigate('Player', {
-        stream: item.stream,
-        title: item.title,
-        subtitle: item.subtitle,
-      });
-    },
-    [navigation],
-  );
+  const openItem = useOpenItem();
 
   /**
    * Leanback-style row alignment, and why it is TV-only.
