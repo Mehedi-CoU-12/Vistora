@@ -43,12 +43,12 @@ import type { RootStackParamList } from '../types/navigation';
  * case pays nothing.
  *
  * ---------------------------------------------------------------------------
- * Selecting an episode may leave the app, and that is not this screen's problem
+ * Not every episode can be played, and that is not this screen's problem
  * ---------------------------------------------------------------------------
- * Episodes imported from an official YouTube channel carry
- * `stream_protocol = 'youtube'`, which opens in the YouTube app rather than in
- * VideoPlayer (see services/externalPlayback.ts for why that is the only legal
- * way to carry one). This screen does not know that: it calls `usePlayItem`,
+ * Episodes imported from a YouTube channel carry `stream_protocol = 'youtube'`,
+ * which is a page rather than media and so is not playable at all -- those rows
+ * arrive here with no stream and say so when selected (see `toStream` in
+ * types/content.ts). This screen does not know that: it calls `usePlayItem`,
  * and the decision lives in one place for every surface that starts a video.
  *
  * Note it is `usePlayItem` and not `useOpenItem`. A card elsewhere in the app

@@ -1,7 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
 import { useCallback } from 'react';
+import { Alert } from 'react-native';
 
-import { isExternalStream, openExternally } from '../services/externalPlayback';
 import { recordPlayback } from '../state/continueWatching';
 import type { ContentItem } from '../types/content';
 
@@ -23,36 +23,50 @@ import type { ContentItem } from '../types/content';
  * old behaviour exactly while every card changes, without either of them
  * carrying a flag about which it wants.
  *
- * The three cases below are unchanged from the original `useOpenItem`, comment
- * included -- only the entry point moved.
+ * ---------------------------------------------------------------------------
+ * Playback never leaves the app
+ * ---------------------------------------------------------------------------
+ * There used to be a third case here: a stream whose protocol was `youtube` was
+ * handed to `Linking.openURL`, because the URL was a page rather than media. It
+ * meant pressing Play on a film could close Vistora and show a trailer for a
+ * film the library did not have -- an answer worse than no answer, since it
+ * looked like the app working.
+ *
+ * Those rows now arrive with `stream: null` (see `toStream` in types/content.ts)
+ * and land in the unplayable branch below with everything else that cannot be
+ * watched. Every path out of this hook is now either the player or a sentence
+ * explaining why not.
  */
 export function usePlayItem(): (item: ContentItem) => void {
   const navigation = useNavigation();
 
   return useCallback(
     (item: ContentItem) => {
-      // Not every item is playable -- a fixture whose stream URL has not been
-      // published yet has `stream: null`, and a series has one by definition.
-      // Guarding here is what keeps the player free of "what if there is no URL"
-      // logic. The card and the details screen have already told the user why.
-      if (!item.stream) {
+      // A series has no stream by definition -- it is a container -- so it must
+      // be answered before the unplayable branch, which would otherwise call
+      // the one kind of item that is working exactly as intended "unavailable".
+      // The hero labels its button "View episodes" for precisely this case, and
+      // this is what makes that label true.
+      if (item.kind === 'series') {
+        navigation.navigate('Series', { seriesId: item.id, title: item.title });
         return;
       }
 
-      // Recorded before the navigation rather than after, so a stream that
-      // leaves the app entirely (below) still counts as started. Live channels
-      // are dropped inside `recordPlayback` -- see the note there on why a
-      // broadcast has no position to continue from.
+      // Everything else with no stream genuinely cannot be watched: a fixture
+      // whose URL has not been published, or a row carrying something the app
+      // refuses to decode. A card already badges it, but the Play button on a
+      // hero is pressable regardless, and a button that does nothing at all
+      // reads as a broken app rather than as missing content.
+      if (item.stream === null) {
+        Alert.alert('Not available', unavailableMessage(item));
+        return;
+      }
+
+      // Recorded before the navigation rather than after, so the row reaches
+      // Continue Watching the moment playback is committed to. Live channels are
+      // dropped inside `recordPlayback` -- see the note there on why a broadcast
+      // has no position to continue from.
       recordPlayback(item);
-
-      // Some streams are not ours to decode. See services/externalPlayback.ts.
-      // Not awaited and not `.catch`-ed: `openExternally` handles its own
-      // failure with an Alert and never rejects, so there is nothing here for
-      // a caller to do with the promise.
-      if (isExternalStream(item.stream)) {
-        openExternally(item.stream, item.title);
-        return;
-      }
 
       navigation.navigate('Player', {
         stream: item.stream,
@@ -62,4 +76,20 @@ export function usePlayItem(): (item: ContentItem) => void {
     },
     [navigation],
   );
+}
+
+/**
+ * Why this item will not play, in a sentence.
+ *
+ * Reuses `unavailableLabel` rather than re-deriving the reason: the mapper
+ * already decided which of the two it is, and a second copy of that rule here
+ * would be the one that drifts. The badge is two words because it sits in the
+ * corner of a 124dp card; this has a whole dialog, so it can finish the thought.
+ */
+function unavailableMessage(item: ContentItem): string {
+  if (item.unavailableLabel === 'Not started') {
+    return `“${item.title}” has not started yet. There is nothing to play until it does.`;
+  }
+
+  return `“${item.title}” is not available to watch. The library has no stream for it.`;
 }

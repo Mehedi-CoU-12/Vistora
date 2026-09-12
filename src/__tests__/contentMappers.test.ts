@@ -109,6 +109,22 @@ describe('movieToContentItem', () => {
   it('formats a sub-hour duration without an hours part', () => {
     expect(movieToContentItem({...movie, duration_seconds: 1500}).subtitle).toBe('2011 · 25m');
   });
+
+  // The rule that replaced opening the YouTube app. A `youtube` URL is an HTML
+  // page advertising the film, not the film, so the row is treated as having no
+  // stream at all rather than as something to hand to another app.
+  it('refuses a youtube row, because a trailer page is not the film', () => {
+    const item = movieToContentItem({
+      ...movie,
+      stream_url: 'https://www.youtube.com/watch?v=abc',
+      stream_protocol: 'youtube',
+    });
+
+    expect(item.stream).toBeNull();
+    // And unlike a series, it owes the viewer an explanation: the card badges
+    // this, and pressing Play spells it out.
+    expect(item.unavailableLabel).toBe('Unavailable');
+  });
 });
 
 describe('sportsEventToContentItem', () => {
@@ -223,13 +239,27 @@ describe('episodeToContentItem', () => {
     expect(item.subtitle).toBe('24m');
   });
 
-  it('keeps the youtube protocol, so the app knows not to decode it', () => {
-    expect(episodeToContentItem(episode).stream).toEqual({
-      url: 'https://www.youtube.com/watch?v=abc',
-      protocol: 'youtube',
+  it('refuses a youtube episode the same way a film is refused', () => {
+    const item = episodeToContentItem(episode);
+
+    expect(item.stream).toBeNull();
+    expect(item.unavailableLabel).toBe('Unavailable');
+  });
+
+  it('carries a real stream through untouched', () => {
+    const item = episodeToContentItem({
+      ...episode,
+      stream_url: 'https://cdn.example.com/ep1.mp4',
+      stream_protocol: 'mp4',
+    });
+
+    expect(item.stream).toEqual({
+      url: 'https://cdn.example.com/ep1.mp4',
+      protocol: 'mp4',
       headers: undefined,
       isLive: false,
     });
+    expect(item.unavailableLabel).toBeUndefined();
   });
 
   it('has no categoryId, so a category filter can never match one', () => {

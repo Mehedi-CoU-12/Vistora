@@ -37,10 +37,14 @@ export type MovieCategoryKind = Extract<
  *
  * Three of these name a container the device decodes itself. `youtube` is the
  * odd one and the difference is load-bearing: it means the URL is a PAGE, not
- * media, and the app hands it to the YouTube app rather than to Media3. See
- * supabase/migrations/0004_add_youtube_protocol.sql for why that is the only
- * honest way to carry one, and services/externalPlayback.ts for what the app
- * does with it.
+ * media, so nothing in the app can play it.
+ *
+ * It stays in this union because the database enum still has the value and rows
+ * carrying it still arrive -- migration 0004 added it and Postgres cannot drop
+ * an enum value, so pretending it is gone would just move the surprise to
+ * runtime. What changed is what the app does with one: `toStream` in
+ * types/content.ts refuses it, and the item is presented as unavailable. See
+ * `PlayableProtocol` there for the narrower union everything downstream uses.
  */
 export type StreamProtocol = 'hls' | 'dash' | 'mp4' | 'youtube' | 'other';
 

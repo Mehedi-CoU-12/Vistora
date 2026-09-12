@@ -32,6 +32,18 @@ export type ContentKind =
   | 'episode';
 
 /**
+ * The protocols the app can actually decode.
+ *
+ * Narrower than `StreamProtocol` by exactly one value, and that gap is the whole
+ * point. `youtube` says the stored URL is an HTML PAGE rather than media, so it
+ * can never describe something the player is handed -- see `toStream` below for
+ * what happens to such a row instead. Saying so in the type means the player
+ * cannot be given one even by accident, rather than relying on every call site
+ * to remember to check.
+ */
+export type PlayableProtocol = Exclude<StreamProtocol, 'youtube'>;
+
+/**
  * Everything the video player needs, and nothing more.
  *
  * This is the whole contract between the data layer and playback. Note what is
@@ -40,7 +52,7 @@ export type ContentKind =
  */
 export interface Stream {
   url: string;
-  protocol: StreamProtocol;
+  protocol: PlayableProtocol;
   /** Extra HTTP headers, when a CDN requires them. Usually undefined. */
   headers?: Record<string, string>;
   /**
@@ -158,6 +170,68 @@ export type Category = Pick<CategoryRow, 'id' | 'slug' | 'name' | 'kind'>;
 // ---------------------------------------------------------------------------
 // The only place in the codebase that knows what a column is called.
 
+/**
+ * The stream columns every playable row shares. A series carries none of them.
+ *
+ * Structural rather than a union of the four row types, so one helper serves all
+ * of them: `MovieRow` and `SportsEventRow` simply have no `stream_headers`.
+ */
+interface StreamColumns {
+  stream_url: string | null;
+  stream_protocol: StreamProtocol;
+  stream_headers?: Record<string, string> | null;
+}
+
+/**
+ * The playable stream a row describes, or null when it does not describe one.
+ *
+ * ---------------------------------------------------------------------------
+ * Why a row can carry a URL and still be unplayable
+ * ---------------------------------------------------------------------------
+ * `stream_protocol = 'youtube'` means the URL is a PAGE, not media: importers
+ * whose only free source for a title was its trailer wrote one of those. The app
+ * used to hand them to the YouTube app, so pressing Play on a film left Vistora
+ * entirely and played two minutes of marketing for a film the library does not
+ * actually have.
+ *
+ * A trailer is not the film, so the honest answer is that it is missing. Such a
+ * row now maps to `stream: null` -- exactly the state an unpublished fixture has
+ * always been in -- and the surfaces that already know how to say "you cannot
+ * watch this" say it, instead of a different app opening.
+ *
+ * The enum value stays in the database, because Postgres cannot drop one, and
+ * stays in `StreamProtocol`, because rows carrying it are real and still arrive.
+ * It just stops here and never becomes a `Stream`.
+ */
+function toStream(row: StreamColumns, isLive: boolean): Stream | null {
+  if (row.stream_url === null || row.stream_protocol === 'youtube') {
+    return null;
+  }
+
+  return {
+    url: row.stream_url,
+    protocol: row.stream_protocol,
+    headers: row.stream_headers ?? undefined,
+    isLive,
+  };
+}
+
+/**
+ * How a null stream is explained on a card, when it is worth explaining.
+ *
+ * The two reasons read differently to a viewer and so get different words: a
+ * fixture with no URL yet has not happened, while a row we refuse to decode is
+ * simply not in the library. Both are undefined when the row plays, and neither
+ * is ever reached for a series -- see the note in `seriesToContentItem`.
+ */
+function unavailableLabelFor(row: StreamColumns): string | undefined {
+  if (row.stream_url === null) {
+    return 'Not started';
+  }
+
+  return row.stream_protocol === 'youtube' ? 'Unavailable' : undefined;
+}
+
 export function channelToContentItem(row: ChannelRow): ContentItem {
   return {
     id: row.id,
@@ -178,13 +252,9 @@ export function channelToContentItem(row: ChannelRow): ContentItem {
     // resolution, and the hero's metadata line is filled in for it later from
     // its category name -- see `withGenre`. Stamping a quality here would be
     // inventing one: nothing in the schema says whether a given stream is HD.
-    stream: {
-      url: row.stream_url,
-      protocol: row.stream_protocol,
-      headers: row.stream_headers ?? undefined,
-      // A TV channel is by definition a continuous live broadcast.
-      isLive: true,
-    },
+    // A TV channel is by definition a continuous live broadcast.
+    stream: toStream(row, true),
+    unavailableLabel: unavailableLabelFor(row),
   };
 }
 
@@ -206,11 +276,8 @@ export function movieToContentItem(row: MovieRow): ContentItem {
       duration: formatDuration(row.duration_seconds) ?? undefined,
       rating: row.content_rating ?? undefined,
     },
-    stream: {
-      url: row.stream_url,
-      protocol: row.stream_protocol,
-      isLive: false,
-    },
+    stream: toStream(row, false),
+    unavailableLabel: unavailableLabelFor(row),
   };
 }
 
@@ -234,13 +301,10 @@ export function sportsEventToContentItem(row: SportsEventRow): ContentItem {
     // A scheduled fixture usually has no stream URL yet. Returning null (rather
     // than an empty string) makes "not playable" a state the UI must handle
     // explicitly instead of a crash inside the player.
-    stream:
-      row.stream_url === null
-        ? null
-        : { url: row.stream_url, protocol: row.stream_protocol, isLive },
+    stream: toStream(row, isLive),
     // Says out loud what a null stream means for a FIXTURE specifically. A
     // series also has no stream and must stay unlabelled.
-    unavailableLabel: row.stream_url === null ? 'Not started' : undefined,
+    unavailableLabel: unavailableLabelFor(row),
   };
 }
 
@@ -293,12 +357,8 @@ export function episodeToContentItem(row: EpisodeRow): ContentItem {
     categoryId: null,
     description: row.description ?? undefined,
     meta: { duration: formatDuration(row.duration_seconds) ?? undefined },
-    stream: {
-      url: row.stream_url,
-      protocol: row.stream_protocol,
-      headers: row.stream_headers ?? undefined,
-      isLive: false,
-    },
+    stream: toStream(row, false),
+    unavailableLabel: unavailableLabelFor(row),
   };
 }
 
