@@ -50,6 +50,15 @@ interface TabBarProps {
  * the rail while the content below stays on the selected tab -- so selection is
  * a filled pill and focus is the ring `Focusable` draws. Collapsing them would
  * make it impossible to see which tab pressing OK would leave you on.
+ *
+ * The selected pill also carries a short accent bar under its label. That is a
+ * third cue for the same state, and it is not redundant: the pill's fill is
+ * `accentMuted`, which at 22% alpha on a dark page is a genuinely subtle
+ * rectangle -- readable at thirty centimetres and easy to lose at three metres
+ * across a room, especially on a panel with its contrast turned up. The bar is
+ * solid accent and is the thing that survives that. It is absolutely positioned,
+ * so appearing and disappearing never changes the pill's height and never
+ * reflows the row.
  */
 export function TabBar({ tabs, activeId, onSelect }: TabBarProps) {
   const { navPlacement } = useMetrics();
@@ -145,16 +154,20 @@ function TabPill({ tab, selected, onSelect, stretch = false }: TabPillProps) {
       ]}
     >
       {active => (
-        <Text
-          style={[
-            styles.label,
-            selected && styles.labelSelected,
-            active && styles.labelActive,
-          ]}
-          numberOfLines={1}
-        >
-          {tab.label}
-        </Text>
+        <>
+          <Text
+            style={[
+              styles.label,
+              selected && styles.labelSelected,
+              active && styles.labelActive,
+            ]}
+            numberOfLines={1}
+          >
+            {tab.label}
+          </Text>
+
+          {selected ? <View style={styles.indicator} /> : null}
+        </>
       )}
     </Focusable>
   );
@@ -210,13 +223,28 @@ const useStyles = makeStyles(m => ({
   pillSelected: {
     backgroundColor: colors.accentMuted,
   },
+  indicator: {
+    position: 'absolute',
+    // Inset from the pill's own rounded ends, so the bar sits under the word
+    // rather than running out to the curve on either side of it.
+    left: spacing.md,
+    right: spacing.md,
+    bottom: spacing.xs,
+    height: 2,
+    borderRadius: radius.pill,
+    backgroundColor: colors.accent,
+  },
   label: {
     ...m.typography.body,
     color: colors.textSecondary,
     textAlign: 'center',
   },
   labelSelected: {
-    color: colors.accent,
+    // Full-strength white rather than the accent. With the bar below now
+    // carrying the accent, tinting the word as well left the selected tab
+    // reading as *dimmer* than its neighbours on a bright panel -- accent on
+    // dark is lower contrast than white on dark.
+    color: colors.textPrimary,
   },
   labelActive: {
     color: colors.textPrimary,
