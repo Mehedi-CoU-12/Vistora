@@ -66,3 +66,37 @@ export const cardAspect: Record<CardVariant, number> = {
  * unreachable by the D-pad.
  */
 export const cardChrome = spacing.xs * 2 + 2 * 2;
+
+/**
+ * Animation durations, in milliseconds.
+ *
+ * Three values, and the ceiling is deliberate. Android TV runs this app on
+ * hardware a generation or two behind a phone, and every one of these fires
+ * while the D-pad is being held down -- walk a row of twelve cards quickly and
+ * `focus` runs twelve times, overlapping. Anything above ~200ms turns that into
+ * a queue of animations finishing after the user has stopped moving, which reads
+ * as lag rather than as polish.
+ *
+ * `focus` matches the value `Focusable` has always used; it is lifted here so
+ * the hero and the nav can move at the same speed as a card rather than each
+ * picking a number.
+ */
+export const duration = {
+  /** A card taking or losing focus. */
+  focus: 120,
+  /** A press, a fill, a colour change. */
+  quick: 160,
+  /** A hero cross-fading to a new title. The longest thing in the app. */
+  hero: 260,
+} as const;
+
+/**
+ * Artwork shape for a hero backdrop, as height / width.
+ *
+ * 16:9 is what every backdrop in the database actually is (TMDB serves them at
+ * 16:9), so the hero crops rather than letterboxes at any height it is given.
+ * The number is here rather than inline because `HeroBanner` and the skeleton
+ * that stands in for it while it loads must agree, or the layout jumps at the
+ * moment the data arrives.
+ */
+export const heroAspect = 9 / 16;
