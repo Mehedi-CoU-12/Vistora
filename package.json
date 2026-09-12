@@ -19,7 +19,8 @@
     "import:anime-pd": "node scripts/import-archive.mjs --kind=anime",
     "scrape": "node scripts/scrape.mjs",
     "scrape:tmdb": "node scripts/scrape.mjs --source=tmdb",
-    "scrape:jikan": "node scripts/scrape.mjs --source=jikan"
+    "scrape:jikan": "node scripts/scrape.mjs --source=jikan",
+    "scrape:new": "node scripts/scrape.mjs --source=archive-new"
   },
   "dependencies": {
     "@react-navigation/native": "^7.3.18",

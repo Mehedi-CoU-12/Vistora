@@ -90,5 +90,9 @@ supabase/seed_anime.sql
 supabase/seed_anime_series.sql
 # scripts/scrape.mjs, and the "Scrape content" workflow.
 supabase/seed_scrape_*.sql
+
+# Ledger of identifiers scripts/sources/archive-new.mjs has already taken, so
+# a re-run returns titles the last one did not. Local state, like the seeds.
+supabase/.scrape-ledger-*.json
 seed-out/
 scrape-out/
