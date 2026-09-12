@@ -5,8 +5,14 @@ import { makeStyles } from '../theme';
 
 /**
  * ===========================================================================
- * The player's icons, drawn from Views.
+ * The app's icons, drawn from Views.
  * ===========================================================================
+ * Named for the player because that is what first needed a set of them, and
+ * still where all but two of these are used. The browse UI borrows `play`,
+ * `plus`, `tick` and `info` for the hero and the details screen -- borrows
+ * rather than reimplements, because a second icon idiom is exactly the thing
+ * this file exists to prevent, and because these shapes have no player logic in
+ * them at all: the module imports `makeStyles` and nothing else.
  * There is no icon font and no SVG library in this project, and the player is
  * not a good enough reason to add one: a font asset is a build-config change, a
  * vector library is a native dependency, and both would ship to a TV to draw a
@@ -77,8 +83,12 @@ export type IconName =
   | 'pip'
   /** At the live edge, and the jump back to it. */
   | 'live'
-  /** Selected marker in the settings panel. */
-  | 'tick';
+  /** Selected marker in the settings panel, and "already on My List". */
+  | 'tick'
+  /** Add to My List. Browse UI only. */
+  | 'plus'
+  /** Open a details screen. Browse UI only. */
+  | 'info';
 
 interface PlayerIconProps {
   name: IconName;
@@ -402,6 +412,88 @@ function Shape({ name, size, color }: PlayerIconProps) {
      * 14dp does not read as a wrong tick -- it reads as a small `v`, which is
      * what the selected rows in the settings panel were showing.
      */
+    /**
+     * A plus: two bars crossed, drawn as one box with a border on two opposite
+     * sides rather than as two rectangles.
+     *
+     * Two rectangles is the obvious build and is wrong at small sizes -- each
+     * gets rounded to whole pixels independently, so at 14dp the horizontal arm
+     * lands a subpixel off the vertical one and the cross looks assembled. One
+     * box with a top border and a left border, rotated 45 degrees, would give a
+     * corner; two absolutely-positioned bars sharing a single centred parent
+     * give a cross whose arms are centred on the same point by construction.
+     */
+    case 'plus':
+      return (
+        <View style={styles.lock}>
+          <View
+            style={[
+              styles.corner,
+              {
+                width: size * 0.74,
+                height: stroke,
+                borderRadius: stroke,
+                backgroundColor: color,
+              },
+            ]}
+          />
+          <View
+            style={[
+              styles.corner,
+              {
+                width: stroke,
+                height: size * 0.74,
+                borderRadius: stroke,
+                backgroundColor: color,
+              },
+            ]}
+          />
+        </View>
+      );
+
+    /**
+     * A lower-case `i` in a ring: a dot, a stem, and a circle around both.
+     *
+     * The ring is a bordered box at `borderRadius: 50%` of its side, which is
+     * how every circle in this set is drawn. The dot is deliberately square with
+     * a full radius rather than a separate circle component, for the same reason
+     * the plus is one parent: at 14dp a 2dp dot is two pixels, and two pixels
+     * are round enough.
+     */
+    case 'info':
+      return (
+        <View
+          style={[
+            styles.lock,
+            {
+              width: size * 0.92,
+              height: size * 0.92,
+              borderRadius: size * 0.46,
+              borderWidth: stroke,
+              borderColor: color,
+            },
+          ]}
+        >
+          <View
+            style={{
+              width: stroke,
+              height: stroke,
+              borderRadius: stroke,
+              backgroundColor: color,
+              marginBottom: stroke * 0.75,
+            }}
+          />
+          <View
+            style={{
+              width: stroke,
+              height: size * 0.3,
+              borderRadius: stroke,
+              backgroundColor: color,
+            }}
+          />
+        </View>
+      );
+
     case 'tick':
       return (
         <View
