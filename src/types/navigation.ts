@@ -1,4 +1,4 @@
-import type { Stream } from './content';
+import type { ContentItem, Stream } from './content';
 
 /**
  * Route names and their parameters.
@@ -33,6 +33,23 @@ export type RootStackParamList = {
   Series: {
     seriesId: string;
     title: string;
+  };
+  /**
+   * One title, before you commit to watching it.
+   *
+   * Takes the whole `ContentItem` rather than an id, and that is the same trade
+   * `Player` makes below for the same reason: the card that navigated here was
+   * already rendering every field this screen shows above the fold -- artwork,
+   * title, metadata, synopsis, stream -- so re-fetching would put a spinner
+   * between a press and a screen whose content is already in memory.
+   *
+   * The one thing it does NOT already have is the "More like this" rail, which
+   * is why that is fetched here and nothing else is. `ContentItem` is plain JSON
+   * by construction (see the note on the mappers in types/content.ts), so it
+   * survives React Navigation serialising the params.
+   */
+  Details: {
+    item: ContentItem;
   };
   Player: {
     stream: Stream;

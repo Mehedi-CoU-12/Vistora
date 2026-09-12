@@ -1,6 +1,14 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { BackHandler, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  Animated,
+  BackHandler,
+  Text,
+  View,
+  type LayoutChangeEvent,
+} from 'react-native';
 
+import { ChromeProvider } from '../components/ChromeInset';
+import { Gradient } from '../components/Gradient';
 import { ScreenContainer } from '../components/ScreenContainer';
 import { SearchIcon } from '../components/SearchIcon';
 import { TabBar } from '../components/TabBar';
@@ -11,7 +19,14 @@ import {
   type TabDef,
   type TabId,
 } from '../navigation/tabs';
-import { colors, makeStyles, spacing, useMetrics } from '../theme';
+import {
+  backgroundAlpha,
+  colors,
+  duration,
+  makeStyles,
+  spacing,
+  useMetrics,
+} from '../theme';
 import { CatalogScreen } from './CatalogScreen';
 import { HomeScreen } from './HomeScreen';
 import { SearchScreen } from './SearchScreen';
@@ -63,6 +78,24 @@ const INITIAL_TAB: TabId = 'home';
  * bar is at the bottom. And the mode composes with the tabs rather than
  * competing with them -- closing search returns you to the tab you were on,
  * still scrolled where you left it.
+ *
+ * ---------------------------------------------------------------------------
+ * The top bar floats over the content
+ * ---------------------------------------------------------------------------
+ * It is absolutely positioned and drawn last, so the home screen's hero runs to
+ * the very top of the window and passes underneath it. A gradient behind the bar
+ * keeps the wordmark legible over whatever happens to be in the top of a
+ * backdrop; without one, a bright sky puts white text on white cloud.
+ *
+ * Screens that do NOT open with a hero would start underneath it, so the bar's
+ * measured height is published through `ChromeProvider` and those screens pad by
+ * it. Screens that DO -- only Home -- report their scroll offset back, and the
+ * bar turns opaque the moment anything is behind it. See
+ * components/ChromeInset.tsx for why both live in a context and why the second
+ * one is not optional.
+ *
+ * Nothing about focus changes: the bar is still in the tree, still above the
+ * content geometrically, so UP out of the content still reaches it.
  *
  * ---------------------------------------------------------------------------
  * Why the hardware key is handled with BackHandler here
@@ -124,6 +157,51 @@ export function BrowseScreen() {
    */
   const [searching, setSearching] = useState(false);
 
+  /**
+   * Measured height of the floating top bar, published to the screens below.
+   *
+   * Starts at 0, which is correct rather than merely safe: on the first frame
+   * the bar genuinely has not been laid out, and a guessed value would show up
+   * as every non-hero screen jumping down by a few dp once the real number
+   * arrived.
+   */
+  const [chromeHeight, setChromeHeight] = useState(0);
+
+  const measureChrome = useCallback((event: LayoutChangeEvent) => {
+    setChromeHeight(event.nativeEvent.layout.height);
+  }, []);
+
+  /**
+   * Opacity of the bar's solid backing: 0 at the top of a page, 1 once content
+   * has moved under it.
+   *
+   * An `Animated.Value` rather than state, so the crossfade runs on the UI
+   * thread and, more importantly, so a scroll does not re-render this screen and
+   * every tab page mounted inside it. `scrolled` below is the only thing that
+   * changes, and it changes at most twice per scroll gesture.
+   */
+  const opaque = useRef(new Animated.Value(0)).current;
+  const scrolled = useRef(false);
+
+  const reportScroll = useCallback(
+    (offsetY: number) => {
+      // A few dp of slack, so a page resting at the top does not flicker the
+      // backing on and off as a focus-driven scroll settles.
+      const next = offsetY > 8;
+      if (next === scrolled.current) {
+        return;
+      }
+      scrolled.current = next;
+
+      Animated.timing(opaque, {
+        toValue: next ? 1 : 0,
+        duration: duration.quick,
+        useNativeDriver: true,
+      }).start();
+    },
+    [opaque],
+  );
+
   const selectTab = useCallback((id: TabId) => {
     setActiveId(id);
     setVisited(seen => (seen.includes(id) ? seen : [...seen, id]));
@@ -177,11 +255,61 @@ export function BrowseScreen() {
 
   return (
     <ScreenContainer>
-      {/* The wordmark used to sit inside every screen's own header, three lines
-          deep. It belongs here instead: it is the app, not the screen, and on a
-          top-nav layout it shares this row with the tab rail rather than
-          costing one of its own. */}
-      <View style={styles.topBar}>
+      <ChromeProvider inset={chromeHeight} reportScroll={reportScroll}>
+        <View style={styles.body}>
+          {mounted.map(tab => (
+            // `display: 'none'` rather than conditional rendering, so a hidden
+            // tab keeps its state. It also drops out of flex layout entirely,
+            // which is what lets every page carry `flex: 1` without dividing the
+            // height between them.
+            <View
+              key={tab.id}
+              style={[
+                styles.page,
+                (tab.id !== activeId || searching) && styles.pageHidden,
+              ]}
+            >
+              <TabPage tab={tab} onSeeAll={selectTab} />
+            </View>
+          ))}
+
+          {searching ? (
+            <View style={styles.page}>
+              <SearchScreen />
+            </View>
+          ) : null}
+        </View>
+      </ChromeProvider>
+
+      {/* Drawn AFTER the body, so it paints over it -- React Native has no
+          z-index ordering between siblings beyond document order, and relying on
+          one would be relying on an implementation detail. */}
+      <View style={styles.topBar} onLayout={measureChrome}>
+        {/* Backing for the chrome, not decoration: the hero passes underneath
+            this bar, and a backdrop with a bright top would otherwise leave the
+            wordmark unreadable. Ends fully transparent, so at the top of a page
+            the artwork still reads as running to the edge of the screen. */}
+        <Gradient
+          colors={[backgroundAlpha(0.98), backgroundAlpha(0)]}
+          direction="down"
+          style={styles.topBarFade}
+        />
+
+        {/* ...and the solid version of the same thing, faded in once anything is
+            actually behind the bar. The gradient alone is right at rest and
+            wrong the moment the page moves: at the ~75% opacity it has two
+            thirds of the way down, a button scrolling underneath is still
+            legible through it and collides with the wordmark. Opacity is
+            animated on the UI thread; see `reportScroll`. */}
+        <Animated.View
+          style={[styles.topBarSolid, { opacity: opaque }]}
+          pointerEvents="none"
+        />
+
+        {/* The wordmark used to sit inside every screen's own header, three
+            lines deep. It belongs here instead: it is the app, not the screen,
+            and on a top-nav layout it shares this row with the tab rail rather
+            than costing one of its own. */}
         <Text style={styles.brand} numberOfLines={1}>
           VISTORA<Text style={styles.brandAccent}>.</Text>
         </Text>
@@ -211,30 +339,6 @@ export function BrowseScreen() {
         </View>
       </View>
 
-      <View style={styles.body}>
-        {mounted.map(tab => (
-          // `display: 'none'` rather than conditional rendering, so a hidden tab
-          // keeps its state. It also drops out of flex layout entirely, which is
-          // what lets every page carry `flex: 1` without dividing the height
-          // between them.
-          <View
-            key={tab.id}
-            style={[
-              styles.page,
-              (tab.id !== activeId || searching) && styles.pageHidden,
-            ]}
-          >
-            <TabPage tab={tab} onSeeAll={selectTab} />
-          </View>
-        ))}
-
-        {searching ? (
-          <View style={styles.page}>
-            <SearchScreen />
-          </View>
-        ) : null}
-      </View>
-
       {topNav ? null : (
         <TabBar tabs={TABS} activeId={activeId} onSelect={selectTab} />
       )}
@@ -258,12 +362,38 @@ function TabPage({
 
 const useStyles = makeStyles(m => ({
   topBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     paddingHorizontal: m.gutter.horizontal,
     paddingTop: m.gutter.vertical,
     paddingBottom: spacing.sm,
+  },
+  topBarFade: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    // Half again as tall as the bar itself, so the ramp finishes below the
+    // chrome rather than at its edge -- a fade that ends exactly where the bar
+    // does draws a visible horizontal line across the artwork.
+    bottom: '-50%',
+  },
+  topBarSolid: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.background,
+    // Stops exactly at the bar's own edge rather than overhanging like the
+    // gradient above. It is opaque, so an overhang would draw a hard line
+    // across the content instead of fading into it -- the gradient behind it is
+    // what covers the few dp below.
   },
   brand: {
     ...m.typography.display,

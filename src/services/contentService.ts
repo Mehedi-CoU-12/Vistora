@@ -175,22 +175,33 @@ const MOVIE_SEARCH_COLUMNS = ['title', 'description'] as const;
 export async function fetchMovies(
   options: {
     categoryKind?: MovieCategoryKind;
+    /**
+     * One specific category, by id. Used by "More like this", which already has
+     * the id from the item it is finding neighbours for -- so filtering by kind
+     * and then discarding nine categories client-side would be a bigger query
+     * for a smaller answer.
+     */
+    categoryId?: string;
     limit?: number;
     search?: string;
   } = {},
 ): Promise<ContentItem[]> {
-  const { categoryKind, limit, search } = options;
+  const { categoryKind, categoryId, limit, search } = options;
 
   const rows = await selectRows<MovieRow>(() => {
     // `categories!inner(kind)` turns the category relation into an INNER JOIN,
     // which is what makes `.eq('categories.kind', ...)` filter the movies rather
     // than just the embedded object.
-    const query = categoryKind
+    const base = categoryKind
       ? supabase
           .from('movies')
           .select(`${MOVIE_COLUMNS}, categories!inner(kind)`)
           .eq('categories.kind', categoryKind)
       : supabase.from('movies').select(MOVIE_COLUMNS);
+
+    // A column on `movies` itself, so this needs no join and composes with the
+    // kind filter above rather than replacing it.
+    const query = categoryId ? base.eq('category_id', categoryId) : base;
 
     const matched = search
       ? query.or(ilikeFilter(MOVIE_SEARCH_COLUMNS, search))
@@ -237,19 +248,23 @@ const EPISODE_COLUMNS =
 export async function fetchSeries(
   options: {
     categoryKind?: MovieCategoryKind;
+    /** One specific category, by id. See the note on `fetchMovies`. */
+    categoryId?: string;
     limit?: number;
     search?: string;
   } = {},
 ): Promise<ContentItem[]> {
-  const { categoryKind, limit, search } = options;
+  const { categoryKind, categoryId, limit, search } = options;
 
   const rows = await selectRows<SeriesRow>(() => {
-    const query = categoryKind
+    const base = categoryKind
       ? supabase
           .from('series')
           .select(`${SERIES_COLUMNS}, categories!inner(kind)`)
           .eq('categories.kind', categoryKind)
       : supabase.from('series').select(SERIES_COLUMNS);
+
+    const query = categoryId ? base.eq('category_id', categoryId) : base;
 
     const matched = search
       ? query.or(ilikeFilter(SERIES_SEARCH_COLUMNS, search))
@@ -449,4 +464,68 @@ export async function fetchCategories(
     name,
     kind: rowKind,
   }));
+}
+
+// ---------------------------------------------------------------------------
+// Related content
+// ---------------------------------------------------------------------------
+
+/**
+ * Neighbours of an item, for the "More like this" rail on a details screen.
+ *
+ * ---------------------------------------------------------------------------
+ * "Like this" means "filed next to this", and says so
+ * ---------------------------------------------------------------------------
+ * This is not a recommender and does not pretend to be one. It returns other
+ * things in the same category, ordered the way that category is ordered
+ * everywhere else in the app -- which for a library organised by hand is a
+ * genuinely useful answer, and is the only honest one available without watch
+ * history, ratings or embeddings, none of which exist here.
+ *
+ * Naming it `fetchRelated` rather than `fetchRecommended` is part of that: a
+ * function called "recommended" invites somebody to quietly add scoring to it
+ * later and leaves every caller claiming something the data cannot support.
+ *
+ * Returns an empty list rather than throwing when there is nothing to relate to
+ * -- an uncategorised item, a kind with no sibling table. A details screen with
+ * no rail underneath it is a complete screen; an error there is not.
+ */
+export async function fetchRelated(
+  item: ContentItem,
+  limit = 20,
+): Promise<ContentItem[]> {
+  if (item.categoryId === null) {
+    return [];
+  }
+
+  const neighbours = await relatedByKind(item, item.categoryId, limit);
+
+  // The item itself is in its own category, and a rail that offers you the
+  // thing you are already looking at reads as a bug. Fetching `limit + 1` and
+  // trimming after keeps the rail full when the item is inside the window.
+  return neighbours.filter(other => other.id !== item.id).slice(0, limit);
+}
+
+function relatedByKind(
+  item: ContentItem,
+  categoryId: string,
+  limit: number,
+): Promise<ContentItem[]> {
+  switch (item.kind) {
+    case 'channel':
+      return fetchChannelsByCategory(categoryId);
+
+    case 'movie':
+      return fetchMovies({ categoryId, limit: limit + 1 });
+
+    case 'series':
+      return fetchSeries({ categoryId, limit: limit + 1 });
+
+    // An episode's neighbours are the other episodes, which the series screen
+    // is already showing in full -- so a rail here would be the list above it,
+    // shuffled into cards. A fixture has no sibling query worth making.
+    case 'episode':
+    case 'sports_event':
+      return Promise.resolve([]);
+  }
 }

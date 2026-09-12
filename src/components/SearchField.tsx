@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { Text, TextInput, View } from 'react-native';
 
+import { catalogTitleList } from '../navigation/tabs';
 import { colors, makeStyles, radius, spacing, useMetrics } from '../theme';
 import { Focusable } from './Focusable';
 import { SearchIcon } from './SearchIcon';
@@ -42,10 +43,11 @@ import { SearchIcon } from './SearchIcon';
 export function SearchField({
   value,
   onChangeText,
-  placeholder = 'Search channels, films, anime…',
+  placeholder,
 }: {
   value: string;
   onChangeText: (next: string) => void;
+  /** Defaults to naming the catalogs, derived rather than written out. */
   placeholder?: string;
 }) {
   const { isTV, isTouch, typography } = useMetrics();
@@ -88,7 +90,7 @@ export function SearchField({
           onChangeText={onChangeText}
           onFocus={handleFocus}
           onBlur={handleBlur}
-          placeholder={placeholder}
+          placeholder={placeholder ?? `Search ${catalogTitleList()}…`}
           placeholderTextColor={colors.textMuted}
           style={styles.input}
           // Nothing being searched for here is a proper noun the platform can
@@ -157,10 +159,14 @@ const useStyles = makeStyles(m => ({
     ...m.typography.body,
     color: colors.textPrimary,
     flex: 1,
-    // A TextInput's intrinsic height is the font's, which is a 20dp target. The
-    // metric is 0 on TV, where the field is sized by its padding instead, so the
-    // larger of the two is what each device actually wants.
-    minHeight: Math.max(m.minTouchTarget, 44),
+    // A TextInput's intrinsic height is the font's, which is a 20dp target.
+    //
+    // On a phone the floor is the touch minimum. On a television it is larger
+    // than either: `minTouchTarget` is 0 there (a D-pad lands anywhere
+    // accurately), but a search field is the one control a remote user aims at
+    // repeatedly while reading what they typed from three metres away, and a
+    // 44dp field reads as an afterthought next to a 324dp hero.
+    minHeight: m.isTV ? 56 : Math.max(m.minTouchTarget, 44),
     // Android centres single-line text vertically only if the padding it adds by
     // default is removed first.
     paddingVertical: 0,

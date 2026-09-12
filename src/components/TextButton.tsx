@@ -3,6 +3,32 @@ import { Text, View } from 'react-native';
 
 import { colors, makeStyles, radius, spacing } from '../theme';
 import { Focusable } from './Focusable';
+import { Gradient } from './Gradient';
+
+/**
+ * The three shapes this button comes in.
+ *
+ * `pill` is the original and still the default: a quiet surface-coloured pill
+ * for chrome -- the top bar's search toggle, a Reload in an empty state.
+ *
+ * `primary` and `secondary` exist for one situation, the pair of actions under a
+ * hero or on a details screen, and they are a pair rather than two independent
+ * styles. The whole job of that pair is to say which of the two is the thing to
+ * press: Play is filled with the brand sweep and carries dark text, My List is a
+ * translucent panel with a hairline. Introducing either on its own would lose
+ * that contrast, which is why they are one union and not two booleans.
+ */
+export type ButtonVariant = 'pill' | 'primary' | 'secondary';
+
+/**
+ * The brand sweep, left to right, behind a primary action.
+ *
+ * Violet into cyan rather than the logo's full cyan-blue-violet-magenta range:
+ * a button is 120dp wide and a four-stop ramp across it reads as a smear. These
+ * are the two ends that are furthest apart in hue while both staying dark
+ * enough for `textOnAccent` to hold its contrast on top.
+ */
+const PRIMARY_SWEEP = [colors.brandViolet, colors.brandCyan] as const;
 
 /**
  * The pill's three content colours, in precedence order: focus beats selection
@@ -20,7 +46,20 @@ const tint = {
   active: colors.textPrimary,
 } as const;
 
-function contentTint(selected: boolean, active: boolean): string {
+function contentTint(
+  variant: ButtonVariant,
+  selected: boolean,
+  active: boolean,
+): string {
+  // A primary button's fill is the brand gradient, so its content is dark and
+  // stays dark: brightening it on focus would reduce contrast rather than raise
+  // it, and the ring around it is already saying where the D-pad is.
+  if (variant === 'primary') {
+    return colors.textOnAccent;
+  }
+  if (variant === 'secondary') {
+    return active ? colors.textPrimary : colors.textOnArt;
+  }
   return active ? tint.active : selected ? tint.selected : tint.rest;
 }
 
@@ -49,6 +88,15 @@ type TextButtonProps = {
    * happens to be sitting on.
    */
   selected?: boolean;
+  /** See `ButtonVariant`. Defaults to 'pill'. */
+  variant?: ButtonVariant;
+  /**
+   * Let the button fill the width it is given rather than hugging its label.
+   *
+   * Used by the hero on a phone in portrait, where two actions share one row and
+   * an unstretched pair leaves a gap on the right that reads as a layout bug.
+   */
+  stretch?: boolean;
   /**
    * Custom content -- in practice an icon -- drawn before the label, or alone.
    *
@@ -73,6 +121,8 @@ export function TextButton({
   onPress,
   hasTVPreferredFocus = false,
   selected = false,
+  variant = 'pill',
+  stretch = false,
   children,
 }: TextButtonProps) {
   const styles = useStyles();
@@ -84,29 +134,53 @@ export function TextButton({
       selected={selected}
       style={[
         styles.button,
+        variant === 'primary' && styles.buttonPrimary,
+        variant === 'secondary' && styles.buttonSecondary,
         // Content-only pills are square-ish rather than wide: the horizontal
         // padding a word needs would leave a 16dp glyph swimming in a 56dp pill.
         children && label === undefined && styles.buttonIconOnly,
-        selected && styles.buttonSelected,
+        selected && variant === 'pill' && styles.buttonSelected,
+        stretch && styles.buttonStretch,
       ]}
       accessibilityLabel={accessibilityLabel ?? label}
     >
       {active => (
-        <View style={styles.content}>
-          {children ? children(contentTint(selected, active)) : null}
-
-          {label !== undefined ? (
-            <Text
-              style={[
-                styles.label,
-                selected && styles.labelSelected,
-                active && styles.labelActive,
-              ]}
-            >
-              {label}
-            </Text>
+        <>
+          {/* A SIBLING of the content, not a child of it, and that is the
+              whole trick: an absolutely-filled view resolves against its
+              parent, so nested inside `content` the sweep would stop at the
+              label's box and leave the button's padding unpainted. Out here
+              its parent is the Pressable, so it fills the button. Drawn first,
+              so the content paints over it without needing a z-index. */}
+          {variant === 'primary' ? (
+            <Gradient
+              colors={PRIMARY_SWEEP}
+              direction="right"
+              easing="linear"
+              style={styles.primaryFill}
+            />
           ) : null}
-        </View>
+
+          <View style={styles.content}>
+            {children ? children(contentTint(variant, selected, active)) : null}
+
+            {label !== undefined ? (
+              <Text
+                style={[
+                  styles.label,
+                  variant === 'primary' && styles.labelPrimary,
+                  variant === 'secondary' && styles.labelSecondary,
+                  selected && variant === 'pill' && styles.labelSelected,
+                  active && variant === 'pill' && styles.labelActive,
+                  active && variant === 'secondary' && styles.labelActive,
+                ]}
+                numberOfLines={1}
+              >
+                {label}
+              </Text>
+            ) : null}
+          </View>
+        </>
       )}
     </Focusable>
   );
@@ -134,14 +208,58 @@ const useStyles = makeStyles(m => ({
   buttonSelected: {
     backgroundColor: colors.accentMuted,
   },
+  /**
+   * No background of its own: the gradient inside supplies it. `overflow:
+   * hidden` is what clips that gradient to the pill radius -- without it the
+   * sweep renders as a rectangle behind a rounded button.
+   */
+  buttonPrimary: {
+    backgroundColor: 'transparent',
+    overflow: 'hidden',
+    paddingHorizontal: spacing.xl,
+  },
+  /**
+   * Translucent rather than `surface`, because this button's whole purpose is
+   * to sit on a hero backdrop. A solid tile there is a hole in the picture; at
+   * two thirds opacity with a hairline the shape still reads against a bright
+   * frame and the artwork keeps showing through.
+   */
+  buttonSecondary: {
+    backgroundColor: colors.surfaceOverArt,
+    borderWidth: 1,
+    borderColor: colors.borderOverArt,
+    paddingHorizontal: spacing.lg,
+  },
+  buttonStretch: {
+    flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
+    alignItems: 'center',
+  },
+  primaryFill: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: spacing.sm,
   },
   label: {
     ...m.typography.body,
     color: tint.rest,
+  },
+  labelPrimary: {
+    color: colors.textOnAccent,
+    fontWeight: '700',
+  },
+  labelSecondary: {
+    color: colors.textOnArt,
+    fontWeight: '600',
   },
   labelSelected: {
     color: tint.selected,

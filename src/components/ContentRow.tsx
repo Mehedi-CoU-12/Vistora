@@ -25,6 +25,18 @@ interface ContentRowProps {
    * all" beside the heading, and TOUCH ONLY -- see the note below.
    */
   onSeeAll?: () => void;
+  /**
+   * How far through each item the viewer got, 0..1, keyed by item id.
+   *
+   * Only the Continue Watching rail passes one, and only when a real position
+   * exists -- see state/continueWatching.ts. A map rather than a field on the
+   * item because progress is a property of a VIEWER and the item is shared: the
+   * same film appears on this rail and on a genre rail, and only one of them
+   * should draw a bar.
+   */
+  progress?: ReadonlyMap<string, number>;
+  /** Hide card titles where the artwork already carries the name. */
+  showCardTitles?: boolean;
 }
 
 /**
@@ -62,6 +74,8 @@ export function ContentRow({
   onSelectItem,
   isFirstRow = false,
   onSeeAll,
+  progress,
+  showCardTitles = true,
 }: ContentRowProps) {
   const { isTV, isTouch } = useMetrics();
   const styles = useStyles();
@@ -84,12 +98,14 @@ export function ContentRow({
         item={item}
         variant={cardVariant}
         onPress={onSelectItem}
+        progress={progress?.get(item.id)}
+        showTitle={showCardTitles}
         // Exactly one element per screen should claim initial focus, so this is
         // the very first card of the very first row.
         hasTVPreferredFocus={isFirstRow && index === 0}
       />
     ),
-    [cardVariant, isFirstRow, onSelectItem],
+    [cardVariant, isFirstRow, onSelectItem, progress, showCardTitles],
   );
 
   if (items.length === 0) {
@@ -108,9 +124,22 @@ export function ContentRow({
     // marking the section rather than the card is what fixes it.
     <View style={styles.section} scrollSnapAlign="start">
       <View style={styles.headingRow}>
-        <Text style={styles.heading} numberOfLines={1}>
-          {title}
-        </Text>
+        {/* The mark and the title are ONE group, not two children of the row.
+            The row is `space-between` so that "See all" is pushed to the far
+            edge, and a third child at the start meant the row distributed three
+            things across the full width -- which put every rail's heading on the
+            right of the screen with its accent mark stranded on the left. */}
+        <View style={styles.headingGroup}>
+          {/* A short accent stroke before the heading. The one piece of pure
+              decoration on this screen, and it earns its place by giving every
+              rail a fixed left landmark: scanning a column of headings at three
+              metres, the eye finds the marks before it reads the words. */}
+          <View style={styles.headingMark} />
+
+          <Text style={styles.heading} numberOfLines={1}>
+            {title}
+          </Text>
+        </View>
 
         {seeAll ? (
           <Focusable
@@ -166,6 +195,24 @@ const useStyles = makeStyles(m => ({
     gap: spacing.sm,
     marginBottom: spacing.sm,
     paddingHorizontal: m.gutter.horizontal,
+  },
+  headingGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    // Shrinks rather than pushing "See all" off the right edge on a narrow
+    // phone; the title inside it ellipsises.
+    flexShrink: 1,
+  },
+  headingMark: {
+    width: 3,
+    // Cap height rather than line height: aligned to the box, the mark sits
+    // visibly low, because a line box has more room under the baseline than
+    // over the cap.
+    height: Math.round(m.typography.sectionTitle.fontSize * 0.8),
+    borderRadius: radius.pill,
+    backgroundColor: colors.accent,
+    flexShrink: 0,
   },
   heading: {
     ...m.typography.sectionTitle,

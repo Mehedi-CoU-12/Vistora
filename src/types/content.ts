@@ -58,6 +58,22 @@ export interface ContentItem {
   /** Second line on the card: category, kick-off time, year. */
   subtitle?: string;
   imageUrl: string | null;
+  /**
+   * 16:9 artwork, for a hero banner or a details header.
+   *
+   * Separate from `imageUrl` rather than replacing it, because the two are
+   * different pictures and neither substitutes for the other: `imageUrl` is a
+   * 2:3 poster built to be recognised at 124dp in a row of twelve, and this is a
+   * wide still built to be filled across a whole screen. Cropping a poster to
+   * 16:9 removes the title treatment that makes it recognisable; letterboxing a
+   * backdrop into a poster slot wastes half the card.
+   *
+   * Null far more often than not -- in the current library only the TMDB-sourced
+   * titles carry one -- which is why every consumer has to have an answer for
+   * its absence rather than assuming a hero always has artwork. See
+   * `heroArtwork` in components/HeroBanner.tsx for what that answer is.
+   */
+  backdropUrl: string | null;
   /** Short overlay tag, e.g. 'LIVE' or a channel number. */
   badge?: string;
   /**
@@ -82,6 +98,57 @@ export interface ContentItem {
    */
   unavailableLabel?: string;
   description?: string;
+  /**
+   * The metadata a hero or a details screen shows as a row of separated facts --
+   * "2026 · Action · 2h 10m".
+   *
+   * Structured rather than pre-joined into `subtitle`, and the two coexist on
+   * purpose. `subtitle` is ONE line sized for a 124dp card, so it is already a
+   * lossy summary; a details screen that reused it would be stuck with the
+   * card's editing decisions, and a hero that re-derived its own would be a
+   * second copy of the formatting rules. The mapper fills both from the row, and
+   * each surface takes the shape it needs.
+   *
+   * Every field is optional because the library is genuinely patchy: 114 of 119
+   * films have a year, 80 have a duration, and none have a content rating.
+   * `metaParts` below is what turns whatever is present into a clean line.
+   */
+  meta?: ContentMeta;
+}
+
+/** The facts a hero or details screen lists under a title. */
+export interface ContentMeta {
+  year?: number;
+  /** Pre-formatted, e.g. "2h 10m" -- see `formatDuration`. */
+  duration?: string;
+  /** The category this item is filed under, e.g. "Action". Null when uncategorised. */
+  genre?: string;
+  /** e.g. "PG". Present in the schema, empty in the current library. */
+  rating?: string;
+  /** "HD", "4K" -- a claim about the stream rather than about the title. */
+  quality?: string;
+}
+
+/**
+ * The present fields of a `ContentMeta`, in reading order, ready to be joined.
+ *
+ * A function rather than a string on the item because the separator is a
+ * rendering decision -- the hero puts a dot between them, the details screen
+ * spaces them as pills -- and because the empty case has to disappear rather
+ * than render as " ·  · ".
+ */
+export function metaParts(meta: ContentMeta | undefined): string[] {
+  if (!meta) {
+    return [];
+  }
+
+  return [
+    meta.year === undefined ? null : String(meta.year),
+    meta.genre ?? null,
+    meta.rating ?? null,
+    meta.duration ?? null,
+    meta.quality ?? null,
+  ].filter((part): part is string => part !== null && part !== '');
 }
 
 export type Category = Pick<CategoryRow, 'id' | 'slug' | 'name' | 'kind'>;
@@ -99,9 +166,18 @@ export function channelToContentItem(row: ChannelRow): ContentItem {
     subtitle:
       row.channel_number !== null ? `Channel ${row.channel_number}` : undefined,
     imageUrl: row.logo_url,
+    // A channel has no backdrop in the schema and would not benefit from one:
+    // its artwork is a logo, which is a mark rather than a photograph and looks
+    // wrong stretched across a hero. `HeroBanner` handles a null by treating the
+    // logo as a mark on a brand field instead.
+    backdropUrl: null,
     badge: 'LIVE',
     categoryId: row.category_id,
     description: row.description ?? undefined,
+    // No `meta` of its own. A channel row carries no year, no duration and no
+    // resolution, and the hero's metadata line is filled in for it later from
+    // its category name -- see `withGenre`. Stamping a quality here would be
+    // inventing one: nothing in the schema says whether a given stream is HD.
     stream: {
       url: row.stream_url,
       protocol: row.stream_protocol,
@@ -122,8 +198,14 @@ export function movieToContentItem(row: MovieRow): ContentItem {
         .filter(Boolean)
         .join(' · ') || undefined,
     imageUrl: row.poster_url,
+    backdropUrl: row.backdrop_url,
     categoryId: row.category_id,
     description: row.description ?? undefined,
+    meta: {
+      year: row.release_year ?? undefined,
+      duration: formatDuration(row.duration_seconds) ?? undefined,
+      rating: row.content_rating ?? undefined,
+    },
     stream: {
       url: row.stream_url,
       protocol: row.stream_protocol,
@@ -141,9 +223,14 @@ export function sportsEventToContentItem(row: SportsEventRow): ContentItem {
     title: row.title,
     subtitle: eventSubtitle(row),
     imageUrl: row.poster_url,
+    // A fixture's poster is the only artwork the schema carries for it, so it
+    // doubles as the hero backdrop. Unlike a channel logo it IS a photograph,
+    // which is what makes the reuse honest here and wrong there.
+    backdropUrl: row.poster_url,
     badge: isLive ? 'LIVE' : undefined,
     categoryId: row.category_id,
     description: row.description ?? undefined,
+    meta: { genre: row.competition ?? undefined },
     // A scheduled fixture usually has no stream URL yet. Returning null (rather
     // than an empty string) makes "not playable" a state the UI must handle
     // explicitly instead of a crash inside the player.
@@ -170,8 +257,17 @@ export function seriesToContentItem(row: SeriesRow): ContentItem {
         .filter(Boolean)
         .join(' \u00b7 ') || undefined,
     imageUrl: row.poster_url,
+    backdropUrl: row.backdrop_url,
     categoryId: row.category_id,
     description: row.description ?? undefined,
+    meta: {
+      year: row.release_year ?? undefined,
+      rating: row.content_rating ?? undefined,
+      duration:
+        row.episode_count > 0
+          ? formatEpisodeCount(row.episode_count)
+          : undefined,
+    },
     // Deliberately null, and deliberately without an `unavailableLabel`. There
     // is no such thing as playing a series; the app opens its episode list.
     stream: null,
@@ -185,6 +281,9 @@ export function episodeToContentItem(row: EpisodeRow): ContentItem {
     title: row.title,
     subtitle: formatDuration(row.duration_seconds) ?? undefined,
     imageUrl: row.thumbnail_url,
+    // The still IS 16:9 already, so it needs no separate backdrop -- and an
+    // episode never heroes anyway; the series it belongs to does.
+    backdropUrl: row.thumbnail_url,
     // Short enough to sit in the corner of a 16:9 still, and the one piece of
     // information that tells you where you are in a run of seventy-five.
     badge: `E${row.episode_number}`,
@@ -193,6 +292,7 @@ export function episodeToContentItem(row: EpisodeRow): ContentItem {
     // matching one.
     categoryId: null,
     description: row.description ?? undefined,
+    meta: { duration: formatDuration(row.duration_seconds) ?? undefined },
     stream: {
       url: row.stream_url,
       protocol: row.stream_protocol,

@@ -7,6 +7,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 
 import { BrowseScreen } from '../screens/BrowseScreen';
+import { DetailsScreen } from '../screens/DetailsScreen';
 import { PlayerScreen } from '../screens/PlayerScreen';
 import { SeriesScreen } from '../screens/SeriesScreen';
 import { colors } from '../theme';
@@ -28,11 +29,15 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  *
  * The stack is deliberately shallow: everything browsable lives behind tabs
  * inside `Browse`, so Back is unambiguous on a remote that has exactly one of
- * it. `Series` is the only screen between browsing and playing, and it earns
- * the depth -- an episode list cannot be a tab (there is one per series) and
- * cannot be a modal over the grid (it is where you spend time, not a glance).
- * Back from an episode returns you to the list you chose it from, which is the
- * behaviour that would be impossible if the list were part of the grid screen.
+ * it. `Details` and `Series` are the two screens between browsing and playing,
+ * and they are alternatives rather than a sequence -- a card opens one or the
+ * other, never both -- so Back from either returns to the row it was chosen
+ * from.
+ *
+ * `Series` earns its own route rather than being a kind of `Details`: an episode
+ * list cannot be a tab (there is one per series) and cannot be a modal over the
+ * grid (it is where you spend time, not a glance), and unlike `Details` it has
+ * to fetch, because a card does not carry seventy-five episodes with it.
  */
 const navigationTheme: Theme = {
   ...DarkTheme,
@@ -60,6 +65,7 @@ export function RootNavigator() {
         }}
       >
         <Stack.Screen name="Browse" component={BrowseScreen} />
+        <Stack.Screen name="Details" component={DetailsScreen} />
         <Stack.Screen name="Series" component={SeriesScreen} />
         <Stack.Screen
           name="Player"

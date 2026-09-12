@@ -58,6 +58,42 @@ const SIDEBAR_MIN_CONTENT_WIDTH = 700;
 /** Floor for a computed card width, so a very narrow window cannot go negative. */
 const MIN_CARD_WIDTH = 72;
 
+/**
+ * Everything the hero banner needs in order to sit correctly on this screen.
+ *
+ * A hero is the one component in the app whose layout genuinely differs between
+ * devices rather than merely scaling, so it gets a metrics block of its own
+ * instead of four `isTV ? ... : ...` ternaries inside `HeroBanner`. See
+ * `resolveHero` below for what each device gets and why.
+ */
+export interface HeroMetrics {
+  /** Height of the whole hero block, in dp. */
+  height: number;
+  /** How wide the title, metadata and synopsis column may run. */
+  textMaxWidth: number;
+  /**
+   * Where the copy sits in that column.
+   *
+   * 'start' everywhere there is width to spare: the text occupies the left of
+   * the frame and the artwork stays visible on the right, which is the shape
+   * every 10-foot UI uses and the reason a backdrop is worth showing at all.
+   *
+   * 'center' on a phone held upright, where the column IS the screen. Left-
+   * aligning text that spans the full width just puts a ragged edge down the
+   * right of a 390dp frame; centred, the block reads as a poster caption.
+   */
+  align: 'start' | 'center';
+  /**
+   * How many lines of synopsis to show, or 0 to show none.
+   *
+   * Zero on a phone in landscape, and that is the point of making it a number.
+   * That window is ~390dp tall: after a title, a metadata line and two buttons
+   * there is no room left, and a synopsis clipped to one line is worse than no
+   * synopsis because it ends mid-word.
+   */
+  descriptionLines: number;
+}
+
 export interface CardSize {
   width: number;
   height: number;
@@ -90,6 +126,8 @@ export interface Metrics {
   contentWidth: number;
   typography: Typography;
   cardSize: Record<CardVariant, CardSize>;
+  /** Sizing and layout for the hero banner. See `HeroMetrics`. */
+  hero: HeroMetrics;
   /** How much a card grows when the D-pad focuses it. 1 on a touch device. */
   focusScale: number;
   /** How much a card shrinks while a finger is held on it. 1 on TV. */
@@ -197,6 +235,102 @@ const SIDEBAR_WIDTH: Record<DeviceClass, number> = {
   phone: 176,
 };
 
+/**
+ * Hero geometry per layout: height as a fraction of the window, text column as a
+ * fraction of the content width, and how much synopsis fits.
+ *
+ * Fractions rather than fixed heights because the hero is the one element that
+ * must feel like "the top of the screen" on every device, and the top of the
+ * screen is a proportion, not a number of dp. The clamps below stop that from
+ * degenerating at either extreme.
+ *
+ * The fractions are not arbitrary:
+ *
+ *   tv (960x540)             0.60 -> ~324dp. Large enough to be cinematic with
+ *                            the first rail's cards peeking in underneath, which
+ *                            is what tells the viewer to press DOWN.
+ *   phone-landscape (390 tall) 0.82. A short window has no room for a hero AND a
+ *                            rail, so the hero owns the first screen outright and
+ *                            drops its synopsis entirely.
+ *   phone-portrait           0.54. Tall enough to read as artwork, short enough
+ *                            that a rail is visible below the fold line.
+ */
+const HERO: Record<
+  LayoutKey,
+  {
+    heightFraction: number;
+    textFraction: number;
+    textCap: number;
+    align: HeroMetrics['align'];
+    descriptionLines: number;
+  }
+> = {
+  tv: {
+    heightFraction: 0.6,
+    textFraction: 0.52,
+    textCap: 620,
+    align: 'start',
+    descriptionLines: 3,
+  },
+  'tablet-landscape': {
+    heightFraction: 0.56,
+    textFraction: 0.56,
+    textCap: 560,
+    align: 'start',
+    descriptionLines: 3,
+  },
+  'tablet-portrait': {
+    heightFraction: 0.42,
+    textFraction: 0.78,
+    textCap: 560,
+    align: 'start',
+    descriptionLines: 3,
+  },
+  'phone-landscape': {
+    heightFraction: 0.82,
+    textFraction: 0.6,
+    textCap: 420,
+    align: 'start',
+    descriptionLines: 0,
+  },
+  'phone-portrait': {
+    heightFraction: 0.54,
+    textFraction: 1,
+    textCap: 560,
+    align: 'center',
+    descriptionLines: 2,
+  },
+};
+
+/** Floor and ceiling for a hero's height, in dp. */
+const HERO_MIN_HEIGHT = 200;
+const HERO_MAX_HEIGHT = 560;
+
+function resolveHero(
+  key: LayoutKey,
+  height: number,
+  contentWidth: number,
+): HeroMetrics {
+  const spec = HERO[key];
+
+  return {
+    height: clamp(
+      Math.round(height * spec.heightFraction),
+      HERO_MIN_HEIGHT,
+      HERO_MAX_HEIGHT,
+    ),
+    textMaxWidth: Math.round(
+      Math.min(contentWidth * spec.textFraction, spec.textCap),
+    ),
+    align: spec.align,
+    descriptionLines: spec.descriptionLines,
+  };
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
 function layoutKey(device: DeviceClass, orientation: Orientation): LayoutKey {
   return device === 'tv' ? 'tv' : `${device}-${orientation}`;
 }
@@ -281,6 +415,7 @@ export function resolveMetrics(width: number, height: number): Metrics {
     contentWidth,
     typography: scaleTypography(HEADLINE_SCALE[device]),
     cardSize: resolveCardSizes(key, contentWidth),
+    hero: resolveHero(key, height, contentWidth),
     // A big jump on a 55-inch panel is unpleasant, and anything above ~1.1 makes
     // neighbouring cards visibly shift.
     focusScale: isTV ? 1.07 : 1,

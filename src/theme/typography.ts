@@ -39,6 +39,27 @@ const medium = Platform.select({
 });
 
 export const baseTypography = {
+  /**
+   * A hero title, and the largest thing in the app.
+   *
+   * Deliberately a role of its own rather than `display` at a bigger size.
+   * `display` is the wordmark in the top bar -- it appears on every screen and
+   * has to leave room for a tab rail beside it -- whereas this appears once, over
+   * artwork, with the whole frame to itself. Tying them together would mean every
+   * adjustment to the hero moved the wordmark.
+   *
+   * The tight `lineHeight` (1.12x rather than the ~1.24x the rest of the scale
+   * uses) is what makes a two-line film title read as one block instead of as two
+   * sentences, and the negative tracking is the standard correction for type this
+   * large -- letterspacing that looks right at 15dp looks gappy at 44dp.
+   */
+  heroTitle: {
+    fontFamily: medium,
+    fontSize: 44,
+    lineHeight: 49,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
   /** App name / hero. */
   display: {
     fontFamily: medium,
@@ -100,7 +121,12 @@ export type TypeStyle = TextStyle & {fontSize: number; lineHeight: number};
 export type Typography = Record<TypographyRole, TypeStyle>;
 
 /** The roles sized against screen width, and therefore the only ones scaled. */
-const HEADLINE_ROLES = ['display', 'title', 'sectionTitle'] as const;
+const HEADLINE_ROLES = [
+  'heroTitle',
+  'display',
+  'title',
+  'sectionTitle',
+] as const;
 
 /**
  * Returns the type scale with the headline roles multiplied by `headlineScale`.
