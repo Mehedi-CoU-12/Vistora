@@ -1,7 +1,7 @@
-import {Platform} from 'react-native';
+import { Platform } from 'react-native';
 
-import {cardAspect} from '../theme/layout';
-import {resolveMetrics} from '../theme/metrics';
+import { cardAspect } from '../theme/layout';
+import { resolveMetrics } from '../theme/metrics';
 
 /**
  * `resolveMetrics` is a pure function of the window size, which is exactly why
@@ -15,7 +15,10 @@ import {resolveMetrics} from '../theme/metrics';
  */
 function withPlatform<T>(isTV: boolean, run: () => T): T {
   const original = Object.getOwnPropertyDescriptor(Platform, 'isTV');
-  Object.defineProperty(Platform, 'isTV', {get: () => isTV, configurable: true});
+  Object.defineProperty(Platform, 'isTV', {
+    get: () => isTV,
+    configurable: true,
+  });
   try {
     return run();
   } finally {
@@ -28,14 +31,15 @@ function withPlatform<T>(isTV: boolean, run: () => T): T {
 const VARIANTS = ['poster', 'landscape', 'square'] as const;
 
 /** The logical viewport every Android TV presents, 1080p and 4K alike. */
-const TV = {width: 960, height: 540};
-const PHONE_PORTRAIT = {width: 390, height: 844};
-const PHONE_LANDSCAPE = {width: 844, height: 390};
-const TABLET_PORTRAIT = {width: 768, height: 1024};
-const TABLET_LANDSCAPE = {width: 1024, height: 768};
+const TV = { width: 960, height: 540 };
+const PHONE_PORTRAIT = { width: 390, height: 844 };
+const PHONE_LANDSCAPE = { width: 844, height: 390 };
+const TABLET_PORTRAIT = { width: 768, height: 1024 };
+const TABLET_LANDSCAPE = { width: 1024, height: 768 };
 
 describe('resolveMetrics on TV', () => {
-  const tv = () => withPlatform(true, () => resolveMetrics(TV.width, TV.height));
+  const tv = () =>
+    withPlatform(true, () => resolveMetrics(TV.width, TV.height));
 
   it('classifies the device from Platform.isTV, not from the window size', () => {
     const m = tv();
@@ -51,15 +55,15 @@ describe('resolveMetrics on TV', () => {
    * panel reporting 906dp or 1280dp could quietly change.
    */
   it('keeps the verified TV card sizes exactly', () => {
-    const {cardSize} = tv();
-    expect(cardSize.poster).toEqual({width: 124, height: 186});
-    expect(cardSize.landscape).toEqual({width: 168, height: 94});
-    expect(cardSize.square).toEqual({width: 116, height: 116});
+    const { cardSize } = tv();
+    expect(cardSize.poster).toEqual({ width: 124, height: 186 });
+    expect(cardSize.landscape).toEqual({ width: 168, height: 94 });
+    expect(cardSize.square).toEqual({ width: 116, height: 116 });
   });
 
   it('keeps the 5% overscan allowance and the four-column channel grid', () => {
     const m = tv();
-    expect(m.gutter).toEqual({horizontal: 48, vertical: 27});
+    expect(m.gutter).toEqual({ horizontal: 48, vertical: 27 });
     expect(m.contentWidth).toBe(864);
     expect(m.gridColumns.landscape).toBe(4);
     expect(m.usesSidebar).toBe(true);
@@ -121,8 +125,12 @@ describe('resolveMetrics on a phone', () => {
     const tv = withPlatform(true, () => resolveMetrics(TV.width, TV.height));
 
     // 34dp is 3.5% of a TV's width and 8.7% of this phone's.
-    expect(m.typography.display.fontSize).toBeLessThan(tv.typography.display.fontSize);
-    expect(m.typography.title.fontSize).toBeLessThan(tv.typography.title.fontSize);
+    expect(m.typography.display.fontSize).toBeLessThan(
+      tv.typography.display.fontSize,
+    );
+    expect(m.typography.title.fontSize).toBeLessThan(
+      tv.typography.title.fontSize,
+    );
     // Body is legible at both viewing distances, so it does not move.
     expect(m.typography.body.fontSize).toBe(tv.typography.body.fontSize);
     expect(m.typography.caption.fontSize).toBe(tv.typography.caption.fontSize);
@@ -176,7 +184,7 @@ describe('resolveMetrics on a phone', () => {
   });
 
   it('sizes row cards fluidly, leaving part of one visible as a scroll cue', () => {
-    const {cardSize, contentWidth} = portrait();
+    const { cardSize, contentWidth } = portrait();
     // A whole number of cards across would end the row flush with the screen
     // edge and look complete when it is not.
     expect(contentWidth / cardSize.poster.width).not.toBeCloseTo(
@@ -200,12 +208,12 @@ describe('resolveMetrics invariants', () => {
   it.each(cases)(
     'keeps every card variant in its aspect ratio (%s)',
     (_name, isTV, size) => {
-      const {cardSize} = withPlatform(isTV, () =>
+      const { cardSize } = withPlatform(isTV, () =>
         resolveMetrics(size.width, size.height),
       );
 
       for (const variant of VARIANTS) {
-        const {width, height} = cardSize[variant];
+        const { width, height } = cardSize[variant];
         expect(height).toBe(Math.floor(width * cardAspect[variant]));
       }
     },
@@ -214,7 +222,9 @@ describe('resolveMetrics invariants', () => {
   it.each(cases)(
     'never produces a card wider than the content (%s)',
     (_name, isTV, size) => {
-      const m = withPlatform(isTV, () => resolveMetrics(size.width, size.height));
+      const m = withPlatform(isTV, () =>
+        resolveMetrics(size.width, size.height),
+      );
 
       for (const variant of VARIANTS) {
         expect(m.cardSize[variant].width).toBeGreaterThan(0);
@@ -248,5 +258,104 @@ describe('resolveMetrics invariants', () => {
     for (const variant of VARIANTS) {
       expect(m.gridColumns[variant]).toBeGreaterThanOrEqual(2);
     }
+  });
+});
+
+/**
+ * The hero is the one component whose LAYOUT differs between devices rather than
+ * merely scaling, so the rules that decide it are worth pinning: a hero too tall
+ * hides the rail that tells the viewer to scroll, and a hero too short is a
+ * banner rather than a first impression.
+ */
+describe('hero metrics', () => {
+  const VIEWPORTS = [
+    ['tv', true, TV],
+    ['phone portrait', false, PHONE_PORTRAIT],
+    ['phone landscape', false, PHONE_LANDSCAPE],
+    ['tablet portrait', false, TABLET_PORTRAIT],
+    ['tablet landscape', false, TABLET_LANDSCAPE],
+  ] as const;
+
+  it.each(VIEWPORTS)(
+    'gives %s a hero that fits on the screen',
+    (_name, isTV, size) => {
+      const m = withPlatform(isTV, () =>
+        resolveMetrics(size.width, size.height),
+      );
+
+      expect(m.hero.height).toBeGreaterThan(0);
+      expect(m.hero.height).toBeLessThanOrEqual(size.height);
+      // Room left for the top of a rail, which is what tells the viewer there is
+      // anything below the fold at all.
+      expect(m.hero.height).toBeLessThan(size.height * 0.9);
+    },
+  );
+
+  it.each(VIEWPORTS)(
+    'keeps %s copy inside the content width',
+    (_name, isTV, size) => {
+      const m = withPlatform(isTV, () =>
+        resolveMetrics(size.width, size.height),
+      );
+
+      expect(m.hero.textMaxWidth).toBeGreaterThan(0);
+      expect(m.hero.textMaxWidth).toBeLessThanOrEqual(m.contentWidth);
+    },
+  );
+
+  /**
+   * On a wide screen the copy takes one side and the artwork stays visible on
+   * the other -- that is the whole reason a backdrop is worth showing. On a
+   * phone held upright the column IS the screen, so left-aligned text just puts
+   * a ragged edge down a 390dp frame.
+   */
+  it('puts the copy down one side wherever there is width for it', () => {
+    const tv = withPlatform(true, () => resolveMetrics(TV.width, TV.height));
+    const tablet = withPlatform(false, () =>
+      resolveMetrics(TABLET_LANDSCAPE.width, TABLET_LANDSCAPE.height),
+    );
+
+    expect(tv.hero.align).toBe('start');
+    expect(tablet.hero.align).toBe('start');
+    expect(tv.hero.textMaxWidth).toBeLessThan(tv.contentWidth);
+  });
+
+  it('centres the copy on a phone held upright', () => {
+    const m = withPlatform(false, () =>
+      resolveMetrics(PHONE_PORTRAIT.width, PHONE_PORTRAIT.height),
+    );
+
+    expect(m.hero.align).toBe('center');
+  });
+
+  /**
+   * A ~390dp-tall window has no room for a title, a metadata line, two buttons
+   * AND a synopsis. One clipped line ending mid-word is worse than none.
+   */
+  it('drops the synopsis on a phone in landscape and nowhere else', () => {
+    const landscape = withPlatform(false, () =>
+      resolveMetrics(PHONE_LANDSCAPE.width, PHONE_LANDSCAPE.height),
+    );
+    const portrait = withPlatform(false, () =>
+      resolveMetrics(PHONE_PORTRAIT.width, PHONE_PORTRAIT.height),
+    );
+    const tv = withPlatform(true, () => resolveMetrics(TV.width, TV.height));
+
+    expect(landscape.hero.descriptionLines).toBe(0);
+    expect(portrait.hero.descriptionLines).toBeGreaterThan(0);
+    expect(tv.hero.descriptionLines).toBeGreaterThan(0);
+  });
+
+  it('clamps rather than degenerating in a sliver of a window', () => {
+    const m = withPlatform(false, () => resolveMetrics(120, 200));
+
+    expect(m.hero.height).toBeGreaterThanOrEqual(200);
+    expect(m.hero.textMaxWidth).toBeGreaterThan(0);
+  });
+
+  it('does not let a very tall window produce an endless hero', () => {
+    const m = withPlatform(false, () => resolveMetrics(800, 2400));
+
+    expect(m.hero.height).toBeLessThanOrEqual(560);
   });
 });
