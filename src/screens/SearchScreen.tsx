@@ -1,13 +1,20 @@
 import React, { useMemo, useState } from 'react';
 import { ScrollView, TVFocusGuideView, View } from 'react-native';
 
+import { useChromeInset } from '../components/ChromeInset';
 import { ContentRow } from '../components/ContentRow';
 import { SearchField } from '../components/SearchField';
-import { EmptyState, ErrorState, LoadingState } from '../components/StateViews';
+import { SkeletonScreen } from '../components/Skeleton';
+import { EmptyState, ErrorState } from '../components/StateViews';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { useOpenItem } from '../hooks/useOpenItem';
-import { catalogTabs, formatCount, type CatalogTab } from '../navigation/tabs';
+import {
+  catalogTabs,
+  catalogTitleList,
+  formatCount,
+  type CatalogTab,
+} from '../navigation/tabs';
 import {
   isSearchable,
   MIN_SEARCH_LENGTH,
@@ -82,6 +89,9 @@ interface ResultShelf {
 export function SearchScreen() {
   const { isTV, isTouch } = useMetrics();
   const styles = useStyles();
+
+  /** Clears the floating top bar, which this screen does not run a hero under. */
+  const chromeInset = useChromeInset();
 
   const [typed, setTyped] = useState('');
 
@@ -158,13 +168,13 @@ export function SearchScreen() {
     : null;
 
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, { paddingTop: chromeInset }]}>
       <SearchField value={typed} onChangeText={setTyped} />
 
       {!canSearch ? (
         <EmptyState
           title="What are you looking for?"
-          message={`Type at least ${MIN_SEARCH_LENGTH} characters to search across channels, films and anime.`}
+          message={`Type at least ${MIN_SEARCH_LENGTH} characters to search across ${catalogTitleList()}.`}
         />
       ) : data === null ? (
         // The first search for this term, with nothing to keep on screen. A
@@ -175,7 +185,10 @@ export function SearchScreen() {
         error ? (
           <ErrorState error={error} onRetry={reload} />
         ) : (
-          <LoadingState label={`Searching for “${term}”…`} />
+          // Rails rather than a spinner, and no hero: the answer to a search is
+          // a set of rows, so the placeholder is the same rows. A hero block
+          // here would promise a featured result that search never produces.
+          <SkeletonScreen hero={false} rows={2} />
         )
       ) : data.length === 0 ? (
         <EmptyState

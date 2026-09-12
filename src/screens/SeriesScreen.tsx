@@ -8,7 +8,7 @@ import { Focusable } from '../components/Focusable';
 import { ScreenContainer } from '../components/ScreenContainer';
 import { EmptyState, ErrorState, LoadingState } from '../components/StateViews';
 import { useAsyncData } from '../hooks/useAsyncData';
-import { useOpenItem } from '../hooks/useOpenItem';
+import { usePlayItem } from '../hooks/usePlayItem';
 import {
   fetchSeriesDetail,
   type SeriesDetail,
@@ -48,13 +48,18 @@ import type { RootStackParamList } from '../types/navigation';
  * Episodes imported from an official YouTube channel carry
  * `stream_protocol = 'youtube'`, which opens in the YouTube app rather than in
  * VideoPlayer (see services/externalPlayback.ts for why that is the only legal
- * way to carry one). This screen does not know that: it calls `useOpenItem`,
- * exactly as the grid does, and the decision lives in one place for both.
+ * way to carry one). This screen does not know that: it calls `usePlayItem`,
+ * and the decision lives in one place for every surface that starts a video.
+ *
+ * Note it is `usePlayItem` and not `useOpenItem`. A card elsewhere in the app
+ * opens a details screen; an episode row plays immediately, because this list IS
+ * the details screen for the series and a second one per episode would be a
+ * synopsis you already read two lines of, with a button under it.
  */
 export function SeriesScreen() {
   const { params } = useRoute<RouteProp<RootStackParamList, 'Series'>>();
   const styles = useStyles();
-  const openItem = useOpenItem();
+  const playItem = usePlayItem();
 
   const { seriesId } = params;
 
@@ -86,7 +91,7 @@ export function SeriesScreen() {
     }) => (
       <EpisodeRow
         episode={item}
-        onPress={openItem}
+        onPress={playItem}
         // Exactly one element on the screen seeds focus, and it is the first
         // episode of the first season -- the thing a viewer arriving here is
         // overwhelmingly likely to want, and the top of the only list.
@@ -95,7 +100,7 @@ export function SeriesScreen() {
         }
       />
     ),
-    [openItem, sections],
+    [playItem, sections],
   );
 
   const renderSectionHeader = useCallback(
