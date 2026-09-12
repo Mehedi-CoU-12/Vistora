@@ -1,51 +1,100 @@
-import React from 'react';
-import { RefreshControl, ScrollView } from 'react-native';
+import React, { useMemo } from 'react';
 
-import { ContentRow } from '../components/ContentRow';
-import { EmptyState, ErrorState, LoadingState } from '../components/StateViews';
+import { useChromeInset } from '../components/ChromeInset';
+import { RailList } from '../components/RailList';
+import { SkeletonScreen } from '../components/Skeleton';
+import { EmptyState, ErrorState } from '../components/StateViews';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { useOpenItem } from '../hooks/useOpenItem';
-import { catalogTabs, type CatalogTab, type TabId } from '../navigation/tabs';
-import { colors, makeStyles, spacing, useMetrics } from '../theme';
+import { usePlayItem } from '../hooks/usePlayItem';
+import {
+  homeRails,
+  interleave,
+  pickFeatured,
+  withGenre,
+  type Rail,
+} from '../navigation/rails';
+import { catalogTabs, type TabId } from '../navigation/tabs';
+import { fetchCategories } from '../services/contentService';
+import { useContinueWatching } from '../state/continueWatching';
+import { useMyList } from '../state/myList';
 import type { ContentItem } from '../types/content';
 
-/** How many items each home shelf loads. Shelves are a preview, not the list. */
-const ROW_LIMIT = 12;
+/** Rails each content kind contributes to Home. See `homeRails`. */
+const RAILS_PER_KIND = 2;
 
-/** One home shelf: a catalog tab, and a preview of what is in it. */
-interface Shelf {
-  tab: CatalogTab;
-  items: ContentItem[];
+/**
+ * Ceiling on the rails Home renders at once.
+ *
+ * This screen is a vertical ScrollView, not a virtualised list, which is a
+ * deliberate constraint rather than an oversight -- see the note on the render
+ * below. A ScrollView lays out every child on mount, so the number of children
+ * is the performance budget, and six rails of eight initially-rendered cards is
+ * about fifty views: comfortable on the weakest Android TV this targets.
+ *
+ * Everything cut here is one press away in its own tab, which is the difference
+ * between a cap on Home and a cap on the app.
+ */
+const MAX_RAILS = 6;
+
+/**
+ * Which title the hero opens on.
+ *
+ * Module scope, so it is fixed for the life of the process: the app opens on a
+ * different film each launch and on the SAME film every time you return to Home
+ * within a session. Both halves matter. Re-rolling per mount would change the
+ * hero every time a TV viewer switched tabs and came back, which reads as the
+ * screen having reloaded behind their back; never rolling at all would make the
+ * home screen identical forever.
+ */
+const SESSION_SEED = Math.floor(Math.random() * 100_000);
+
+/** Everything the screen renders, resolved in one load. */
+interface HomeData {
+  featured: ContentItem | null;
+  rails: Rail[];
 }
 
 /**
- * The home screen: a vertical stack of horizontal shelves.
+ * The home screen: one cinematic hero over a stack of horizontal rails.
  *
  * ---------------------------------------------------------------------------
- * The shelves are derived, not listed
+ * The rails are derived twice over, and neither list is written down
  * ---------------------------------------------------------------------------
- * This screen used to hard-code its four rows, which meant the set of things on
- * the home screen and the set of things you could browse were two lists kept in
- * step by hand. It now maps over `catalogTabs()`, so adding a content kind to
- * navigation/tabs.ts gives it a tab AND a shelf, or neither. Each shelf's "See
- * all" goes to the tab it was built from, which is a link that cannot point at
- * the wrong place.
+ * This screen used to render one row per catalog tab -- four rows, all of them
+ * called the same thing as the tab they came from. That is a table of contents,
+ * not a home screen: it tells you what kinds of thing exist and nothing about
+ * what is in them.
+ *
+ * It now asks `catalogTabs()` what kinds exist (unchanged, and still the reason
+ * adding a kind needs no edit here) and then asks `buildRails` to split each
+ * kind by its own CATEGORIES -- so the rows are "Trending", "In Cinemas",
+ * "News", "Kids & Cartoons", which are rows from the `categories` table and not
+ * strings in this file. Adding a genre in the database adds a rail.
  *
  * ---------------------------------------------------------------------------
- * Why one loader for every shelf instead of one per shelf
+ * One load, still, and now it is load-bearing for the hero as well
  * ---------------------------------------------------------------------------
- * `Promise.all` fires the queries concurrently but gives the screen a single
- * loading state and a single retry. Per-shelf loading would mean shelves
- * popping in at different moments, and on a TV that is actively harmful: the
- * focused element moves under the user as the layout reflows. One coordinated
- * load means focus lands once, on the first card, and stays there.
+ * `Promise.all` fires every query concurrently and gives the screen a single
+ * loading state, which on a television is a correctness property rather than a
+ * nicety: shelves appearing one at a time move the focused element under the
+ * user. With a hero on top that gets worse, not better -- a hero that arrives
+ * after the rails would shove the entire screen down by 324dp.
+ *
+ * So nothing renders until everything has arrived, and what renders in the
+ * meantime is a skeleton in the same shape (see components/Skeleton.tsx).
  *
  * ---------------------------------------------------------------------------
- * The shape survives the move to a phone; the snapping does not
+ * A ScrollView, deliberately, and what keeps it affordable
  * ---------------------------------------------------------------------------
- * A vertical stack of horizontal shelves is what a phone media app looks like
- * too, only with fewer cards per shelf, which the theme handles. The one thing
- * that has to be turned off is the fork's item snapping (see below).
+ * A `FlatList` of rails would virtualise the vertical axis and is the obvious
+ * choice for a long feed. It is the wrong one here: virtualisation unmounts
+ * rows, the platform focus engine can only move to views that EXIST, and a row
+ * unmounted from under the D-pad drops focus to the top of the screen. Every
+ * list in this app sets `removeClippedSubviews={false}` for the same reason.
+ *
+ * The budget is held instead by `MAX_RAILS` above and by each rail's own
+ * `initialNumToRender`.
  */
 export function HomeScreen({
   onSeeAll,
@@ -53,55 +102,109 @@ export function HomeScreen({
   /** Switch to a tab. Supplied by BrowseScreen, which owns the tab state. */
   onSeeAll: (id: TabId) => void;
 }) {
-  const { isTV, isTouch } = useMetrics();
-  const styles = useStyles();
+  const { data, isLoading, error, reload } = useAsyncData<HomeData>(async () => {
+    const kinds = await Promise.all(
+      catalogTabs().map(async tab => {
+        const [items, categories] = await Promise.all([
+          tab.catalog.load(),
+          fetchCategories(tab.catalog.categoryKind),
+        ]);
 
-  const { data, isLoading, error, reload } = useAsyncData<Shelf[]>(async () => {
-    const shelves = await Promise.all(
-      catalogTabs().map(async tab => ({
-        tab,
-        items: await tab.catalog.load({ limit: ROW_LIMIT }),
-      })),
+        // Genre is a category NAME and an item carries only a category id, so
+        // this is the one point in the app where both are in hand. The hero
+        // reads it for its eyebrow and its metadata line.
+        return { tab, items: withGenre(items, categories), categories };
+      }),
     );
 
-    // Drop empty shelves rather than rendering a heading over nothing. A row
-    // that exists but cannot be entered is a focus trap: the D-pad appears to
-    // stop working when it reaches it. The tab for that kind stays in the bar
-    // either way, where its own empty state explains what is missing.
-    return shelves.filter(shelf => shelf.items.length > 0);
+    return {
+      featured: pickFeatured(
+        // Every kind is a candidate, and the ranking inside `pickFeatured`
+        // sorts it out: in practice the films win, because they are the only
+        // rows that carry a backdrop -- but a library of nothing but channels
+        // would still get a hero rather than an empty band.
+        kinds.flatMap(kind => kind.items),
+        SESSION_SEED,
+      ),
+      rails: interleave(
+        kinds.map(kind =>
+          homeRails(kind.tab, kind.items, kind.categories, RAILS_PER_KIND),
+        ),
+      ).slice(0, MAX_RAILS),
+    };
   }, []);
 
   const openItem = useOpenItem();
+  const playItem = usePlayItem();
 
   /**
-   * Leanback-style row alignment, and why it is TV-only.
-   *
-   * On TV, instead of scrolling the minimum amount to reveal a focused card, we
-   * land the whole focused SECTION at a consistent position near the top. Each
-   * ContentRow marks itself with `scrollSnapAlign="start"`; this is the parent
-   * half of that contract.
-   *
-   * The mechanism is driven by focus events, so on a phone there is nothing to
-   * trigger it -- but `snapToAlignment` still applies to touch scrolling, which
-   * would make a flick of the wrist stick to row boundaries instead of moving
-   * freely. Off it goes.
+   * The top bar floats over this screen rather than sitting above it, which is
+   * what lets the hero artwork reach the top of the window. Nothing here is
+   * padded by it -- that is the point -- but the two things that would otherwise
+   * be lost behind it need to know how tall it is. See `RailList`.
    */
-  const snapProps = isTV
-    ? ({ snapToAlignment: 'item', snapToItemPadding: spacing.md } as const)
-    : null;
+  const chromeOverlap = useChromeInset();
 
-  // First load has nothing to keep on screen, so the spinner owns it. A reload
-  // over existing shelves shows the refresh spinner instead -- see the note in
+  /**
+   * The two session-only rails, pinned above everything derived from the
+   * database. See src/state/ for why they are session-only and what replacing
+   * that looks like; both are empty on a cold start, and an empty rail renders
+   * as nothing at all.
+   */
+  const continueWatching = useContinueWatching();
+  const myList = useMyList();
+
+  const sessionRails = useMemo<Rail[]>(() => {
+    const rails: Rail[] = [];
+
+    if (continueWatching.length > 0) {
+      rails.push({
+        id: 'session:continue',
+        title: 'Continue Watching',
+        items: continueWatching.map(entry => entry.item),
+        // Poster, because everything that reaches this rail is a film: live
+        // channels are excluded at the source and episodes only exist inside a
+        // series screen. If that stops being true the rail should take the
+        // variant of what is actually on it.
+        cardVariant: 'poster',
+      });
+    }
+
+    if (myList.length > 0) {
+      rails.push({
+        id: 'session:my-list',
+        title: 'My List',
+        items: [...myList],
+        cardVariant: 'poster',
+      });
+    }
+
+    return rails;
+  }, [continueWatching, myList]);
+
+  /** Real positions, once the player reports any. See state/continueWatching.ts. */
+  const progress = useMemo(
+    () =>
+      new Map(
+        continueWatching
+          .filter(entry => entry.progress !== undefined)
+          .map(entry => [entry.item.id, entry.progress as number]),
+      ),
+    [continueWatching],
+  );
+
+  // First load has nothing to keep on screen, so the skeleton owns it. A reload
+  // over existing rails shows the refresh spinner instead -- see the note in
   // CatalogScreen, which also covers what a FAILED reload does.
   if (isLoading && data === null) {
-    return <LoadingState label="Loading your library…" />;
+    return <SkeletonScreen rows={3} />;
   }
 
   if (error && data === null) {
     return <ErrorState error={error} onRetry={reload} />;
   }
 
-  if (!data || data.length === 0) {
+  if (!data || (data.rails.length === 0 && sessionRails.length === 0)) {
     return (
       <EmptyState
         title="No content yet"
@@ -110,50 +213,24 @@ export function HomeScreen({
     );
   }
 
+  const rails = [...sessionRails, ...data.rails];
+
   return (
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={styles.scrollContent}
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        isTouch ? (
-          <RefreshControl
-            refreshing={isLoading}
-            onRefresh={reload}
-            tintColor={colors.accent}
-            colors={[colors.accent]}
-            progressBackgroundColor={colors.surface}
-          />
-        ) : undefined
-      }
-      {...snapProps}
-    >
-      {data.map((shelf, index) => (
-        <ContentRow
-          key={shelf.tab.id}
-          title={shelf.tab.title}
-          items={shelf.items}
-          cardVariant={shelf.tab.catalog.cardVariant}
-          onSelectItem={openItem}
-          onSeeAll={() => onSeeAll(shelf.tab.id)}
-          // Only the first row seeds initial focus, so exactly one element on
-          // the screen claims it.
-          isFirstRow={index === 0}
-        />
-      ))}
-    </ScrollView>
+    <RailList
+      rails={rails}
+      featured={data.featured}
+      heroEyebrow="Featured on Vistora"
+      onPlay={playItem}
+      onSelectItem={openItem}
+      onSeeAll={rail => {
+        if (rail.seeAll) {
+          onSeeAll(rail.seeAll);
+        }
+      }}
+      progress={progress}
+      onRefresh={reload}
+      refreshing={isLoading}
+      chromeOverlap={chromeOverlap}
+    />
   );
 }
-
-const useStyles = makeStyles(m => ({
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    // A little air above the first shelf heading, which now sits directly under
-    // the top bar rather than under a screen title.
-    paddingTop: spacing.sm,
-    // Bottom padding so the last row can scroll clear of the bottom edge.
-    paddingBottom: m.gutter.vertical + spacing.xl,
-  },
-}));

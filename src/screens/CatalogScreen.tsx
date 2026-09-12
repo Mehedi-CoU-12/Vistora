@@ -9,10 +9,20 @@ import {
 
 import { AppHeader } from '../components/AppHeader';
 import { CategoryPicker } from '../components/CategoryPicker';
+import { useChromeInset } from '../components/ChromeInset';
 import { ContentCard } from '../components/ContentCard';
-import { EmptyState, ErrorState, LoadingState } from '../components/StateViews';
+import { RailList } from '../components/RailList';
+import { SkeletonScreen } from '../components/Skeleton';
+import { EmptyState, ErrorState } from '../components/StateViews';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { useOpenItem } from '../hooks/useOpenItem';
+import { usePlayItem } from '../hooks/usePlayItem';
+import {
+  buildRails,
+  pickFeatured,
+  withGenre,
+  type Rail,
+} from '../navigation/rails';
 import { formatCount, type CatalogTab } from '../navigation/tabs';
 import { fetchCategories } from '../services/contentService';
 import {
@@ -30,10 +40,48 @@ import type { Category, ContentItem } from '../types/content';
 interface CatalogData {
   items: ContentItem[];
   categories: Category[];
+  /** One per category with enough content. Empty when the kind will not split. */
+  rails: Rail[];
+  featured: ContentItem | null;
 }
 
 /**
- * One tab's catalog: a category filter beside a grid of everything in it.
+ * Which title heroes the kind, fixed for the life of the process.
+ *
+ * Shared with `HomeScreen`'s seed in spirit but deliberately its own constant:
+ * Home picks across every kind and this picks within one, so the same seed would
+ * still choose different items and pretending otherwise would be a coupling with
+ * no payoff.
+ */
+const SESSION_SEED = Math.floor(Math.random() * 100_000);
+
+/**
+ * One tab's catalog: a category filter beside either a discovery view or a grid.
+ *
+ * ---------------------------------------------------------------------------
+ * "All" and "a category" are two different questions, so they get two answers
+ * ---------------------------------------------------------------------------
+ * This screen used to render one thing: a grid of everything, filtered. That is
+ * the right answer to "show me all the horror films" and the wrong answer to
+ * "what is on Live TV?" -- the second is a browse, and a wall of sixty-four
+ * identical channel tiles answers it by making the viewer do the sorting.
+ *
+ * So the filter now selects between two modes rather than just narrowing one:
+ *
+ *   All (nothing selected)   A hero over one rail per category -- "News",
+ *                            "Entertainment", "Trending", "In Cinemas". This is
+ *                            the discovery view, and it is built from the same
+ *                            `categories` rows the picker beside it lists, so
+ *                            the two can never disagree about what exists.
+ *   A category selected      The grid, exactly as before, showing all of it.
+ *
+ * The modes are alternatives rather than stacked, which is what stops the screen
+ * from showing the same twenty films twice -- once in a "Trending" rail and
+ * again in the grid underneath it.
+ *
+ * A kind that will not split into rails (everything uncategorised, or only one
+ * category with content) falls through to the grid in both modes, which is what
+ * the Anime tab gets today. See `buildRails` for where that decision is made.
  *
  * ---------------------------------------------------------------------------
  * Written once, pointed at one query per kind
@@ -89,15 +137,20 @@ export function CatalogScreen({ tab }: { tab: CatalogTab }) {
   );
 
   /**
-   * Whether the grid is still allowed to claim initial focus.
+   * Whether the content area is still allowed to claim initial focus.
    *
-   * The grid is remounted on every category change (see the `key` below), and a
-   * fresh mount would re-assert `hasTVPreferredFocus` -- yanking focus out of
-   * the sidebar the instant you select a category, so you could never try a
-   * second one. We therefore let the grid take focus once, on arrival, and
+   * The content is remounted on every category change -- the grid via the `key`
+   * below, and the discovery view because choosing "All" swaps the whole branch
+   * -- and a fresh mount would re-assert `hasTVPreferredFocus`, yanking focus out
+   * of the picker the instant you used it, so you could never try a second
+   * category. We therefore let the content take focus once, on arrival, and
    * never again.
+   *
+   * It covers BOTH modes, which is why it is no longer called `gridMayClaim`:
+   * the hero at the top of the discovery view claims focus exactly as the grid's
+   * first card does, and gets the identical guard.
    */
-  const [gridMayClaimFocus, setGridMayClaimFocus] = useState(true);
+  const [contentMayClaimFocus, setContentMayClaimFocus] = useState(true);
 
   /**
    * Measured width of the grid area, used to size cards. Starts at 0 and the
@@ -112,18 +165,35 @@ export function CatalogScreen({ tab }: { tab: CatalogTab }) {
   }, []);
 
   const selectCategory = useCallback((categoryId: string | null) => {
-    setGridMayClaimFocus(false);
+    setContentMayClaimFocus(false);
     setSelectedCategoryId(categoryId);
   }, []);
 
   const { data, isLoading, error, reload } =
     useAsyncData<CatalogData>(async () => {
-      const [items, categories] = await Promise.all([
+      const [loaded, categories] = await Promise.all([
         spec.load(),
         fetchCategories(spec.categoryKind),
       ]);
-      return { items, categories };
-    }, [spec]);
+
+      // The category NAME, onto items that carry only a category id. Both are
+      // in hand exactly here, which is why the enrichment happens at this point
+      // and not in the mapper -- see `withGenre`.
+      const items = withGenre(loaded, categories);
+
+      return {
+        items,
+        categories,
+        rails: buildRails({
+          items,
+          categories,
+          cardVariant: spec.cardVariant,
+          fallbackTitle: tab.title,
+          idPrefix: tab.id,
+        }),
+        featured: pickFeatured(items, SESSION_SEED),
+      };
+    }, [spec, tab.id, tab.title]);
 
   // Filtering client-side rather than re-querying: the list is already loaded,
   // and switching categories should be instant. Re-fetching would put a spinner
@@ -139,6 +209,21 @@ export function CatalogScreen({ tab }: { tab: CatalogTab }) {
   }, [data, selectedCategoryId]);
 
   const openItem = useOpenItem();
+  const playItem = usePlayItem();
+
+  /** Clears the floating top bar. See components/ChromeInset.tsx. */
+  const chromeInset = useChromeInset();
+
+  /**
+   * Whether to show the discovery view instead of the grid.
+   *
+   * Both conditions matter. "Nothing selected" is the user asking to browse
+   * rather than to filter; "more than one rail" is the library being organised
+   * enough for that to mean anything -- a single rail called the same thing as
+   * the tab is a grid with extra steps.
+   */
+  const showRails =
+    selectedCategoryId === null && (data?.rails.length ?? 0) > 1;
 
   const cardWidth =
     gridWidth > 0
@@ -152,10 +237,10 @@ export function CatalogScreen({ tab }: { tab: CatalogTab }) {
         variant={spec.cardVariant}
         width={cardWidth}
         onPress={openItem}
-        hasTVPreferredFocus={gridMayClaimFocus && index === 0}
+        hasTVPreferredFocus={contentMayClaimFocus && index === 0}
       />
     ),
-    [cardWidth, gridMayClaimFocus, openItem, spec.cardVariant],
+    [cardWidth, contentMayClaimFocus, openItem, spec.cardVariant],
   );
 
   /**
@@ -189,6 +274,15 @@ export function CatalogScreen({ tab }: { tab: CatalogTab }) {
     />
   ) : undefined;
 
+  /**
+   * The screen's own heading, and why it appears in one mode only.
+   *
+   * In grid mode it carries the count -- "Movies · 11 films" -- which is the
+   * thing a filtered view most needs to say. In discovery mode the hero is the
+   * heading: a title bar above a cinematic banner is a label on a thing that is
+   * already announcing itself, and it would cost the hero the top of the screen
+   * that makes it a hero.
+   */
   const header = (
     <AppHeader
       title={tab.title}
@@ -198,19 +292,28 @@ export function CatalogScreen({ tab }: { tab: CatalogTab }) {
     />
   );
 
-  // First load: nothing to keep on screen, so the spinner owns it.
+  /**
+   * First load: nothing to keep on screen, so a skeleton owns it.
+   *
+   * It is drawn with a hero, which is a guess -- whether this kind gets the
+   * discovery view or the grid depends on how its categories divide up, and that
+   * is not known until the query lands. The guess is deliberately the common
+   * case: three of the four catalog tabs split into rails. The fourth (a kind
+   * with everything in one category) shows a hero-shaped block and then a grid,
+   * which is a single transient frame and the cheaper of the two errors -- the
+   * alternative guesses wrong on three tabs instead of one.
+   */
   if (isLoading && data === null) {
     return (
-      <View style={styles.screen}>
-        {header}
-        <LoadingState label={`Loading ${plural}…`} />
+      <View style={[styles.screen, { paddingTop: chromeInset }]}>
+        <SkeletonScreen rows={2} variant={spec.cardVariant} />
       </View>
     );
   }
 
   if (error && data === null) {
     return (
-      <View style={styles.screen}>
+      <View style={[styles.screen, { paddingTop: chromeInset }]}>
         {header}
         <ErrorState error={error} onRetry={reload} />
       </View>
@@ -219,7 +322,7 @@ export function CatalogScreen({ tab }: { tab: CatalogTab }) {
 
   if (!data || data.items.length === 0) {
     return (
-      <View style={styles.screen}>
+      <View style={[styles.screen, { paddingTop: chromeInset }]}>
         {header}
         <EmptyState
           title={`No ${plural}`}
@@ -233,8 +336,10 @@ export function CatalogScreen({ tab }: { tab: CatalogTab }) {
   }
 
   return (
-    <View style={styles.screen}>
-      {header}
+    <View style={[styles.screen, { paddingTop: chromeInset }]}>
+      {/* Discovery mode leads with the hero instead, which has to reach the top
+          of its column for the artwork to read as the page. */}
+      {showRails ? null : header}
 
       {/* `usesSidebar` decides the axis here and the picker's own shape inside
           `CategoryPicker`. Two reads of one metric rather than a prop, so the
@@ -251,7 +356,18 @@ export function CatalogScreen({ tab }: { tab: CatalogTab }) {
           style={styles.gridArea}
           onLayout={handleGridLayout}
         >
-          {visibleItems.length === 0 ? (
+          {showRails ? (
+            <RailList
+              rails={data.rails}
+              featured={data.featured}
+              heroEyebrow={tab.title}
+              onPlay={playItem}
+              onSelectItem={openItem}
+              onRefresh={reload}
+              refreshing={isLoading}
+              heroClaimsFocus={contentMayClaimFocus}
+            />
+          ) : visibleItems.length === 0 ? (
             <EmptyState
               title="Nothing in this category"
               message={
