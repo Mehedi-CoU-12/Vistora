@@ -1,7 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import { useCallback } from 'react';
 
-import { isExternalStream, openExternally } from '../services/externalPlayback';
 import type { ContentItem } from '../types/content';
 
 /**
@@ -14,22 +13,33 @@ import type { ContentItem } from '../types/content';
  * SearchScreen -- and they were identical, comment included, which is the
  * clearest possible sign that the knowledge belonged somewhere else. That was
  * survivable while every selectable thing did the same thing. It stopped being
- * survivable the moment two of them did not: a series has to open an episode
- * list, and a YouTube episode has to leave the app entirely. Three copies means
- * three chances to forget, and forgetting looks like a card that silently does
- * nothing on one screen and works on the other two.
+ * survivable the moment two of them did not.
  *
- * So: one decision, in one place, exhaustive over the three cases.
+ * So: one decision, in one place, exhaustive over the cases.
+ *
+ * ---------------------------------------------------------------------------
+ * A card opens a screen. It does not start a video.
+ * ---------------------------------------------------------------------------
+ * This hook used to navigate straight to the player, which is why the app had
+ * nowhere to put a synopsis, a cast of metadata, a My List button or a "More
+ * like this" rail: pressing OK on a poster committed you to watching it.
+ *
+ * Now every card opens `Details`, and `usePlayItem` is the verb that actually
+ * starts playback. The cost is one extra press before a film begins; what it
+ * buys is the screen that every other premium streaming app has between the two,
+ * and the ability for an unplayable item -- a fixture with no URL yet -- to
+ * explain itself rather than to silently do nothing when pressed.
+ *
+ * A series is still the exception, and still checked first. There is no such
+ * thing as playing one, and its details ARE its episode list, so a details
+ * screen in front of that list would be a screen whose only content is a button
+ * to the next screen.
  */
 export function useOpenItem(): (item: ContentItem) => void {
   const navigation = useNavigation();
 
   return useCallback(
     (item: ContentItem) => {
-      // A series is a container. There is nothing to play, so selecting one
-      // opens what it contains -- and it is checked first because a series also
-      // has `stream: null`, which the guard below would otherwise read as "not
-      // playable" and turn into a card that does nothing at all.
       if (item.kind === 'series') {
         navigation.navigate('Series', {
           seriesId: item.id,
@@ -38,28 +48,7 @@ export function useOpenItem(): (item: ContentItem) => void {
         return;
       }
 
-      // Not every item is playable -- a fixture whose stream URL has not been
-      // published yet has `stream: null`. Guarding here is what keeps the
-      // player free of "what if there is no URL" logic. The card has already
-      // told the user why, via `unavailableLabel`.
-      if (!item.stream) {
-        return;
-      }
-
-      // Some streams are not ours to decode. See services/externalPlayback.ts.
-      // Not awaited and not `.catch`-ed: `openExternally` handles its own
-      // failure with an Alert and never rejects, so there is nothing here for
-      // a caller to do with the promise.
-      if (isExternalStream(item.stream)) {
-        openExternally(item.stream, item.title);
-        return;
-      }
-
-      navigation.navigate('Player', {
-        stream: item.stream,
-        title: item.title,
-        subtitle: item.subtitle,
-      });
+      navigation.navigate('Details', { item });
     },
     [navigation],
   );
