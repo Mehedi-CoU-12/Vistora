@@ -77,7 +77,7 @@ export interface CatalogSpec {
   emptyMessage: string;
 }
 
-export type TabId = 'home' | 'live-tv' | 'movies' | 'anime';
+export type TabId = 'home' | 'live-tv' | 'movies' | 'anime' | 'cartoons';
 
 export interface TabDef {
   id: TabId;
@@ -146,6 +146,29 @@ export const TABS: readonly TabDef[] = [
         'No anime yet. Apply the migrations in supabase/migrations/, then run `npm run import:anime` and apply the seed file it writes.',
     },
   },
+  {
+    id: 'cartoons',
+    label: 'Cartoons',
+    title: 'Cartoons',
+    catalog: {
+      /**
+       * `cartoon` is a `category_kind` that has existed since the first
+       * migration, and `import-archive.mjs --kind=cartoon` has been writing rows
+       * under it -- but there was no tab, and `fetchMovies({categoryKind:
+       * 'movie'})` filters them out of the Movies grid by design. The result was
+       * a library whose largest single category was unreachable from anywhere in
+       * the app.
+       *
+       * This is the whole fix: the loader and the screen already existed.
+       */
+      categoryKind: 'cartoon',
+      cardVariant: 'poster',
+      load: options => fetchMovies({ ...options, categoryKind: 'cartoon' }),
+      countNoun: ['title', 'titles'],
+      emptyMessage:
+        'No cartoons yet. Run `npm run import:cartoons`, then apply the seed file it writes.',
+    },
+  },
 ];
 
 /** Narrows a tab to one that browses a catalog. */
@@ -164,4 +187,25 @@ export function formatCount(
   [singular, plural]: CatalogSpec['countNoun'],
 ): string {
   return `${count} ${count === 1 ? singular : plural}`;
+}
+
+/**
+ * The catalog tabs' titles as a readable list: "Live TV, Movies, Anime and
+ * Cartoons".
+ *
+ * Exists so the search screen's placeholder and empty state can name what they
+ * search WITHOUT a second copy of the kind list. Both used to read "channels,
+ * films and anime", which was a sentence that had to be remembered whenever a
+ * kind was added -- and was already wrong the moment Cartoons appeared, in the
+ * quietest possible way: the app searched them correctly and told the user it
+ * did not.
+ */
+export function catalogTitleList(): string {
+  const titles = catalogTabs().map(tab => tab.title);
+
+  if (titles.length <= 1) {
+    return titles[0] ?? 'content';
+  }
+
+  return `${titles.slice(0, -1).join(', ')} and ${titles[titles.length - 1]}`;
 }
