@@ -1,8 +1,7 @@
 export const meta = {
   /** One line. Shown by `node scripts/scrape.mjs --list`. */
   description: 'What this scrapes, in one line',
-  homepage: 'https://example.com',
-  license: 'e.g. CC-BY, or "publisher-hosted embeds"',
+  homepage: 'https://themoviebox.xyz/',
 
   options: {
     // genre: 'restrict to one genre slug',
@@ -10,10 +9,6 @@ export const meta = {
   categories: [{ slug: 'example', name: 'Example', kind: 'movie', sort: 100 }],
 };
 
-/**
- * @param {object} ctx
- * @returns {Promise<object[]>} items -- see the header for the shape
- */
 export async function scrape(ctx) {
   const base = meta.homepage;
 
