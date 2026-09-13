@@ -196,7 +196,6 @@ const defaultCategory = categories[0];
 const USER_AGENT =
   'Vistora-scraper/1.0 (+https://github.com/Mehedi-CoU-12/Vistora)';
 
-
 let nextSlot = 0;
 async function throttle() {
   const now = Date.now();
@@ -301,7 +300,6 @@ async function mapPool(items, limit, worker) {
   await Promise.all(runners);
   return results;
 }
-
 
 const NAMED_ENTITIES = {
   amp: '&',
@@ -416,7 +414,6 @@ function toSlug(...parts) {
     .replace(/-+$/g, '');
   return base.length >= 2 ? base : null;
 }
-
 
 function protocolFor(url) {
   let parsed;

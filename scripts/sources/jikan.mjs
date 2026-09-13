@@ -1,41 +1,7 @@
-// ---------------------------------------------------------------------------
-// The MyAnimeList catalogue, through Jikan.
-//
-// WHY THIS IS A CATALOGUE AND NOT A LIBRARY OF EPISODES
-//
-// README.md ("There is no source that gives you 'any anime'") is the long
-// version. The short one: every anime made in the last seventy years is
-// exclusively licensed, and no licensee publishes a stream URL. So this source
-// does what scripts/sources/tmdb.mjs does for films -- it fills the app with
-// the *catalogue*: poster, synopsis, year, genre, and the publisher's own
-// trailer as the stream. It is what makes the Anime tab look like a library
-// rather than a shelf of six titles.
-//
-// For episodes you can actually sit and watch, use scripts/import-anime.mjs
-// (workflow source `anime`), which walks the official licensor channels on
-// YouTube and writes real series/episodes rows. The two are complementary and
-// upsert on slug, so running both leaves the episode rows in place.
-//
-// WHY JIKAN AND NOT ANILIST
-//
-// import-anime.mjs enriches from AniList, and AniList's GraphQL API is at time
-// of writing returning `403 The AniList API has been temporarily disabled due
-// to severe stability issues` to every query. Jikan is an independent,
-// keyless, read-only mirror of MyAnimeList -- a different upstream, so an
-// outage of one does not take out the other.
-//
-// Jikan asks for no credential at all, which is the point: unlike `tmdb` this
-// source runs on a fork with no secrets configured.
-// ---------------------------------------------------------------------------
-
 const BASE = 'https://api.jikan.moe/v4';
 
 const WATCH = 'https://www.youtube.com/watch';
 
-/**
- * Every list is the same resource under a different `filter`, so they all page
- * identically and a page of one costs exactly what a page of another does.
- */
 const LISTS = {
   popular: { filter: 'bypopularity' },
   'top-rated': { filter: '' }, // /top/anime's own default ordering is by score
@@ -44,14 +10,8 @@ const LISTS = {
   favorite: { filter: 'favorite' },
 };
 
-/** Jikan's hard ceiling for `limit`. Asking for more is silently truncated. */
 const PER_PAGE = 25;
 
-// Deliberately the same slugs, kinds and sort orders as the buckets in
-// scripts/import-anime.mjs and scripts/import-archive.mjs. The Anime tab reads
-// one set of shelves, so a catalogue row and a watchable series row for the
-// same genre have to land on the same one -- otherwise the tab grows a second,
-// near-identical "Action" row depending on which importer ran last.
 const CATEGORIES = [
   { slug: 'anime-series', name: 'Series', kind: 'anime', sort: 30, match: [] },
   { slug: 'anime-films', name: 'Films', kind: 'anime', sort: 40, match: [] },
@@ -109,14 +69,6 @@ export const meta = {
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-/**
- * Jikan proxies MyAnimeList, and MyAnimeList goes down. When it does Jikan
- * answers 504 for anything not already in its cache, which during a wobble
- * means page 1 returns and page 2 does not -- so this is not the runner's
- * ordinary flakiness and the runner's 0.5s/1s backoff is too short for it.
- * Waits here are seconds, not milliseconds, and a page that never arrives is
- * skipped rather than fatal: a partial catalogue beats an aborted run.
- */
 async function page(ctx, url, attempts = 4) {
   for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
@@ -138,13 +90,6 @@ async function page(ctx, url, attempts = 4) {
   return null;
 }
 
-/**
- * The trailer's YouTube id.
- *
- * `youtube_id` is the documented field and is frequently null on records whose
- * `embed_url` plainly contains the id -- Frieren is one. Reading the embed URL
- * as a fallback is worth roughly a fifth of the catalogue.
- */
 function trailerId(trailer) {
   const direct = trailer?.youtube_id;
   if (typeof direct === 'string' && /^[A-Za-z0-9_-]{11}$/.test(direct)) {
@@ -156,11 +101,6 @@ function trailerId(trailer) {
   return embedded ? embedded[1] : null;
 }
 
-// MAL's own content rating is the reliable signal, and it is the ONLY one
-// here: /top/anime ignores Jikan's `sfw=true`, and passing it anyway is worse
-// than useless -- it changes the cache key, so during a MyAnimeList wobble the
-// request misses Jikan's cache and 504s where the unadorned one is served.
-// Hence three client-side checks: the rating, the genre list, and the title.
 const BLOCKED_RATING = /^(rx|r\+)\b/i;
 const BLOCKED_GENRES = new Set(['hentai', 'erotica', 'ecchi']);
 const UNSUITABLE_PATTERN =
@@ -186,9 +126,6 @@ const genresOf = anime =>
     .filter(Boolean);
 
 function categoryFor(anime, genres) {
-  // A film goes on the Films shelf whatever its genre: the Anime tab
-  // interleaves series and films, and "is this 24 minutes or two hours" is the
-  // distinction a viewer is actually making at that moment.
   if (String(anime?.type ?? '').toLowerCase() === 'movie') return 'anime-films';
 
   for (const category of CATEGORIES) {
@@ -215,8 +152,7 @@ export async function scrape(ctx) {
         `Available: ${Object.keys(LISTS).join(', ')}`,
     );
   }
-  // Declared order rather than typed order, so overlapping lists resolve the
-  // same way on every run.
+
   const selected = Object.keys(LISTS).filter(name => requested.includes(name));
 
   /** @type {Map<number, object>} MAL id -> the first record that claimed it. */
@@ -253,12 +189,6 @@ export async function scrape(ctx) {
     ctx.log(`  ${name}: ${added} new title(s)`);
   }
 
-  // -- catalogue records to items -------------------------------------------
-  //
-  // The runner enforces --limit itself, but the counters below are the only
-  // way to tell "Jikan was down" from "these titles have no trailer", and the
-  // two want completely different fixes.
-
   const items = [];
   let untrailered = 0;
   let filtered = 0;
@@ -290,16 +220,12 @@ export async function scrape(ctx) {
       Number(anime.year) || Number(anime.aired?.prop?.from?.year) || null;
 
     items.push({
-      // MAL indexes by the romaji title; the English one is what a viewer
-      // scanning the grid recognises. Prefer it, fall back rather than drop.
       title: anime.title_english || anime.title,
       description: String(anime.synopsis ?? '')
         .replace(/\s*\[Written by MAL Rewrite\]\s*$/i, '')
         .trim(),
 
       posterUrl: images.large_image_url ?? images.image_url ?? null,
-      // MAL serves no 16:9 art, and the poster stretched across a backdrop
-      // slot looks worse than no backdrop at all. Left null on purpose.
       backdropUrl: null,
 
       streamUrl: `${WATCH}?v=${encodeURIComponent(key)}`,
@@ -307,10 +233,6 @@ export async function scrape(ctx) {
 
       releaseYear: year,
 
-      // Null on purpose, exactly as in scripts/sources/tmdb.mjs:
-      // duration_seconds describes the STREAM everywhere in this schema, and
-      // the stream here is a 90-second trailer. Writing the episode's 24
-      // minutes would make every progress bar in the app lie.
       durationSeconds: null,
 
       category: categoryFor(anime, genres),
