@@ -1,7 +1,7 @@
 export const meta = {
   /** One line. Shown by `node scripts/scrape.mjs --list`. */
   description: 'What this scrapes, in one line',
-  homepage: 'https://themoviebox.xyz/',
+  homepage: 'https://m4uhdfree.net/',
 
   options: {
     // genre: 'restrict to one genre slug',
