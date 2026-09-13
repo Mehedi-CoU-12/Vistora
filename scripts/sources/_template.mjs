@@ -2,7 +2,6 @@ export const meta = {
   /** One line. Shown by `node scripts/scrape.mjs --list`. */
   description: 'What this scrapes, in one line',
   homepage: 'https://example.com',
-  license: 'e.g. CC-BY, or "publisher-hosted embeds"',
 
   options: {
     // genre: 'restrict to one genre slug',
