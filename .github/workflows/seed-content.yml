@@ -31,6 +31,10 @@ on:
         description: 'Live TV: restrict to categories (e.g. news,sports,kids). Blank = all'
         type: string
         default: ''
+      everywhere:
+        description: 'Live TV: categories to take from EVERY country, ignoring the filters above. Almost nobody broadcasts sport in Bengali, so a BD/ben run finds 3 sports channels without this'
+        type: string
+        default: sports
       official_only:
         description: "Live TV: only streams served by the broadcaster's own domain"
         type: boolean
@@ -110,6 +114,7 @@ jobs:
           COUNTRIES: ${{ inputs.countries }}
           LANGUAGES: ${{ inputs.languages }}
           CATEGORIES: ${{ inputs.categories }}
+          EVERYWHERE: ${{ inputs.everywhere }}
           OFFICIAL_ONLY: ${{ inputs.official_only }}
           LICENSE: ${{ inputs.license }}
           YEAR_RANGE: ${{ inputs.year_range }}
@@ -154,10 +159,15 @@ jobs:
             if [ "$OFFICIAL_ONLY" = "true" ]; then official="--official-only"; fi
             cats=""
             if [ -n "$CATEGORIES" ]; then cats="--categories=$CATEGORIES"; fi
+            # Lifts the named categories out of the country/language filter
+            # entirely -- see the option's comment in the importer for why the
+            # sports rail is otherwise three channels deep.
+            every=""
+            if [ -n "$EVERYWHERE" ]; then every="--everywhere=$EVERYWHERE"; fi
             node scripts/import-iptv.mjs \
               --countries="$COUNTRIES" \
               --languages="$LANGUAGES" \
-              $cats $official $probe_flag \
+              $cats $every $official $probe_flag \
               --out=seed-out/10_channels.sql
             echo "::endgroup::"
           fi
