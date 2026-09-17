@@ -78,7 +78,7 @@ describe('channelToContentItem', () => {
     expect(item.badge).toBe('LIVE');
     expect(item.subtitle).toBe('Channel 101');
     expect(item.categoryId).toBe('cat-news');
-    // A channel is a continuous broadcast, so the player must disable seeking.
+    
     expect(item.stream).toEqual({
       url: 'https://cdn.example.com/live.m3u8',
       protocol: 'hls',
@@ -110,9 +110,9 @@ describe('movieToContentItem', () => {
     expect(movieToContentItem({...movie, duration_seconds: 1500}).subtitle).toBe('2011 · 25m');
   });
 
-  // The rule that replaced opening the YouTube app. A `youtube` URL is an HTML
-  // page advertising the film, not the film, so the row is treated as having no
-  // stream at all rather than as something to hand to another app.
+  
+  
+  
   it('refuses a youtube row, because a trailer page is not the film', () => {
     const item = movieToContentItem({
       ...movie,
@@ -121,16 +121,16 @@ describe('movieToContentItem', () => {
     });
 
     expect(item.stream).toBeNull();
-    // And unlike a series, it owes the viewer an explanation: the card badges
-    // this, and pressing Play spells it out.
+    
+    
     expect(item.unavailableLabel).toBe('Unavailable');
   });
 });
 
 describe('sportsEventToContentItem', () => {
-  // This is the behaviour the whole "not playable" UI path depends on: a
-  // fixture with no published URL must produce a null stream, not an item
-  // pointing at an empty string.
+  
+  
+  
   it('returns a null stream for a fixture with no URL yet', () => {
     const item = sportsEventToContentItem(event);
 
@@ -162,9 +162,9 @@ describe('sportsEventToContentItem', () => {
 });
 
 
-// ---------------------------------------------------------------------------
-// Series and episodes
-// ---------------------------------------------------------------------------
+
+
+
 
 const series: SeriesRow = {
   id: 's1',
@@ -224,9 +224,9 @@ describe('seriesToContentItem', () => {
   });
 
   it('carries NO unavailableLabel, unlike an unplayable fixture', () => {
-    // This is the distinction the card relies on. Both a series and an
-    // unpublished fixture have `stream: null`; only the fixture is broken, and
-    // stamping "Not started" on every show in the Anime tab would be a lie.
+    
+    
+    
     expect(seriesToContentItem(series).unavailableLabel).toBeUndefined();
     expect(sportsEventToContentItem(event).unavailableLabel).toBe('Not started');
   });
@@ -277,8 +277,8 @@ describe('groupEpisodesBySeason', () => {
   });
 
   it('orders seasons and the episodes inside them, whatever order they arrive in', () => {
-    // Deliberately shuffled. The query does order these, but the grouping is
-    // only correct if this function does not depend on that.
+    
+    
     const grouped = groupEpisodesBySeason([
       make(2, 2),
       make(1, 3),
@@ -293,9 +293,9 @@ describe('groupEpisodesBySeason', () => {
   });
 
   it('handles a gap in the numbering without renumbering', () => {
-    // Episodes go missing -- a promo dropped by the importer, an upload pulled
-    // by the channel. Closing the gap would silently relabel every episode
-    // after it, so the list must show what is actually there.
+    
+    
+    
     const grouped = groupEpisodesBySeason([make(1, 1), make(1, 4)]);
     expect(grouped[0].episodes.map(e => e.badge)).toEqual(['E1', 'E4']);
   });

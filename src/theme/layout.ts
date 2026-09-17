@@ -1,25 +1,25 @@
-/**
- * Layout constants that do NOT depend on the device.
- *
- * Anything that changes between a TV, a tablet and a phone -- screen padding,
- * card sizes, grid columns, type sizes -- lives in `metrics.ts` and is read
- * through `useMetrics()`. This file holds only the values that are the same
- * everywhere: the spacing rhythm, the corner radii, and the shape of a card.
- *
- * Keeping the split strict is what stops a stale `Dimensions.get()` snapshot
- * leaking into a StyleSheet: a module-scope constant cannot react to a rotation,
- * so no module-scope constant is allowed to know the screen size.
- */
 
-/**
- * The spacing rhythm, in dp, shared by every device.
- *
- * These are deliberately not scaled per device. A 12dp gap is a 12dp gap: on a
- * TV it reads as a tight gutter between cards at three metres, and on a phone it
- * reads as a tight gutter between cards at thirty centimetres. What has to
- * change with the screen is the size of the *content* (see `metrics.ts`), not
- * the rhythm between pieces of it.
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 export const spacing = {
   xs: 4,
   sm: 8,
@@ -38,65 +38,65 @@ export const radius = {
 
 export type CardVariant = 'poster' | 'landscape' | 'square';
 
-/**
- * Artwork shape per variant, as height / width.
- *
- * The aspect ratio is the invariant; the width is not. A poster is 2:3 on every
- * screen ever made, so `ContentCard` derives its height from whatever width the
- * current layout gives it rather than from a stored pixel height. That is what
- * lets the same component render a 124dp poster on a TV and a 116dp one on a
- * phone without stretching the artwork.
- */
+
+
+
+
+
+
+
+
+
 export const cardAspect: Record<CardVariant, number> = {
-  /** 2:3 movie poster. */
+  
   poster: 3 / 2,
-  /** 16:9 thumbnail, for channels and events. */
+  
   landscape: 9 / 16,
-  /** Square, for channel logos in a dense grid. */
+  
   square: 1,
 };
 
-/**
- * Fixed width a ContentCard adds around its artwork: its own padding plus the
- * focus-ring border, on both sides.
- *
- * Exported because any layout dividing a measured width between cards has to
- * subtract it. Hard-coding "about 12" at the call site is how a grid ends up one
- * column too wide, with the last column clipped off-screen and therefore
- * unreachable by the D-pad.
- */
+
+
+
+
+
+
+
+
+
 export const cardChrome = spacing.xs * 2 + 2 * 2;
 
-/**
- * Animation durations, in milliseconds.
- *
- * Three values, and the ceiling is deliberate. Android TV runs this app on
- * hardware a generation or two behind a phone, and every one of these fires
- * while the D-pad is being held down -- walk a row of twelve cards quickly and
- * `focus` runs twelve times, overlapping. Anything above ~200ms turns that into
- * a queue of animations finishing after the user has stopped moving, which reads
- * as lag rather than as polish.
- *
- * `focus` matches the value `Focusable` has always used; it is lifted here so
- * the hero and the nav can move at the same speed as a card rather than each
- * picking a number.
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 export const duration = {
-  /** A card taking or losing focus. */
+  
   focus: 120,
-  /** A press, a fill, a colour change. */
+  
   quick: 160,
-  /** A hero cross-fading to a new title. The longest thing in the app. */
+  
   hero: 260,
 } as const;
 
-/**
- * Artwork shape for a hero backdrop, as height / width.
- *
- * 16:9 is what every backdrop in the database actually is (TMDB serves them at
- * 16:9), so the hero crops rather than letterboxes at any height it is given.
- * The number is here rather than inline because `HeroBanner` and the skeleton
- * that stands in for it while it loads must agree, or the layout jumps at the
- * moment the data arrives.
- */
+
+
+
+
+
+
+
+
+
 export const heroAspect = 9 / 16;

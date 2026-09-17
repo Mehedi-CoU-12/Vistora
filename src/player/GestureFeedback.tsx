@@ -13,16 +13,16 @@ import {
 } from './playbackOptions';
 import { resolvePlayerChrome } from './playerLayout';
 
-/**
- * What the player is doing right now, when it is something the controls cannot
- * show on their own.
- *
- * This is the whole reason a gesture-driven player feels controllable: a swipe
- * has no button to light up, so if the screen does not say "volume 40%" the user
- * has changed something invisible and has to check by ear. Every gesture in
- * `usePlayerGestures` therefore has a readout here, and each one names the value
- * it is setting rather than the gesture that set it.
- */
+
+
+
+
+
+
+
+
+
+
 export type PlayerFeedback =
   | { kind: 'skip'; deltaSeconds: number; target: number }
   | { kind: 'scrub'; deltaSeconds: number; target: number }
@@ -31,7 +31,7 @@ export type PlayerFeedback =
   | { kind: 'scaling'; mode: ScalingMode }
   | { kind: 'locked' };
 
-/** How long the readout takes to appear and to fade away again. */
+
 const FADE_MS = 140;
 
 export function GestureFeedback({
@@ -42,13 +42,13 @@ export function GestureFeedback({
   const styles = useStyles();
   const opacity = useRef(new Animated.Value(0)).current;
 
-  /**
-   * The last thing worth showing, kept while it fades out.
-   *
-   * Rendering `feedback` directly would unmount the readout the instant it is
-   * cleared, so the fade would never be seen -- and a HUD that vanishes between
-   * frames reads as a flicker rather than as feedback.
-   */
+  
+
+
+
+
+
+
   const [shown, setShown] = useState<PlayerFeedback | null>(feedback);
 
   useEffect(() => {
@@ -148,9 +148,9 @@ const useStyles = makeStyles(metrics => {
 
   return {
     layer: {
-      // Spelled out rather than StyleSheet.absoluteFillObject: this React Native
-      // version's types only declare `absoluteFill` (a registered style ID),
-      // which cannot be spread into a style object.
+      
+      
+      
       position: 'absolute',
       top: 0,
       left: 0,

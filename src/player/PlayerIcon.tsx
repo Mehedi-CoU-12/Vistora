@@ -3,98 +3,98 @@ import { View, type ViewStyle } from 'react-native';
 
 import { makeStyles } from '../theme';
 
-/**
- * ===========================================================================
- * The app's icons, drawn from Views.
- * ===========================================================================
- * Named for the player because that is what first needed a set of them, and
- * still where all but two of these are used. The browse UI borrows `play`,
- * `plus`, `tick` and `info` for the hero and the details screen -- borrows
- * rather than reimplements, because a second icon idiom is exactly the thing
- * this file exists to prevent, and because these shapes have no player logic in
- * them at all: the module imports `makeStyles` and nothing else.
- * There is no icon font and no SVG library in this project, and the player is
- * not a good enough reason to add one: a font asset is a build-config change, a
- * vector library is a native dependency, and both would ship to a TV to draw a
- * dozen shapes. Anything from an emoji block is out for a different reason --
- * Android renders those through the colour emoji font, so a play button would
- * arrive as a full-colour pictogram at a size and weight nothing else on screen
- * shares.
- *
- * ---------------------------------------------------------------------------
- * Why this replaced the geometric characters it used to be
- * ---------------------------------------------------------------------------
- * The first version of this file was a map of characters -- U+25B6 for play,
- * two U+2759 bars for pause, U+2699 for the gear. That works for the two or
- * three shapes that really are in Roboto, and it fails in three ways as soon as
- * the overlay wants a proper icon set:
- *
- *   Coverage    There is no padlock, no picture-in-picture and no aspect-ratio
- *               character that is reliably in Roboto on every Android build. The
- *               failure mode is a tofu box, which is strictly worse than the
- *               word it replaced -- which is why those controls were words.
- *   Alignment   A glyph sits on a baseline inside an em box it does not fill, so
- *               centring it in a round button is guesswork per character. The
- *               old play button carried `marginLeft: 2` for exactly this.
- *   Weight      Characters come at whatever weight the font drew them. U+25B6 is
- *               a heavy solid triangle and U+2699 is a fine hairline, so a play
- *               button and a settings button next to each other never matched.
- *
- * A View has none of those problems: the shape is the box, so it centres by
- * construction, the weight is `stroke` and therefore uniform across the set, and
- * it renders identically on every device with no asset and no dependency.
- * `components/SearchIcon.tsx` made the same trade for the same reasons.
- *
- * ---------------------------------------------------------------------------
- * The shared geometry
- * ---------------------------------------------------------------------------
- * Every icon is drawn inside a `size` x `size` box and every dimension is a
- * fraction of `size`, so one number scales a shape completely -- stroke
- * included, which is what keeps an outline a line rather than a smear when the
- * same icon is drawn at 14dp in a pill and 26dp in the round play button.
- *
- * `stroke` is rounded to whole dp on purpose. A 1.75dp border does not render as
- * a thin line; it renders as a soft two-pixel grey blur, and on a 16dp icon that
- * is a tenth of the whole shape looking out of focus.
- *
- * Angled parts are built the CSS way -- a box with two of its four borders
- * drawn, then rotated -- rather than from two separate bars. React Native
- * rotates a view about its own centre, so a corner built this way keeps its
- * vertex exactly where the box put it, and the two arms are guaranteed to meet.
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 export type IconName =
-  /** Leave the player. Top-left, on both devices. */
+  
   | 'back'
   | 'play'
   | 'pause'
   | 'rewind'
   | 'forward'
-  /** Dismiss a panel. */
+  
   | 'close'
-  /** Open the settings panel. */
+  
   | 'settings'
-  /** Lock the controls; and the way back out of it. */
+  
   | 'lock'
   | 'unlock'
-  /** Cycle the picture size: Fit -> Fill -> Stretch. */
+  
   | 'aspect'
-  /** Hand playback to the system's floating window. Touch only. */
+  
   | 'pip'
-  /** At the live edge, and the jump back to it. */
+  
   | 'live'
-  /** Selected marker in the settings panel, and "already on My List". */
+  
   | 'tick'
-  /** Add to My List. Browse UI only. */
+  
   | 'plus'
-  /** Open a details screen. Browse UI only. */
+  
   | 'info';
 
 interface PlayerIconProps {
   name: IconName;
-  /** Side of the box the shape is drawn in. Everything scales from it. */
+  
   size: number;
-  /** No default: the caller owns the tint, so it can follow focus. */
+  
   color: string;
 }
 
@@ -104,9 +104,9 @@ export function PlayerIcon({ name, size, color }: PlayerIconProps) {
   return (
     <View
       style={[styles.box, { width: size, height: size }]}
-      // One shape, not eight elements: without this every View inside a gear is
-      // a separate node to TalkBack, which announces nothing useful for any of
-      // them. The button around the icon carries the accessible name.
+      
+      
+      
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
@@ -118,24 +118,24 @@ export function PlayerIcon({ name, size, color }: PlayerIconProps) {
 function Shape({ name, size, color }: PlayerIconProps) {
   const styles = useStyles();
 
-  // The line weight of the whole set. See the note on rounding above.
+  
   const stroke = Math.max(1, Math.round(size / 8));
 
   switch (name) {
-    /**
-     * A chevron, which is a corner turned 45 degrees.
-     *
-     *   borders drawn        rotated -45deg
-     *     ┌────                  ╱
-     *     │            ->       ╱
-     *     │                     ╲
-     *                            ╲
-     *
-     * The vertex of a top+left corner points up and to the left; a
-     * counter-clockwise quarter-turn of 45 degrees swings it to due left. The
-     * box is inset from the icon's own edge because the rotation makes the
-     * shape's diagonal, not its side, the thing that has to fit.
-     */
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
     case 'back':
       return (
         <View
@@ -152,15 +152,15 @@ function Shape({ name, size, color }: PlayerIconProps) {
         />
       );
 
-    /**
-     * A triangle from a zero-sized box with one coloured border.
-     *
-     * The border-triangle trick, which is the only way to get a diagonal edge
-     * without an SVG: a box with no width and no height still draws its
-     * borders, and they meet at 45 degrees, so colouring one and leaving its
-     * neighbours transparent leaves a triangle pointing away from the coloured
-     * side.
-     */
+    
+
+
+
+
+
+
+
+
     case 'play':
       return <Triangle direction="right" size={size} color={color} />;
 
@@ -172,7 +172,7 @@ function Shape({ name, size, color }: PlayerIconProps) {
         </View>
       );
 
-    /** Two triangles, overlapping by a dp. See `styles.overlap` for why. */
+    
     case 'rewind':
     case 'forward': {
       const direction = name === 'rewind' ? 'left' : 'right';
@@ -191,7 +191,7 @@ function Shape({ name, size, color }: PlayerIconProps) {
       );
     }
 
-    /** Two bars across each other. Absolute, so they cross at the centre. */
+    
     case 'close':
       return (
         <>
@@ -220,23 +220,23 @@ function Shape({ name, size, color }: PlayerIconProps) {
         </>
       );
 
-    /**
-     * A gear: a hollow hub with six teeth around it.
-     *
-     * The obvious construction -- three full-diameter bars crossed at 60 degrees
-     * with a ring on top -- does not work here, because the ring's hole has to
-     * be transparent (the control sits over moving video, so there is no
-     * background colour to fill it with) and the crossed bars show through it as
-     * a solid blob. So the teeth are six separate stubs that never reach the
-     * middle, and the hub stays genuinely hollow.
-     *
-     * Each tooth is placed by rotating a full-size wrapper around the icon's
-     * centre with the tooth pinned to the top of it. That is deliberately not
-     * the same as rotating the tooth and translating it: a transform list
-     * composes, so `translateY` after a `rotate` moves along the *rotated* axis,
-     * which is easy to reason about wrongly and easier to get right by letting
-     * the wrapper carry the angle.
-     */
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     case 'settings': {
       const ring = size * 0.62;
       const toothWidth = size * 0.18;
@@ -275,14 +275,14 @@ function Shape({ name, size, color }: PlayerIconProps) {
       );
     }
 
-    /**
-     * A padlock: a solid body with a shackle standing on it.
-     *
-     * The shackle is a bordered box with its bottom border left off and its top
-     * two corners fully rounded, which is a semicircle open at the bottom. Its
-     * legs overlap the body by a dp so the two shapes read as one object rather
-     * than as an arch balanced on a brick.
-     */
+    
+
+
+
+
+
+
+
     case 'lock':
     case 'unlock': {
       const bodyWidth = size * 0.74;
@@ -293,9 +293,9 @@ function Shape({ name, size, color }: PlayerIconProps) {
       return (
         <View style={[styles.lock, { width: size, height: size }]}>
           <View
-            // The sheet entries come last on purpose: they zero the edges the
-            // computed `borderWidth` above them sets on all four sides, and a
-            // style array resolves later entries over earlier ones.
+            
+            
+            
             style={[
               {
                 width: shackle,
@@ -304,12 +304,12 @@ function Shape({ name, size, color }: PlayerIconProps) {
                 borderTopLeftRadius: shackle / 2,
                 borderTopRightRadius: shackle / 2,
                 borderColor: color,
-                // Overlaps the body by the stroke, so the arch and the brick
-                // read as one object rather than one balanced on the other.
+                
+                
                 marginBottom: -stroke,
-                // Open: the arch has swung clear of the body, which with the
-                // missing right leg is the whole difference between a padlock
-                // that is shut and one that is not.
+                
+                
+                
                 ...(open ? { marginLeft: shackle * 0.55 } : null),
               },
               styles.shackle,
@@ -329,14 +329,14 @@ function Shape({ name, size, color }: PlayerIconProps) {
       );
     }
 
-    /**
-     * Four corner brackets: the picture-size control.
-     *
-     * A frame with something inside it was the first attempt and it collided
-     * with the picture-in-picture icon, which is also a frame with something
-     * inside it. Corners on their own are unmistakably about the edges of the
-     * picture, which is exactly what Fit, Fill and Stretch move.
-     */
+    
+
+
+
+
+
+
+
     case 'aspect': {
       const arm = size * 0.3;
       const inset = { vertical: size * 0.08, horizontal: size * 0.05 };
@@ -357,7 +357,7 @@ function Shape({ name, size, color }: PlayerIconProps) {
       );
     }
 
-    /** A screen with a small screen in the corner of it. */
+    
     case 'pip': {
       const frameWidth = size * 0.92;
       const frameHeight = size * 0.72;
@@ -399,30 +399,30 @@ function Shape({ name, size, color }: PlayerIconProps) {
         />
       );
 
-    /**
-     * A tick, which is the same corner trick as the chevron with one arm made
-     * longer than the other.
-     *
-     * Which arm ends up long is decided by the box's proportions, and it is
-     * easy to get backwards -- it shipped that way. Counter-clockwise by 45
-     * degrees swings the LEFT border to the upper left and the BOTTOM border to
-     * the upper right, so the bottom border is the one that has to be the long
-     * stroke: hence a box that is wider than it is tall. Built the other way up
-     * the two arms are the same two arms, mirrored, and a mirrored tick at
-     * 14dp does not read as a wrong tick -- it reads as a small `v`, which is
-     * what the selected rows in the settings panel were showing.
-     */
-    /**
-     * A plus: two bars crossed, drawn as one box with a border on two opposite
-     * sides rather than as two rectangles.
-     *
-     * Two rectangles is the obvious build and is wrong at small sizes -- each
-     * gets rounded to whole pixels independently, so at 14dp the horizontal arm
-     * lands a subpixel off the vertical one and the cross looks assembled. One
-     * box with a top border and a left border, rotated 45 degrees, would give a
-     * corner; two absolutely-positioned bars sharing a single centred parent
-     * give a cross whose arms are centred on the same point by construction.
-     */
+    
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+
+
+
+
+
+
+
+
+
     case 'plus':
       return (
         <View style={styles.lock}>
@@ -451,15 +451,15 @@ function Shape({ name, size, color }: PlayerIconProps) {
         </View>
       );
 
-    /**
-     * A lower-case `i` in a ring: a dot, a stem, and a circle around both.
-     *
-     * The ring is a bordered box at `borderRadius: 50%` of its side, which is
-     * how every circle in this set is drawn. The dot is deliberately square with
-     * a full radius rather than a separate circle component, for the same reason
-     * the plus is one parent: at 14dp a 2dp dot is two pixels, and two pixels
-     * are round enough.
-     */
+    
+
+
+
+
+
+
+
+
     case 'info':
       return (
         <View
@@ -505,10 +505,10 @@ function Shape({ name, size, color }: PlayerIconProps) {
               borderBottomWidth: stroke,
               borderLeftWidth: stroke,
               borderColor: color,
-              // Rotation happens about the centre of the box and the ink is
-              // only along two of its sides, so the finished mark hangs below
-              // the centre by about 0.14 of the box. A margin in a centred flex
-              // parent moves its child by half itself, so this is that doubled.
+              
+              
+              
+              
               marginBottom: size * 0.28,
             },
           ]}
@@ -517,20 +517,20 @@ function Shape({ name, size, color }: PlayerIconProps) {
   }
 }
 
-/** Six teeth, evenly spaced. Values are strings because that is what `rotate` takes. */
+
 const GEAR_ANGLES = ['0deg', '60deg', '120deg', '180deg', '240deg', '300deg'];
 
-/**
- * The four corners of the `aspect` icon: where each bracket sits, and which two
- * of its borders are the ones with ink in them.
- *
- * A table rather than four hand-written Views, because they differ only in that
- * pair of sides -- and four near-identical style blocks is four places for a
- * transposed `left`/`right` to hide. `place` returns a real `ViewStyle` rather
- * than the property *names* to assign, since a computed key over a union
- * (`{[corner.vertical]: n}`) widens to a string index signature and stops being
- * a style TypeScript will check.
- */
+
+
+
+
+
+
+
+
+
+
+
 const CORNERS: {
   key: string;
   place: (
@@ -576,10 +576,10 @@ const CORNERS: {
   },
 ];
 
-/**
- * One bar of the pause icon, and the unit the play triangle is sized against so
- * the two shapes look like the same weight when the button swaps between them.
- */
+
+
+
+
 function Bar({ size, color }: { size: number; color: string }) {
   return (
     <View
@@ -593,13 +593,13 @@ function Bar({ size, color }: { size: number; color: string }) {
   );
 }
 
-/**
- * A triangle, from the border trick described on `case 'play'`.
- *
- * Slightly narrower than it is tall (0.86), which is what makes a play triangle
- * look upright rather than squat -- an equilateral triangle in a square box
- * reads as wide, because the eye measures it by the long horizontal base.
- */
+
+
+
+
+
+
+
 function Triangle({
   direction,
   size,
@@ -632,19 +632,19 @@ function Triangle({
   );
 }
 
-/**
- * Only what does NOT depend on `size` or `color` lives here; the rest has to be
- * inline, since a StyleSheet is built once and every remaining property is a
- * function of the props. Splitting it this way is not only tidiness -- it is
- * also what keeps `react-native/no-inline-styles` quiet, because that rule flags
- * the literal properties of an inline object and ignores computed ones.
- */
+
+
+
+
+
+
+
 const useStyles = makeStyles(() => ({
   box: {
     alignItems: 'center',
     justifyContent: 'center',
-    // A fixed shape sitting inside flex rows. Left to shrink, every circle in
-    // the set goes oval.
+    
+    
     flexShrink: 0,
   },
   row: {
@@ -657,9 +657,9 @@ const useStyles = makeStyles(() => ({
   triangle: {
     width: 0,
     height: 0,
-    // The two borders adjacent to the coloured one have to exist and be
-    // invisible: they are what the coloured edge is mitred against, so dropping
-    // them leaves a rectangle rather than a triangle.
+    
+    
+    
     borderTopColor: 'transparent',
     borderBottomColor: 'transparent',
   },
@@ -685,13 +685,13 @@ const useStyles = makeStyles(() => ({
   shackleOpen: {
     borderRightWidth: 0,
   },
-  /**
-   * Pulls the second triangle of a rewind / forward arrow onto the first.
-   *
-   * Butted exactly together the two hypotenuses are antialiased against each
-   * other and leave a pale seam down the join, which reads as a notch in one
-   * arrow rather than as two.
-   */
+  
+
+
+
+
+
+
   overlap: {
     marginLeft: -1,
   },

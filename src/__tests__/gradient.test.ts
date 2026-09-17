@@ -1,13 +1,13 @@
 import { linearGradient } from '../components/Gradient';
 
-/**
- * The gradient is a CSS `linear-gradient` string handed to the platform, which
- * means its correctness is arithmetic rather than something you look at -- and
- * the failure modes are exactly the ones the eye is worst at catching on a
- * near-black ramp: a fade that never quite reaches the page colour and leaves a
- * seam under the hero, or one whose middle drifts off the line between its two
- * ends and puts a grey haze over a photograph.
- */
+
+
+
+
+
+
+
+
 
 interface Stop {
   r: number;
@@ -17,7 +17,7 @@ interface Stop {
   position: number;
 }
 
-/** Pulls `rgba(...) NN.NN%` pairs back out of the generated declaration. */
+
 function stopsOf(declaration: string): Stop[] {
   const inner = declaration.match(/^linear-gradient\((.*)\)$/)?.[1];
   if (inner === undefined) {
@@ -66,11 +66,11 @@ describe('linearGradient', () => {
     );
   });
 
-  /**
-   * The hero's bottom fade has to arrive at fully opaque page colour, or there
-   * is a visible seam between the artwork and the rail beneath it -- which is
-   * the entire thing the fade exists to remove.
-   */
+  
+
+
+
+
   it('runs from the first colour to the last', () => {
     for (const easing of ['linear', 'ease'] as const) {
       const stops = stopsOf(linearGradient([CLEAR, PAGE], 'down', easing));
@@ -106,31 +106,31 @@ describe('linearGradient', () => {
     }
   });
 
-  /**
-   * The reason `mix` interpolates RGB alongside alpha instead of premultiplying,
-   * and the reason the palette exposes `backgroundAlpha` rather than letting
-   * call sites write `'transparent'`: a ramp whose two ends are the same colour
-   * at different alphas must not wander in hue, or the middle of every hero fade
-   * is a band of a slightly different dark.
-   */
+  
+
+
+
+
+
+
   it('holds its hue when only the alpha changes', () => {
     for (const stop of stopsOf(linearGradient([CLEAR, PAGE], 'down', 'ease'))) {
       expect([stop.r, stop.g, stop.b]).toEqual([11, 13, 20]);
     }
   });
 
-  /**
-   * The whole reason `ease` is the default. A linear alpha ramp over a
-   * photograph appears to clear too early and then linger as a haze; bending the
-   * curve holds the scrim dense where the text sits and clears it faster across
-   * the picture.
-   */
+  
+
+
+
+
+
   it('eases by staying clearer than linear at the same position', () => {
     const eased = stopsOf(linearGradient([CLEAR, PAGE], 'down', 'ease'));
 
     for (const stop of eased) {
-      // A linear ramp's alpha at position p IS p. Squaring can only lower it,
-      // and must lower it strictly somewhere in the middle.
+      
+      
       expect(stop.a).toBeLessThanOrEqual(stop.position / 100 + 1e-9);
     }
 
@@ -161,10 +161,10 @@ describe('linearGradient', () => {
     ).toMatchObject({ r: 51, g: 187, b: 255 });
   });
 
-  /**
-   * A mistyped colour should be a gradient that visibly does nothing, not a
-   * screen that fails to render -- this runs behind every hero in the app.
-   */
+  
+
+
+
   it('degrades an unparseable colour to transparent instead of throwing', () => {
     expect(() =>
       linearGradient(['not-a-colour', PAGE], 'down', 'ease'),

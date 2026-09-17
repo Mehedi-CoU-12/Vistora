@@ -39,12 +39,12 @@ function makeCandidate(
   return { stream: makeStream(url), label, quality };
 }
 
-/**
- * A source that answers with whatever it is given, and records that it was asked.
- *
- * `resolve` is a jest mock so the caching tests can assert on call counts, which
- * is the only way to tell a cache hit from a very fast source.
- */
+
+
+
+
+
+
 function makeSource(
   id: string,
   candidates: StreamCandidate[],
@@ -76,8 +76,8 @@ describe('qualityRank', () => {
     expect(qualityRank('sd')).toBe(480);
   });
 
-  // An unmeasured candidate must not outrank a measured one on the strength of
-  // no information -- see the note on the function.
+  
+  
   it('sorts an unknown quality last rather than in the middle', () => {
     expect(qualityRank(undefined)).toBe(0);
     expect(qualityRank('best available')).toBe(0);
@@ -96,9 +96,9 @@ describe('rankCandidates', () => {
     expect(ranked.map(c => c.stream.url)).toEqual(['b', 'c', 'a']);
   });
 
-  // Registration order is the tie-break, and it only works because the sort is
-  // stable. A source that returns its own preferred order for equal qualities
-  // must keep it.
+  
+  
+  
   it('leaves equal qualities in the order they arrived', () => {
     const ranked = rankCandidates([
       makeCandidate('first', '1080p'),
@@ -129,8 +129,8 @@ describe('registerSource', () => {
     expect(registeredSources().map(s => s.id)).toEqual(['first', 'second']);
   });
 
-  // A hot reload re-runs the registration module against an array that was never
-  // cleared. Appending would give the Play button five copies of one source.
+  
+  
   it('replaces a source registered twice under the same id', () => {
     registerSource(makeSource('dup', [makeCandidate('old')]));
     registerSource(makeSource('dup', [makeCandidate('new')]));
@@ -173,8 +173,8 @@ describe('resolveStream', () => {
     expect(playback.candidates[0].stream.url).toBe('http://a');
   });
 
-  // The core of the design: every source is asked, so a stored URL stays in the
-  // list as a fallback even when a live source answers first. See the header.
+  
+  
   it('merges every source rather than stopping at the first', async () => {
     registerSource(makeSource('live', [makeCandidate('http://live', '1080p')]));
     registerSource(
@@ -210,7 +210,7 @@ describe('resolveStream', () => {
     expect(declined.resolve).not.toHaveBeenCalled();
   });
 
-  // A failing source is a source that did not answer, not a failed press.
+  
   it('skips a source that throws and keeps the rest', async () => {
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
@@ -240,8 +240,8 @@ describe('resolveStream', () => {
     expect(playback.candidates).toHaveLength(1);
   });
 
-  // Otherwise the player's failover would "retry" a dead URL against itself
-  // before reaching a mirror that actually differs.
+  
+  
   it('drops a URL that two sources both returned', async () => {
     registerSource(makeSource('a', [makeCandidate('http://same', '1080p')]));
     registerSource(makeSource('b', [makeCandidate('http://same', '720p')]));
@@ -249,7 +249,7 @@ describe('resolveStream', () => {
     const playback = await resolveStream(makeItem());
 
     expect(playback.candidates).toHaveLength(1);
-    // The first occurrence survives, which is the better-ranked copy.
+    
     expect(playback.candidates[0].quality).toBe('1080p');
   });
 
@@ -290,7 +290,7 @@ describe('resolveStream', () => {
     expect(source.resolve).toHaveBeenCalledTimes(2);
   });
 
-  // A movie and an episode could share an id: they are different tables.
+  
   it('does not confuse two kinds that share an id', async () => {
     const source = makeSource('one', [makeCandidate('http://a')]);
     registerSource(source);
@@ -301,8 +301,8 @@ describe('resolveStream', () => {
     expect(source.resolve).toHaveBeenCalledTimes(2);
   });
 
-  // Without this, a cached answer that has gone bad is handed back for the rest
-  // of its TTL, so pressing Play again fails identically for five minutes.
+  
+  
   it('resolves afresh after the item is invalidated', async () => {
     const source = makeSource('one', [makeCandidate('http://a')]);
     registerSource(source);
@@ -328,8 +328,8 @@ describe('resolveStream', () => {
 
     await resolveStream(makeItem());
 
-    // Past the short TTL but well inside the long one: the merged answer is
-    // only as fresh as its shortest-lived part, so it must be gone.
+    
+    
     now.mockReturnValue(2000);
     await resolveStream(makeItem());
 

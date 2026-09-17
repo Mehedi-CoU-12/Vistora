@@ -13,9 +13,9 @@ describe('tapZoneFor', () => {
     expect(tapZoneFor(380, 400)).toBe('right');
   });
 
-  // The gesture layer reports its width through onLayout, so the first touch can
-  // arrive before any width is known. Guessing "left" would skip backwards on a
-  // tap that was meant to show the controls.
+  
+  
+  
   it('is centre when the width is not known yet', () => {
     expect(tapZoneFor(0, 0)).toBe('centre');
   });
@@ -32,12 +32,12 @@ describe('dragAxisFor', () => {
     expect(dragAxisFor(0, -40, 350, 400)).toBe('volume');
   });
 
-  // Which half the finger STARTED in decides, not where it is now: a vertical
-  // swipe that drifts across the middle must not switch from brightness to
-  // volume halfway through.
+  
+  
+  
   it('decides from the starting half, not the current position', () => {
-    // Started at x=50, has drifted 150dp right and is now past the middle of a
-    // 400dp screen -- still brightness, because that is where it began.
+    
+    
     expect(dragAxisFor(150, -260, 50, 400)).toBe('brightness');
     expect(dragAxisFor(-150, -260, 350, 400)).toBe('volume');
   });
@@ -55,7 +55,7 @@ describe('swipeSeekSeconds', () => {
 });
 
 describe('verticalDragFraction', () => {
-  // Screen coordinates grow downwards; volume does not.
+  
   it('treats upward travel as an increase', () => {
     expect(verticalDragFraction(-60, 200)).toBeGreaterThan(0);
     expect(verticalDragFraction(60, 200)).toBeLessThan(0);

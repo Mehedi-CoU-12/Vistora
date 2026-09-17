@@ -17,43 +17,43 @@ import type { RootStackParamList } from '../types/navigation';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-/**
- * Navigation for the app.
- *
- * Why a native stack rather than the JS stack: it gives us the Android hardware
- * BACK button for free. On a TV remote, Back is the primary way out of any
- * screen, and the native stack wires it to `goBack()` without a single
- * BackHandler listener. It is also the reason no screen here needs its own back
- * button in a header.
- *
- * Headers are off everywhere. A TV app has no room for a navigation bar and no
- * way to tap one; the browse screen presents its own chrome instead.
- *
- * The stack is deliberately shallow: everything browsable lives behind tabs
- * inside `Browse`, so Back is unambiguous on a remote that has exactly one of
- * it. `Details` and `Series` are the two screens between browsing and playing,
- * and they are alternatives rather than a sequence -- a card opens one or the
- * other, never both -- so Back from either returns to the row it was chosen
- * from.
- *
- * `Series` earns its own route rather than being a kind of `Details`: an episode
- * list cannot be a tab (there is one per series) and cannot be a modal over the
- * grid (it is where you spend time, not a glance), and unlike `Details` it has
- * to fetch, because a card does not carry seventy-five episodes with it.
- *
- * ---------------------------------------------------------------------------
- * The one thing drawn outside the navigator
- * ---------------------------------------------------------------------------
- * `ResolvingOverlay` is a sibling of the whole `NavigationContainer`, not a
- * screen and not a modal route. Pressing Play now waits on a network call before
- * the player can be pushed, and that wait belongs to the app rather than to any
- * one screen -- it starts on Home, on a details screen or on an episode row, and
- * it has to cover whichever of them the viewer is looking at.
- *
- * A route would have been the navigator-shaped answer and is the wrong one: it
- * would put a screen in the history that Back could return to, for a state that
- * lasts a few hundred milliseconds and must never be returned to.
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 const navigationTheme: Theme = {
   ...DarkTheme,
   colors: {
@@ -74,8 +74,8 @@ export function RootNavigator() {
           initialRouteName="Browse"
           screenOptions={{
             headerShown: false,
-            // Slide/fade transitions on a TV read as sluggish, and a mid-transition
-            // screen is a screen where focus is briefly nowhere.
+            
+            
             animation: 'fade',
             contentStyle: { backgroundColor: colors.background },
           }}
@@ -87,17 +87,17 @@ export function RootNavigator() {
             name="Player"
             component={PlayerScreen}
             options={{
-              // The player is its own world: no background peeking through while
-              // the surface initialises.
+              
+              
               contentStyle: { backgroundColor: '#000' },
             }}
           />
         </Stack.Navigator>
       </NavigationContainer>
 
-      {/* Last child, so it draws over every screen. Renders null unless a
-          resolution is actually in flight -- see the note in its own file on
-          why an always-mounted transparent view would break TV focus. */}
+      {
+
+}
       <ResolvingOverlay />
     </View>
   );

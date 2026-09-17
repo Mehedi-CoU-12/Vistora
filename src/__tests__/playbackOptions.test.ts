@@ -17,15 +17,15 @@ describe('clampSeekTarget', () => {
     expect(clampSeekTarget(-30, 0, 100)).toBe(0);
   });
 
-  // Seeking to exactly the duration ends playback, so a viewer holding FORWARD
-  // would leave the film instead of arriving near the end of it.
+  
+  
   it('stops just short of the end', () => {
     expect(clampSeekTarget(100, 0, 100)).toBeLessThan(100);
     expect(clampSeekTarget(1e6, 0, 100)).toBeLessThan(100);
   });
 
-  // A live stream's window does not start at zero, and `duration` is 0 or
-  // Infinity until the first progress event arrives.
+  
+  
   it('respects a window that does not start at zero', () => {
     expect(clampSeekTarget(10, 60, 180)).toBe(60);
     expect(clampSeekTarget(120, 60, 180)).toBe(120);
@@ -61,10 +61,10 @@ describe('timeForTrackX', () => {
     expect(timeForTrackX(5000, track, timeline)).toBeLessThan(600);
   });
 
-  // This is the bug the null return exists for. The old code answered "the
-  // start of the timeline" when it had no measurement, which is exactly what a
-  // deliberate jump to the beginning looks like -- so an unmeasured bar threw
-  // the viewer back to 0, which is what "it jumps to the start" was.
+  
+  
+  
+  
   it('answers null rather than the start when it cannot know', () => {
     expect(timeForTrackX(500, { pageX: 100, width: 0 }, timeline)).toBeNull();
     expect(timeForTrackX(500, track, { start: 0, end: 0 })).toBeNull();
@@ -72,7 +72,7 @@ describe('timeForTrackX', () => {
     expect(timeForTrackX(NaN, track, timeline)).toBeNull();
   });
 
-  // A live DVR window does not start at zero.
+  
   it('maps within a window that starts late', () => {
     expect(
       timeForTrackX(500, track, { start: 300, end: 900 }),
@@ -81,9 +81,9 @@ describe('timeForTrackX', () => {
 });
 
 describe('hasSeekLanded', () => {
-  // The bar is held at the target until this says yes. Both of the events that
-  // report a seek can carry a position from before the jump, and acting on one
-  // was what made the scrub bar flick backwards after a drag.
+  
+  
+  
   it('accepts a position near the target', () => {
     expect(hasSeekLanded(60, 60)).toBe(true);
     expect(hasSeekLanded(59.4, 60)).toBe(true);
@@ -100,8 +100,8 @@ describe('hasSeekLanded', () => {
     expect(hasSeekLanded(57, 60, 1)).toBe(false);
   });
 
-  // Never leave the readout pinned to a target because of a bad number: a
-  // frozen bar over playing video is worse than one that moves early.
+  
+  
   it('gives up on values it cannot compare', () => {
     expect(hasSeekLanded(NaN, 60)).toBe(true);
     expect(hasSeekLanded(60, Infinity)).toBe(true);
@@ -120,8 +120,8 @@ describe('scaling modes', () => {
     expect(nextScalingMode('stretch')).toBe('fit');
   });
 
-  // A pinch has to be reversible, or it is a two-finger button rather than a
-  // control: spreading then pinching back must land where it started.
+  
+  
   it('is reversible in both directions', () => {
     for (const mode of SCALING_MODES) {
       expect(stepScalingMode(stepScalingMode(mode, 1), -1)).toBe(mode);
@@ -170,8 +170,8 @@ describe('describeTracks', () => {
     ]);
   });
 
-  // Media3 numbers tracks from zero and does not promise they are contiguous,
-  // so the label counts positions while the value keeps the real index.
+  
+  
   it('labels by position but selects by index', () => {
     expect(describeTracks([{index: 3}, {index: 7}])).toEqual([
       {index: 3, label: 'Track 1'},

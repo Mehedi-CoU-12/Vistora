@@ -24,15 +24,15 @@ export function EmptyState({
 }: {
   title?: string;
   message?: string;
-  /**
-   * Optional thing to do about it -- usually "Reload", for the case where the
-   * message just told you to go and add some content.
-   *
-   * It earns its place on a TV for a second reason: an empty screen with no
-   * focusable element on it leaves the D-pad with nothing to move to, so the
-   * remote appears to stop working until the user thinks to press UP into the
-   * tab bar. A button is somewhere for focus to be.
-   */
+  
+
+
+
+
+
+
+
+
   action?: { label: string; onPress: () => void };
 }) {
   const styles = useStyles();
@@ -43,12 +43,12 @@ export function EmptyState({
       {message ? <Text style={styles.message}>{message}</Text> : null}
       {action ? (
         <View style={styles.action}>
-          {/* Claims focus for the same reason ErrorState's Retry does: it is
-              the only focusable thing on the screen, so if it does not take
-              focus the remote appears dead until the user guesses to press UP
-              into the tab bar. Exactly one empty state with an action is ever
-              mounted at a time -- a catalog shows either this or its
-              per-category message, never both. */}
+          {
+
+
+
+
+}
           <TextButton
             label={action.label}
             onPress={action.onPress}
@@ -69,8 +69,8 @@ export function ErrorState({
 }) {
   const styles = useStyles();
 
-  // A missing or wrong .env cannot be fixed by pressing a button, so we show
-  // the setup steps instead of a Retry that would fail identically.
+  
+  
   const isSetupProblem = error.kind === 'config';
 
   return (
@@ -108,9 +108,9 @@ const useStyles = makeStyles(m => ({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    // The screen gutter plus a little, rather than a fixed inset: 48dp a side is
-    // a comfortable margin on a TV and leaves a phone about 290dp for a
-    // paragraph of setup instructions.
+    
+    
+    
     paddingHorizontal: m.gutter.horizontal + spacing.sm,
     gap: spacing.md,
   },
@@ -129,8 +129,8 @@ const useStyles = makeStyles(m => ({
     marginTop: spacing.sm,
   },
   mono: {
-    // Setup instructions contain shell commands, which are unreadable when
-    // proportionally spaced.
+    
+    
     fontFamily: 'monospace',
     textAlign: 'left',
     color: colors.textPrimary,

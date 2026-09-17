@@ -8,13 +8,13 @@ import {
 } from '../navigation/rails';
 import type { Category, ContentItem } from '../types/content';
 
-/**
- * The rail builder is what decides the shape of every browse screen in the app,
- * and it decides it from data -- so the interesting cases are all about
- * libraries that are thinner or odder than the one currently in the database.
- * Those are exactly the cases nobody sees while developing against a full
- * catalogue and everybody sees on a fresh clone.
- */
+
+
+
+
+
+
+
 
 function item(id: string, overrides: Partial<ContentItem> = {}): ContentItem {
   return {
@@ -33,7 +33,7 @@ function category(id: string, name: string): Category {
   return { id, slug: name.toLowerCase(), name, kind: 'movie' };
 }
 
-/** Four items in one category is comfortably over `MIN_RAIL_ITEMS`. */
+
 function fill(categoryId: string, count: number, prefix: string): ContentItem[] {
   return Array.from({ length: count }, (_, index) =>
     item(`${prefix}${index}`, { categoryId }),
@@ -63,11 +63,11 @@ describe('buildRails', () => {
     expect(rails[1].items).toHaveLength(5);
   });
 
-  /**
-   * Category order is the editor's, expressed as `sort_order` and already
-   * applied by `fetchCategories`. The builder must preserve it rather than
-   * emitting rails in whatever order the items happened to arrive in.
-   */
+  
+
+
+
+
   it('follows the order the categories arrive in, not the items', () => {
     const rails = buildRails(
       source({
@@ -79,11 +79,11 @@ describe('buildRails', () => {
     expect(rails.map(rail => rail.title)).toEqual(['Action', 'Comedy']);
   });
 
-  /**
-   * A rail of one or two cards looks like a mistake beside a rail of twenty,
-   * and on a television it is a focus hazard: pressing RIGHT stops immediately,
-   * which reads as a missed press rather than as the end of the row.
-   */
+  
+
+
+
+
   it('drops a category too thin to be a rail, without losing its items', () => {
     const rails = buildRails(
       source({
@@ -92,18 +92,18 @@ describe('buildRails', () => {
       }),
     );
 
-    // One real rail is below MIN_RAILS_TO_SPLIT, so the whole kind falls back to
-    // a single rail -- which is where the lone Comedy title survives.
+    
+    
     expect(rails).toHaveLength(1);
     expect(rails[0].title).toBe('Movies');
     expect(rails[0].items).toHaveLength(5);
   });
 
-  /**
-   * "Action" and "Classics" as the only two rails implies a catalogue that has
-   * been organised. One rail called "Movies" is the honest rendering of a
-   * catalogue that has not been.
-   */
+  
+
+
+
+
   it('falls back to a single rail rather than splitting into one', () => {
     const rails = buildRails(
       source({
@@ -166,11 +166,11 @@ describe('interleave', () => {
     cardVariant: 'poster',
   });
 
-  /**
-   * The whole point: about one and a half rails are visible under a hero on a
-   * television, so concatenating would mean a viewer never learns Live TV exists
-   * without scrolling past every film genre.
-   */
+  
+
+
+
+
   it('mixes the kinds instead of stacking them', () => {
     expect(
       interleave([
@@ -195,7 +195,7 @@ describe('interleave', () => {
     ]);
   });
 
-  /** Rails are re-derived on every reload; a changing order would move focus. */
+  
   it('is stable for the same input', () => {
     const groups = [[rail('a'), rail('b')], [rail('c')]];
     expect(interleave(groups)).toEqual(interleave(groups));
@@ -219,12 +219,12 @@ describe('pickFeatured', () => {
     expect(pickFeatured([plain, withPoster, described], 0)?.id).toBe('described');
   });
 
-  /**
-   * A library with nothing well-furnished in it still gets a hero. The
-   * alternative -- returning null unless something has a backdrop -- would mean
-   * a blank band at the top of the Live TV screen forever, since no channel has
-   * one.
-   */
+  
+
+
+
+
+
   it('still returns something when nothing is well furnished', () => {
     expect(pickFeatured([plain], 0)?.id).toBe('plain');
   });
@@ -233,7 +233,7 @@ describe('pickFeatured', () => {
     expect(pickFeatured([], 0)).toBeNull();
   });
 
-  /** The seed rotates among EQUALLY good candidates and never below them. */
+  
   it('rotates between equally good candidates', () => {
     const a = item('a', { backdropUrl: 'x', description: 'd' });
     const b = item('b', { backdropUrl: 'y', description: 'd' });
@@ -250,7 +250,7 @@ describe('pickFeatured', () => {
     }
   });
 
-  /** A seed is whatever the caller had; none of it may index out of range. */
+  
   it('survives a negative or fractional seed', () => {
     expect(pickFeatured([plain], -7)?.id).toBe('plain');
     expect(pickFeatured([plain], 3.7)?.id).toBe('plain');
@@ -271,10 +271,10 @@ describe('withGenre', () => {
     expect(tagged.meta).toEqual({ year: 1999, genre: 'Action' });
   });
 
-  /**
-   * Identity, not just equality. A new object every render looks like new data
-   * to a FlatList and re-renders the row for nothing.
-   */
+  
+
+
+
   it('returns the same object when there is no genre to add', () => {
     const original = item('a', { categoryId: null });
     expect(withGenre([original], [])[0]).toBe(original);
@@ -312,11 +312,11 @@ describe('homeRails', () => {
     ...fill('cat-c', 9, 'c'),
   ];
 
-  /**
-   * The first film category in the current library is "Action" with four
-   * titles. Beside a twenty-card rail on the home screen that reads as a row
-   * that failed to load, so Home samples by what there is most of.
-   */
+  
+
+
+
+
   it('takes the fullest rails, not the first ones', () => {
     expect(homeRails(tab, items, categories, 2).map(rail => rail.title)).toEqual([
       'Trending',
@@ -324,8 +324,8 @@ describe('homeRails', () => {
     ]);
   });
 
-  /** Chosen by size; shown in the editor's order. Sorting the home screen by
-      inventory would be a third and worse thing. */
+  
+
   it('puts the ones it chose back into the editors order', () => {
     const chosen = homeRails(
       tab,
@@ -348,7 +348,7 @@ describe('homeRails', () => {
     expect(chosen.map(rail => rail.title)).toEqual(['Action', 'Trending']);
   });
 
-  /** Every home rail has somewhere further to go, by construction. */
+  
   it('points every rail at its own tab', () => {
     for (const rail of homeRails(tab, items, categories, 3)) {
       expect(rail.seeAll).toBe('movies');

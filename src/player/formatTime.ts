@@ -1,4 +1,4 @@
-/** Seconds -> "1:23" or "1:02:03". Used by the player's progress readout. */
+
 export function formatTime(totalSeconds: number): string {
   if (!Number.isFinite(totalSeconds) || totalSeconds < 0) {
     return '0:00';

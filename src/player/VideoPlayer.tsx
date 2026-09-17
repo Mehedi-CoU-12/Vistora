@@ -62,103 +62,103 @@ import {
 import { useRemoteControl } from './useRemoteControl';
 
 interface VideoPlayerProps {
-  /**
-   * Every URL that could play this, best first, already resolved.
-   *
-   * A list rather than a `Stream`, and that is what makes failover possible at
-   * all: the component that discovers a URL will not open is this one, so it is
-   * the only place that can try the next without sending the viewer back to
-   * browse and asking them to press Play again.
-   *
-   * This is a type-only import from the services layer. The component still
-   * imports nothing from navigation and nothing from the platform, so it stays
-   * embeddable in something that is not a route -- see the note on `onExit`.
-   */
+  
+
+
+
+
+
+
+
+
+
+
+
   playback: Playback;
   title: string;
   subtitle?: string;
-  /** Leave the player: user pressed Back, or a VOD reached its end. */
+  
   onExit: () => void;
-  /**
-   * Reports whether the player currently has something a Back press should
-   * close rather than leave: an open settings panel, or the lock.
-   *
-   * The player cannot intercept Back by itself, and the reason is worth knowing.
-   * `BackHandler` is the documented way and it does not run here: the native
-   * stack (react-native-screens) pops the route natively, so the press never
-   * reaches a JavaScript handler -- verified on device, where Back with the
-   * settings panel open exited the player instead of closing the panel. Only
-   * the navigator can prevent that, so `PlayerScreen` does it with
-   * `usePreventRemove`, using this callback and the `dismissTop` handle below.
-   *
-   * Keeping it a callback rather than importing navigation here is what lets
-   * this component stay embeddable in something that is not a route at all.
-   */
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   onCanDismissChange?: (canDismiss: boolean) => void;
 }
 
 export interface VideoPlayerHandle {
-  /**
-   * Close the topmost thing the player has open. Returns true if something was
-   * closed, so the caller knows whether it still has a Back press to spend.
-   */
+  
+
+
+
   dismissTop: () => boolean;
 }
 
-/** How long the control overlay stays up after the last input. */
+
 const OVERLAY_TIMEOUT_MS = 4000;
 
-/** How long a gesture readout lingers once the gesture is over. */
+
 const FEEDBACK_LINGER_MS = 700;
 
-/**
- * How close playback must get to a pending seek target before the readout stops
- * showing the target and starts showing the real position again.
- *
- * ---------------------------------------------------------------------------
- * This is the fix for the scrub bar flicking backwards after a seek.
- * ---------------------------------------------------------------------------
- * A seek does not land instantly, and the two events that report it disagree
- * for a moment. In react-native-video's Android code, `onSeek` fires from
- * `onIsPlayingChanged` and carries `player.getCurrentPosition()` -- taken when
- * playback resumes, which can still be the position from BEFORE the jump. And
- * `onProgress` keeps ticking on its own 500ms timer, so it reports stale
- * positions too while Media3 flushes its decoder.
- *
- * Dropping the pending target on `onSeek` therefore handed the bar an old
- * position for up to half a second: it snapped back to where the finger started,
- * then jumped forward again when the next progress tick arrived. So instead the
- * target is held until playback demonstrably reaches it, and the bar only ever
- * moves in the direction the user asked for.
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 const SEEK_SETTLE_TOLERANCE_SECONDS = 1;
 
-/**
- * Safety valve for the above: stop waiting for a seek that never lands.
- *
- * A target can be unreachable -- a live edge that has moved on, a source that
- * refuses the position -- and a pending target held forever would freeze the
- * readout while the video played on behind it.
- */
+
+
+
+
+
+
+
 const SEEK_SETTLE_TIMEOUT_MS = 4000;
 
-/**
- * How long buffering must last before the spinner appears.
- *
- * Every seek buffers briefly, and a spinner that flashes up for 150ms on each
- * one is a flicker in its own right. Waiting a moment means the spinner only
- * shows up for stalls the viewer had already noticed.
- */
+
+
+
+
+
+
+
 const BUFFER_SPINNER_DELAY_MS = 250;
 
 const LIVE_DVR_MIN_SECONDS = 90;
 
-/** How far behind the live edge counts as "not live any more". */
+
 const BEHIND_LIVE_SECONDS = 20;
 
 const MIN_BRIGHTNESS = 0.15;
 
-/** Opacity of the dimming layer at MIN_BRIGHTNESS. */
+
 const MAX_DIM_OPACITY = 0.85;
 
 export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
@@ -168,14 +168,14 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
     const styles = useStyles();
     const videoRef = useRef<VideoRef>(null);
 
-    /**
-     * Which candidate is playing. Advanced by `handleError`; see the failover
-     * note there.
-     *
-     * Everything below this line reads `stream`, exactly as it did when that was
-     * a prop -- deriving it here is what kept the failover change from touching
-     * the seek bar, the track selection, the gestures or the controls.
-     */
+    
+
+
+
+
+
+
+
     const [candidateIndex, setCandidateIndex] = useState(0);
     const candidates = playback.candidates;
     const candidate = candidates[candidateIndex];
@@ -187,19 +187,19 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
 
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
-    /** Length of the seekable window, which is the whole timeline on a live edge. */
+    
     const [seekableDuration, setSeekableDuration] = useState(0);
     const [buffered, setBuffered] = useState(0);
 
-    /** Where the playhead is going, while a chain of skips is still open. */
+    
     const [pendingSeek, setPendingSeek] = useState<number | null>(null);
-    /** Where a finger is holding the scrub bar or a swipe, before release. */
+    
     const [scrubPreview, setScrubPreview] = useState<number | null>(null);
 
-    /**
-     * When to give up waiting for the pending seek to land. Armed whenever a
-     * target is set, so an accumulating chain of skips cannot expire mid-chain.
-     */
+    
+
+
+
     const seekSettleDeadline = useRef(0);
 
     const [overlayVisible, setOverlayVisible] = useState(true);
@@ -208,7 +208,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
     const [seekBarFocused, setSeekBarFocused] = useState(false);
 
     const [rate, setRate] = useState(1);
-    /** Press-and-hold speed boost, which must not overwrite the chosen speed. */
+    
     const [boosting, setBoosting] = useState(false);
     const [volume, setVolume] = useState(1);
     const [muted, setMuted] = useState(false);
@@ -235,7 +235,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       ? seekableDuration >= LIVE_DVR_MIN_SECONDS
       : timelineEnd > 0;
 
-    /** What to draw: a pending target beats the real position, which beats nothing. */
+    
     const displayPosition = scrubPreview ?? pendingSeek ?? currentTime;
 
     const behindLive =
@@ -276,9 +276,9 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       inPictureInPicture,
     };
 
-    // -------------------------------------------------------------------------
-    // Overlay visibility
-    // -------------------------------------------------------------------------
+    
+    
+    
 
     const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -289,22 +289,22 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       }
     }, []);
 
-    /**
-     * Show the overlay and restart its auto-hide countdown -- unless the player
-     * is in a state that pins the controls up.
-     *
-     * That last clause is load-bearing, and leaving it out was a real bug found
-     * on the emulator: pause the film and the effect below clears the timer, but
-     * the very next key press calls this and arms a fresh one, so the controls
-     * faded away four seconds later while playback sat paused behind them. The
-     * effect could not undo it either -- it only runs when one of its deps
-     * changes, and pressing a key changes none of them.
-     *
-     * The three states are the same three the effect tests, read off the live
-     * ref rather than from props so this callback stays referentially stable:
-     * every input handler in the player depends on it, and a `revealOverlay`
-     * that changed identity on each pause would rebuild all of them.
-     */
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     const revealOverlay = useCallback(() => {
       setOverlayVisible(true);
       live.current.overlayVisible = true;
@@ -321,7 +321,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       );
     }, [clearHideTimer]);
 
-    /** Put the overlay away now, because the user asked. Touch only. */
+    
     const dismissOverlay = useCallback(() => {
       clearHideTimer();
       setOverlayVisible(false);
@@ -341,15 +341,15 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
 
     useEffect(() => clearHideTimer, [clearHideTimer]);
 
-    /**
-     * Drives the overlay's fade. `metrics.isTouch` is the `animateOut` argument
-     * rather than a constant -- see `useOverlayFade` for why a TV cuts instead.
-     */
+    
+
+
+
     const overlayFade = useOverlayFade(overlayVisible, metrics.isTouch);
 
-    // -------------------------------------------------------------------------
-    // Feedback readouts
-    // -------------------------------------------------------------------------
+    
+    
+    
 
     const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -389,9 +389,9 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       [],
     );
 
-    // -------------------------------------------------------------------------
-    // Playback commands
-    // -------------------------------------------------------------------------
+    
+    
+    
 
     const togglePlayback = useCallback(
       () => setIsPaused(paused => !paused),
@@ -417,8 +417,8 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
 
         live.current.pendingSeek = target;
         setPendingSeek(target);
-        // The chain has not been issued yet, so the deadline has to cover the
-        // wait for the last press as well as the seek itself.
+        
+        
         seekSettleDeadline.current =
           Date.now() + SEEK_CHAIN_MS + SEEK_SETTLE_TIMEOUT_MS;
         showFeedback({
@@ -439,7 +439,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       [revealOverlay, seekNow, showFeedback],
     );
 
-    /** A seek the user has already aimed: a bar drag, or a jump to the live edge. */
+    
     const seekTo = useCallback(
       (target: number) => {
         const l = live.current;
@@ -509,11 +509,11 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       videoRef.current?.enterPictureInPicture();
     }, []);
 
-    // -------------------------------------------------------------------------
-    // Touch gestures
-    // -------------------------------------------------------------------------
+    
+    
+    
 
-    /** Values captured when a drag began; every drag reports travel from there. */
+    
     const dragBase = useRef({ position: 0, volume: 1, brightness: 1 });
 
     const scrubTarget = useRef<number | null>(null);
@@ -671,16 +671,16 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
         onHoldEnd: handleHoldEnd,
         onPinch: handlePinch,
       },
-      // Still enabled while locked, deliberately: the handlers refuse individually
-      // (see `handleTap`), which is what lets a tap say "locked" and re-show the
-      // Unlock button while every gesture that would change playback is ignored.
-      // Switching the responder off entirely would be a player with no way back.
+      
+      
+      
+      
       { enabled: metrics.isTouch && !settingsOpen },
     );
 
-    // -------------------------------------------------------------------------
-    // Remote control
-    // -------------------------------------------------------------------------
+    
+    
+    
 
     const remote = useRemoteControl(
       {
@@ -702,20 +702,20 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       { enabled: metrics.isTV },
     );
 
-    /**
-     * Close whatever is on top: the settings panel, or nothing while locked.
-     *
-     * Shared by both Back paths -- the navigator's interception (see
-     * `onCanDismissChange`) and the `BackHandler` below -- so the two can never
-     * disagree about what a Back press means.
-     */
+    
+
+
+
+
+
+
     const dismissTop = useCallback(() => {
       if (live.current.settingsOpen) {
         closeSettings();
         return true;
       }
       if (live.current.locked) {
-        // Locked absorbs Back and says so, rather than silently eating it.
+        
         revealOverlay();
         showFeedback({ kind: 'locked' });
         return true;
@@ -731,15 +731,15 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       onCanDismissChange?.(canDismiss);
     }, [canDismiss, onCanDismissChange]);
 
-    /**
-     * The BackHandler path, kept as well as the navigator one.
-     *
-     * It is dead under the native stack on Android -- the route is popped
-     * natively before JavaScript sees the press -- but it is the only path on a
-     * host that is not a native-stack route, and it costs one listener. Where both
-     * are live, this one consumes the press first and the navigator's callback
-     * never runs, so there is no double dismissal.
-     */
+    
+
+
+
+
+
+
+
+
     useEffect(() => {
       const subscription = BackHandler.addEventListener(
         'hardwareBackPress',
@@ -749,10 +749,10 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       return () => subscription.remove();
     }, [dismissTop]);
 
-    /**
-     * Leaving the app pauses playback -- unless the player is in a
-     * picture-in-picture window, where being in the background is the whole point.
-     */
+    
+
+
+
     useEffect(() => {
       const subscription = AppState.addEventListener('change', state => {
         if (state !== 'active' && !live.current.inPictureInPicture) {
@@ -763,9 +763,9 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       return () => subscription.remove();
     }, []);
 
-    // -------------------------------------------------------------------------
-    // Player events
-    // -------------------------------------------------------------------------
+    
+    
+    
 
     const handleLoad = useCallback((data: OnLoadData) => {
       setDuration(Number.isFinite(data.duration) ? data.duration : 0);
@@ -782,14 +782,14 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       }
     }, []);
 
-    /**
-     * Drop the pending target, but only once it means something.
-     *
-     * `settle` is the whole flicker fix: the target stays in place until a
-     * reported position is actually near it. The real position is still recorded
-     * on every tick -- `displayPosition` simply prefers the target while one is
-     * pending, so nothing the viewer sees moves backwards.
-     */
+    
+
+
+
+
+
+
+
     const settlePendingSeek = useCallback((reportedTime: number) => {
       const pending = live.current.pendingSeek;
       if (pending === null) {
@@ -812,11 +812,11 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       (data: OnProgressData) => {
         setCurrentTime(data.currentTime);
         setBuffered(data.playableDuration);
-        // Ignore a zero-length seekable window rather than storing it. Media3
-        // reports one transiently -- while a live playlist reloads, and around a
-        // seek -- and storing it collapses the timeline to nothing, which makes
-        // the bar's fill snap to the far left and every position on it map to
-        // the start. Keeping the last real window is always closer to the truth.
+        
+        
+        
+        
+        
         if (data.seekableDuration > 0) {
           setSeekableDuration(data.seekableDuration);
         }
@@ -825,12 +825,12 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       [settlePendingSeek],
     );
 
-    /**
-     * Media3 says the seek is done. Worth acting on because it usually arrives
-     * before the next progress tick, but not worth trusting on its own: the
-     * position it carries is read when playback resumes and can predate the
-     * jump, which is exactly what used to make the bar flick backwards.
-     */
+    
+
+
+
+
+
     const handleSeek = useCallback(
       (data: OnSeekData) => {
         setCurrentTime(data.currentTime);
@@ -845,32 +845,32 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       [],
     );
 
-    /**
-     * A candidate would not open: move to the next one, or give up.
-     *
-     * -----------------------------------------------------------------------
-     * Why the retry is silent, and automatic
-     * -----------------------------------------------------------------------
-     * The failure this handles is overwhelmingly a URL that has expired or a
-     * mirror that is down, and the viewer can do precisely nothing about either.
-     * Showing them "Response code: 403" and a Try again button, as this used to,
-     * asks them to make a decision using information they cannot act on -- and
-     * the decision is always "yes, obviously, try the other one".
-     *
-     * So the player makes it. A dead first candidate now costs a second of
-     * buffering, which is indistinguishable from an ordinary slow start, rather
-     * than costing the title. The error screen is reserved for the case where
-     * that is genuinely the end of the road.
-     *
-     * The warning is kept because the alternative is a source that is dead for
-     * everything being invisible: playback still works, every time, just always
-     * from the fallback.
-     */
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     const handleError = useCallback(
       (event: OnVideoErrorData) => {
-        // Media3's own message is far more useful than a generic string --
-        // "Source error", "Response code: 403" -- so surface it instead of
-        // hiding it.
+        
+        
+        
         const detail =
           event.error?.errorString ??
           event.error?.localizedDescription ??
@@ -899,11 +899,11 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       [],
     );
 
-    /**
-     * The spinner trails the buffering state by a moment. See
-     * BUFFER_SPINNER_DELAY_MS: without it, every seek flashes a spinner over the
-     * picture for the fraction of a second Media3 spends refilling.
-     */
+    
+
+
+
+
     const [spinnerVisible, setSpinnerVisible] = useState(false);
 
     useEffect(() => {
@@ -920,7 +920,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       return () => clearTimeout(timer);
     }, [isBuffering]);
 
-    /** Unplugging headphones must not start playing a film to the room. */
+    
     const handleAudioBecomingNoisy = useCallback(() => setIsPaused(true), []);
 
     const handleEnd = useCallback(() => {
@@ -929,35 +929,35 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       }
     }, [loop, onExit]);
 
-    /**
-     * Start again from the best candidate.
-     *
-     * Back to the top of the list rather than retrying the one that just failed:
-     * by the time this button is reachable every candidate has already been
-     * tried once, so the only thing that can have changed is the network -- and
-     * if it has come back, the viewer should get the best stream rather than the
-     * last-resort one.
-     */
+    
+
+
+
+
+
+
+
+
     const retry = useCallback(() => {
       setError(null);
       setIsBuffering(true);
       setCandidateIndex(0);
-      // Re-issuing the source is what actually restarts a failed load. Needed
-      // even though the effect below also re-issues on change, because when the
-      // list has one entry the source object is identical and nothing changed.
+      
+      
+      
       videoRef.current?.setSource(buildSource(candidates[0].stream));
     }, [candidates]);
 
     const source = useMemo(() => buildSource(stream), [stream]);
 
-    /**
-     * Hands a newly chosen candidate to the native player.
-     *
-     * The `source` prop changing is not reliably enough on its own here: after
-     * an error Media3 is sitting in a failed state, and `setSource` is what
-     * actually makes it load again -- the same knowledge `retry` above depends
-     * on. Skipped on the first run, where the prop itself is doing the work.
-     */
+    
+
+
+
+
+
+
+
     const isInitialSource = useRef(true);
     useEffect(() => {
       if (isInitialSource.current) {
@@ -967,12 +967,12 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       videoRef.current?.setSource(source);
     }, [source]);
 
-    /**
-     * A different title arrived in the same mounted player: start its list from
-     * the top. Without this, playing something new after a failover would begin
-     * at whatever index the previous title happened to end on -- or crash, if
-     * the new list is shorter.
-     */
+    
+
+
+
+
+
     useEffect(() => {
       setCandidateIndex(0);
       setError(null);
@@ -992,9 +992,9 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       if (resolution) {
         lines.push(resolution);
       }
-      // Which mirror is actually playing. Worth a line because after a silent
-      // failover the picture gives no clue that the first choice failed, and
-      // "why is this the 720p one" is otherwise unanswerable from the device.
+      
+      
+      
       lines.push(
         candidates.length > 1
           ? `${candidate.label} · ${candidateIndex + 1} of ${candidates.length}`
@@ -1023,8 +1023,8 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
 
     return (
       <View style={styles.root}>
-        {/* Full screen on both devices: a status bar over a film is a status bar
-          over a film, remote or no remote. */}
+        {
+}
         <StatusBar hidden />
 
         <Video
@@ -1033,19 +1033,19 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
           style={styles.video}
           resizeMode={resizeModeFor(scaling)}
           paused={isPaused}
-          // The chosen speed, unless a finger is holding the screen down.
+          
           rate={boosting ? HOLD_TO_SPEED_RATE : rate}
           volume={volume}
           muted={muted}
           repeat={loop}
           selectedAudioTrack={trackProp(selectedAudio)}
           selectedTextTrack={trackProp(selectedText)}
-          // We draw our own overlay, so Media3's built-in control view stays off.
-          // It is usable on TV, but it would match nothing else in the app and
-          // would compete with our focus model.
+          
+          
+          
           controls={false}
-          // Twice a second: enough for the bar to look continuous, and few enough
-          // JS bridge crossings that a 4K stream does not pay for the readout.
+          
+          
           progressUpdateInterval={500}
           onLoad={handleLoad}
           onProgress={handleProgress}
@@ -1055,18 +1055,18 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
           onEnd={handleEnd}
           onAudioBecomingNoisy={handleAudioBecomingNoisy}
           onPictureInPictureStatusChanged={handlePictureInPictureStatus}
-          // Stops the display dimming or sleeping mid-film.
+          
           preventsDisplaySleepDuringVideoPlayback
         />
 
-        {/*
-        The brightness gesture dims the picture rather than the backlight.
-        Changing the screen's actual brightness needs a native module this
-        project does not have, and would also change it for the whole system --
-        so this is a layer over the video, which is honest about what it does:
-        it makes a too-bright film watchable in the dark without touching the
-        controls drawn on top of it, which stay legible.
-      */}
+        {
+
+
+
+
+
+
+}
         {brightness < 1 ? (
           <View
             pointerEvents="none"
@@ -1077,11 +1077,11 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
           />
         ) : null}
 
-        {/*
-        The gesture layer sits BELOW the controls and above the video. Order is
-        the whole mechanism: a press on a button is handled by the button, and a
-        touch anywhere else falls through to here.
-      */}
+        {
+
+
+
+}
         {metrics.isTouch ? (
           <View
             style={styles.gestureLayer}
@@ -1096,23 +1096,23 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
           </View>
         ) : null}
 
-        {/*
-        TV only, and the reason the controls can always be recovered.
-        =============================================================
-        With the overlay hidden, the player would otherwise contain no focusable
-        view at all -- and under the New Architecture that means no key events
-        either, because JSKeyDispatcher only dispatches to a FOCUSED view and
-        returns early when there is none. The result was a player whose controls
-        auto-hid after four seconds and could never be brought back: every D-pad
-        press went nowhere and only BACK, handled natively, did anything.
+        {
 
-        So while the controls are hidden, one invisible focusable layer holds
-        focus and carries the key handlers. OK wakes the overlay; left and right
-        still scrub, because with a single focusable view on screen the focus
-        engine has nowhere to move and the press arrives here instead.
 
-        Not needed on a phone: the gesture layer above already takes every touch.
-      */}
+
+
+
+
+
+
+
+
+
+
+
+
+
+}
         {metrics.isTV && !overlayVisible ? (
           <Pressable
             style={styles.wakeLayer}
@@ -1124,19 +1124,19 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
           />
         ) : null}
 
-        {/*
-        Mounted on `overlayFade.mounted` rather than on `overlayVisible`, which
-        is what lets the controls fade out rather than vanish between frames --
-        see `useOverlayFade`, including why the fade-out is a touch-only
-        behaviour. The scrims that make the text legible are inside
-        `PlayerControls`, so they fade with the controls they back.
+        {
 
-        pointerEvents follows `overlayVisible`, not the animation: while the
-        overlay is on its way out it is still on screen, and a tap that lands on
-        a button in that quarter second should reach the gesture layer under it
-        and bring the controls back -- not press the button the user watched
-        leave.
-      */}
+
+
+
+
+
+
+
+
+
+
+}
         {overlayFade.mounted ? (
           <Animated.View
             style={[styles.overlayLayer, { opacity: overlayFade.opacity }]}
@@ -1178,10 +1178,10 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
         <GestureFeedback feedback={feedback} />
 
         {settingsOpen && metrics.isTouch ? (
-          // Tapping away from a sheet closes it: the touch idiom, and the reason
-          // the panel needs no visible dismiss target of its own on a phone. A TV
-          // gets no backdrop -- BACK closes the panel, and a focusable full-screen
-          // view would be somewhere for D-pad focus to fall into.
+          
+          
+          
+          
           <Pressable
             style={styles.backdrop}
             onPress={closeSettings}
@@ -1221,17 +1221,17 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
   },
 );
 
-// forwardRef renders an anonymous component, so name it for the devtools tree
-// and for any warning that has to point at it.
+
+
 VideoPlayer.displayName = 'VideoPlayer';
 
-/**
- * Our track selection -> the prop react-native-video wants.
- *
- * 'auto' maps to SYSTEM rather than to "no prop at all", which matters: a stream
- * can mark a track as the one to use, and SYSTEM is what honours that plus the
- * device's own language preference.
- */
+
+
+
+
+
+
+
 function trackProp(selection: TrackSelection): SelectedTrack {
   if (selection === 'auto') {
     return { type: SelectedTrackType.SYSTEM };
@@ -1242,15 +1242,15 @@ function trackProp(selection: TrackSelection): SelectedTrack {
   return { type: SelectedTrackType.INDEX, value: selection };
 }
 
-/**
- * Translates our `Stream` into react-native-video's source object.
- *
- * We pass the type explicitly rather than relying on the URL, because plenty of
- * real playlists live at URLs that do not end in a recognisable extension --
- * signed URLs with query strings, or paths like `/tears-of-steel.ism/.m3u8`.
- * Storing the protocol per row means such a source needs no code change. See
- * `MEDIA3_EXTENSION` for why the value is a file extension and not a protocol.
- */
+
+
+
+
+
+
+
+
+
 function buildSource(stream: Stream) {
   return {
     uri: stream.url,
@@ -1259,14 +1259,14 @@ function buildSource(stream: Stream) {
   };
 }
 
-/**
- * The end of the road: every candidate was tried and none of them opened.
- *
- * Reached far less often than it used to be -- a single dead mirror is now
- * handled silently by `handleError` -- which is what lets this screen say
- * something stronger than "try again". If it is showing, the problem is the
- * title or the network, not this particular URL.
- */
+
+
+
+
+
+
+
+
 function PlaybackError({
   detail,
   attempts,
@@ -1274,7 +1274,7 @@ function PlaybackError({
   onExit,
 }: {
   detail: string;
-  /** How many candidates were tried. Always at least one. */
+  
   attempts: number;
   onRetry: () => void;
   onExit: () => void;
@@ -1315,9 +1315,9 @@ const useStyles = makeStyles(metrics => ({
     flex: 1,
     backgroundColor: '#000',
   },
-  // Spelled out rather than StyleSheet.absoluteFillObject: this React Native
-  // version's types only declare `absoluteFill` (a registered style ID), which
-  // cannot be spread into a style object.
+  
+  
+  
   video: {
     position: 'absolute',
     top: 0,
@@ -1353,8 +1353,8 @@ const useStyles = makeStyles(metrics => ({
     left: 0,
     right: 0,
     bottom: 0,
-    // Invisible on purpose: it is a focus holder and a key target, not a
-    // control. Anything drawn here would be furniture over a film.
+    
+    
   },
   overlayLayer: {
     position: 'absolute',

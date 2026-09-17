@@ -17,45 +17,45 @@ import { colors, makeStyles, radius, spacing, useMetrics } from '../theme';
 import type { ContentItem } from '../types/content';
 import type { RootStackParamList } from '../types/navigation';
 
-/**
- * One series: what it is, and every episode of it.
- *
- * ---------------------------------------------------------------------------
- * A list, not a grid
- * ---------------------------------------------------------------------------
- * Every other content surface in this app is a grid, and this one deliberately
- * is not. A grid is for choosing between unlike things, where the artwork does
- * the distinguishing; an episode list is a sequence of near-identical stills
- * whose only useful differences are a number and a sentence of synopsis. Laid
- * out as a grid those differences are exactly what gets cropped, and the thing
- * a viewer actually wants -- "where was I" -- becomes the hardest thing to
- * find. A row per episode gives the number, the title and the synopsis room to
- * be read, and on a D-pad it means one axis of travel instead of two.
- *
- * ---------------------------------------------------------------------------
- * Season headers appear only when there is more than one season
- * ---------------------------------------------------------------------------
- * Most of what gets imported is a single run, and "Season 1" above a list that
- * has no season 2 is a row of chrome that answers a question nobody has. But
- * where there ARE several, an unlabelled jump from episode 12 back to episode 1
- * is indistinguishable from a sorting bug, so the header is not cosmetic
- * either. Rendering it conditionally costs one comparison and means the common
- * case pays nothing.
- *
- * ---------------------------------------------------------------------------
- * Not every episode can be played, and that is not this screen's problem
- * ---------------------------------------------------------------------------
- * Episodes imported from a YouTube channel carry `stream_protocol = 'youtube'`,
- * which is a page rather than media and so is not playable at all -- those rows
- * arrive here with no stream and say so when selected (see `toStream` in
- * types/content.ts). This screen does not know that: it calls `usePlayItem`,
- * and the decision lives in one place for every surface that starts a video.
- *
- * Note it is `usePlayItem` and not `useOpenItem`. A card elsewhere in the app
- * opens a details screen; an episode row plays immediately, because this list IS
- * the details screen for the series and a second one per episode would be a
- * synopsis you already read two lines of, with a button under it.
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 export function SeriesScreen() {
   const { params } = useRoute<RouteProp<RootStackParamList, 'Series'>>();
   const styles = useStyles();
@@ -92,9 +92,9 @@ export function SeriesScreen() {
       <EpisodeRow
         episode={item}
         onPress={playItem}
-        // Exactly one element on the screen seeds focus, and it is the first
-        // episode of the first season -- the thing a viewer arriving here is
-        // overwhelmingly likely to want, and the top of the only list.
+        
+        
+        
         hasTVPreferredFocus={
           index === 0 && section.season === sections[0]?.season
         }
@@ -111,12 +111,12 @@ export function SeriesScreen() {
     [hasSeasonHeaders, styles.seasonHeader],
   );
 
-  /**
-   * The title comes from the route while the fetch is in flight, so the header
-   * is correct from the first frame instead of reading "Loading" and then
-   * changing under the user. `params.title` is the same string the card that
-   * navigated here was already displaying.
-   */
+  
+
+
+
+
+
   const header = (
     <AppHeader title={data?.title ?? params.title} subtitle={data?.subtitle} />
   );
@@ -139,12 +139,12 @@ export function SeriesScreen() {
     );
   }
 
-  // Not dead code and not an error case: this is the single render between
-  // mount and the loader's first tick, where `isLoading` is still true from the
-  // initial state but the two branches above have already been evaluated. A
-  // spinner is what it actually is. Manufacturing an AppError to reuse
-  // ErrorState here would put a "Try again" button under a screen that is
-  // loading perfectly well.
+  
+  
+  
+  
+  
+  
   if (!data) {
     return (
       <ScreenContainer>
@@ -177,12 +177,12 @@ export function SeriesScreen() {
           }
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
-          // Recycling views out from under the focus engine makes focus jump to
-          // the top of the list. Same reason the catalog grid disables it.
+          
+          
           removeClippedSubviews={false}
-          // A season header that sticks would cover the episode above it as you
-          // scroll -- and on a D-pad you scroll by moving focus, so the covered
-          // row is the focused one.
+          
+          
+          
           stickySectionHeadersEnabled={false}
         />
       </TVFocusGuideView>
@@ -192,16 +192,16 @@ export function SeriesScreen() {
 
 const keyExtractor = (item: ContentItem) => item.id;
 
-/**
- * The synopsis block above the list.
- *
- * Rendered as the list's header rather than as a fixed pane beside it, which is
- * the one decision here worth defending. A fixed pane means two independently
- * scrollable regions and therefore a D-pad ambiguity at every row -- does LEFT
- * go to the synopsis, or to nothing? -- for the sake of text most viewers read
- * once. As a header it scrolls away after the first press of DOWN and the
- * screen has exactly one focus axis.
- */
+
+
+
+
+
+
+
+
+
+
 function SeriesHero({ series }: { series: SeriesDetail }) {
   const styles = useStyles();
   const { contentWidth } = useMetrics();
@@ -219,8 +219,8 @@ function SeriesHero({ series }: { series: SeriesDetail }) {
           source={{ uri: artwork }}
           style={[
             styles.heroImage,
-            // 16:9 off the measured content width, capped so a television does
-            // not give the whole first screen to a still. The list is the point.
+            
+            
             {
               width: Math.min(contentWidth, 420),
               height: Math.round(Math.min(contentWidth, 420) * (9 / 16)),
@@ -239,14 +239,14 @@ function SeriesHero({ series }: { series: SeriesDetail }) {
   );
 }
 
-/**
- * One episode.
- *
- * The still is deliberately small. It is a frame from the episode and carries
- * almost no information -- every still in a run of twenty-six looks like the
- * others -- so it gets enough width to be recognisable and no more, and the
- * number, title and synopsis get the rest.
- */
+
+
+
+
+
+
+
+
 function EpisodeRow({
   episode,
   onPress,
@@ -266,8 +266,8 @@ function EpisodeRow({
     <Focusable
       onPress={() => onPress(episode)}
       hasTVPreferredFocus={hasTVPreferredFocus}
-      // A full-width row grows across the whole screen if it scales, which
-      // reads as the layout twitching rather than as a selection.
+      
+      
       scaleOnFocus={false}
       style={styles.episode}
       accessibilityLabel={[episode.badge, episode.title, episode.subtitle]
@@ -286,8 +286,8 @@ function EpisodeRow({
                 resizeMode="cover"
               />
             ) : (
-              // Never an empty box: without a still, the number is the thing
-              // that identifies the row, so it becomes the artwork.
+              
+              
               <View style={styles.thumbPlaceholder}>
                 <Text style={styles.thumbPlaceholderText}>
                   {episode.badge ?? '—'}
@@ -363,7 +363,7 @@ const useStyles = makeStyles(m => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    // A remote lands on any height accurately; a fingertip needs the minimum.
+    
     minHeight: m.minTouchTarget,
   },
   thumb: {

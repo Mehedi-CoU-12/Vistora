@@ -23,102 +23,102 @@ import {
 import { makeStyles, spacing, useMetrics } from '../theme';
 import type { ContentItem } from '../types/content';
 
-/**
- * How many matches each kind contributes.
- *
- * Higher than a home shelf's twelve, because a search is a question with an
- * answer rather than a browse -- if you typed three letters of a title you want
- * the whole plausible set -- and lower than unbounded, because a two-letter term
- * matches a large fraction of the library and five shelves of it is a slow query
- * whose tail nobody reads.
- */
+
+
+
+
+
+
+
+
+
 const SHELF_LIMIT = 24;
 
-/**
- * How long typing has to stop before the query runs.
- *
- * Long enough that a word typed at speed is one request rather than seven, short
- * enough that it still feels like the results are following the keystrokes. See
- * the note in useDebouncedValue on why this matters more on a television.
- */
+
+
+
+
+
+
+
 const DEBOUNCE_MS = 300;
 
-/** One kind's matches. */
+
 interface ResultShelf {
   tab: CatalogTab;
   items: ContentItem[];
 }
 
-/**
- * Search across every content kind: channels, films, anime.
- *
- * ---------------------------------------------------------------------------
- * A shelf per kind, not one merged list
- * ---------------------------------------------------------------------------
- * The obvious rendering is a single grid of everything that matched. It is the
- * wrong one, for a reason that is visible before it is architectural: a channel
- * is a 16:9 tile and a film is a 2:3 poster, so a merged grid has to pick one
- * shape and stretch the other. Worse, "Iron" matching a channel called Iron
- * Sport and the film Iron Giant would interleave them in whatever order the
- * database happened to return, and the user's actual question -- "is this film
- * in here?" -- gets harder to answer the more results there are.
- *
- * Grouped by kind, each group keeps its own card shape and its own count, and
- * the answer is one glance: "Movies · 2 films".
- *
- * ---------------------------------------------------------------------------
- * The groups are derived from the tab list, not written out here
- * ---------------------------------------------------------------------------
- * `catalogTabs()` is the single list of what this app browses, and each entry
- * already carries the query for its kind. Mapping over it means this screen
- * names no content kind at all: adding one to navigation/tabs.ts makes it
- * searchable with no edit here. It is the same derivation `HomeScreen` uses for
- * its shelves, and it matters more here -- a kind missing from search looks
- * exactly like a kind with nothing in it, so the bug would never be reported.
- *
- * ---------------------------------------------------------------------------
- * Exactly one element claims initial focus, and it is the field
- * ---------------------------------------------------------------------------
- * `ContentRow` is deliberately NOT given `isFirstRow` here, which is what it
- * would take for the first result card to seed focus. On this screen the field
- * owns it: the user arrived to type, and a card stealing focus mid-search would
- * send the next keystroke to the platform's focus engine instead of the query.
- * The results are one press of DOWN away, and the focus guide around them means
- * that press lands on the card the user was last looking at.
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 export function SearchScreen() {
   const { isTV, isTouch } = useMetrics();
   const styles = useStyles();
 
-  /** Clears the floating top bar, which this screen does not run a hero under. */
+  
   const chromeInset = useChromeInset();
 
   const [typed, setTyped] = useState('');
 
-  // The raw value drives the field, so typing stays responsive; the settled
-  // value drives the query. See useDebouncedValue.
+  
+  
   const settled = useDebouncedValue(typed, DEBOUNCE_MS);
   const term = normalizeSearchTerm(settled);
   const canSearch = isSearchable(term);
 
-  /**
-   * `isLoading` is deliberately not read.
-   *
-   * The three states this screen can be in are already distinguishable without
-   * it -- `data === null` is "no completed search", and `error` says whether the
-   * reason is a failure -- and reading it would introduce a bug rather than fix
-   * one. `useAsyncData` sets it inside an effect, so on the render where the
-   * term first becomes searchable it is still `false` from the previous
-   * (skipped) load: a spinner keyed on it would be a frame late, and a "No
-   * matches" keyed on its absence would flash on every search.
-   */
+  
+
+
+
+
+
+
+
+
+
+
   const { data, error, reload } = useAsyncData<
     ResultShelf[] | null
   >(async () => {
-    // Returning null rather than [] is what keeps the states below honest: []
-    // is a completed search that found nothing, null is "no search has run".
-    // Collapsing them would flash "No matches" over the first keystroke of
-    // every search.
+    
+    
+    
+    
     if (!canSearch) {
       return null;
     }
@@ -130,24 +130,24 @@ export function SearchScreen() {
       })),
     );
 
-    // Drop the kinds that matched nothing rather than rendering a heading over
-    // an empty row. On a TV that is not tidiness: a row with no cards in it is
-    // a focus trap, and the D-pad appears to stop working when it reaches one.
+    
+    
+    
     return shelves.filter(shelf => shelf.items.length > 0);
   }, [term, canSearch]);
 
   const openItem = useOpenItem();
 
-  /**
-   * Headings carry their own count -- "Movies · 2 films" -- rather than the
-   * screen carrying a total.
-   *
-   * A total answers a question nobody asked ("47 things matched"), and it would
-   * need a status line above the results: a row of chrome on a 540dp-tall
-   * television, and one that appears and disappears as the term changes, moving
-   * the results under the user. The per-kind counts put the information where it
-   * is actually useful and cost no extra row.
-   */
+  
+
+
+
+
+
+
+
+
+
   const headings = useMemo(
     () =>
       new Map(
@@ -162,7 +162,7 @@ export function SearchScreen() {
     [data],
   );
 
-  /** Leanback row alignment, TV-only for the reasons HomeScreen documents. */
+  
   const snapProps = isTV
     ? ({ snapToAlignment: 'item', snapToItemPadding: spacing.md } as const)
     : null;
@@ -177,17 +177,17 @@ export function SearchScreen() {
           message={`Type at least ${MIN_SEARCH_LENGTH} characters to search across ${catalogTitleList()}.`}
         />
       ) : data === null ? (
-        // The first search for this term, with nothing to keep on screen. A
-        // re-search over existing results deliberately falls through to the
-        // shelves below and leaves them up while the new query runs -- and so
-        // does a re-search that FAILS, which is the same trade CatalogScreen
-        // makes and has the same proper fix, a transient banner.
+        
+        
+        
+        
+        
         error ? (
           <ErrorState error={error} onRetry={reload} />
         ) : (
-          // Rails rather than a spinner, and no hero: the answer to a search is
-          // a set of rows, so the placeholder is the same rows. A hero block
-          // here would promise a featured result that search never produces.
+          
+          
+          
           <SkeletonScreen hero={false} rows={2} />
         )
       ) : data.length === 0 ? (
@@ -201,12 +201,12 @@ export function SearchScreen() {
             style={styles.scroll}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
-            // Tapping a result while the soft keyboard is up should open it,
-            // not just dismiss the keyboard and lose the tap.
+            
+            
             keyboardShouldPersistTaps="handled"
-            // Dragging the results puts the keyboard away, which is the only way
-            // to see more than two rows of them on a phone. Nothing to dismiss
-            // on a TV, where the IME is modal and already gone.
+            
+            
+            
             keyboardDismissMode={isTouch ? 'on-drag' : 'none'}
             {...snapProps}
           >
@@ -217,10 +217,10 @@ export function SearchScreen() {
                 items={shelf.items}
                 cardVariant={shelf.tab.catalog.cardVariant}
                 onSelectItem={openItem}
-                // No "See all": beside a heading reading "Movies · 4 films"
-                // it would mean either "all four matches" or "the whole Movies
-                // tab", and there is no way for the user to tell which. The tab
-                // bar is the unambiguous route to the latter.
+                
+                
+                
+                
               />
             ))}
           </ScrollView>
@@ -242,8 +242,8 @@ const useStyles = makeStyles(m => ({
   },
   scrollContent: {
     paddingTop: spacing.sm,
-    // Bottom padding so the last row can scroll clear of the bottom edge -- and
-    // of the tab bar, on a phone where that bar runs along the bottom.
+    
+    
     paddingBottom: m.gutter.vertical + spacing.xl,
   },
 }));

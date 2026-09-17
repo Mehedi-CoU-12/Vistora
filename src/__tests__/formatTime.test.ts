@@ -13,9 +13,9 @@ describe('formatTime', () => {
     expect(formatTime(3723)).toBe('1:02:03');
   });
 
-  // The player calls this with `duration` straight from onLoad, which is NaN
-  // for a live stream and -1 on some Media3 error paths. It must not render
-  // "NaN:NaN" over the video.
+  
+  
+  
   it('survives the values a live stream actually produces', () => {
     expect(formatTime(NaN)).toBe('0:00');
     expect(formatTime(Infinity)).toBe('0:00');

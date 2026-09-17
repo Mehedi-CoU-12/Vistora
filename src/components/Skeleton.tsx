@@ -12,34 +12,34 @@ import {
   type CardVariant,
 } from '../theme';
 
-/**
- * Placeholders for content that has not arrived.
- *
- * ---------------------------------------------------------------------------
- * Why a skeleton rather than the spinner that used to be here
- * ---------------------------------------------------------------------------
- * A centred spinner on a dark screen says "something is happening". A skeleton
- * says "a hero and four rails are about to be here", which is more useful in
- * itself and, on a television, is the difference between two behaviours rather
- * than two looks: with a spinner the layout appears all at once and the D-pad's
- * first press lands on whatever moved under it, whereas the skeleton is already
- * the shape of the answer, so nothing jumps when the data lands.
- *
- * ---------------------------------------------------------------------------
- * One animation for the whole screen
- * ---------------------------------------------------------------------------
- * A loading home screen is a hero plus four rails of six cards: around thirty
- * placeholders. Thirty `Animated.loop`s is thirty timers, thirty native driver
- * nodes and thirty chances to land out of phase, which is visible as a shimmer
- * crawling across the screen rather than the screen breathing.
- *
- * So there is one `Animated.Value` at module scope, and every placeholder in the
- * tree reads it. It is reference-counted: the loop starts when the first
- * skeleton mounts and stops when the last unmounts, so an app sitting on a
- * loaded screen is running no animation at all.
- */
 
-/** The single shared pulse, 0..1. */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 const pulse = new Animated.Value(0);
 
 let mounted = 0;
@@ -53,9 +53,9 @@ function startPulse(): () => void {
       Animated.sequence([
         Animated.timing(pulse, {
           toValue: 1,
-          // Slow, and much slower than any interaction in the app. A placeholder
-          // that pulses at interaction speed reads as something responding to
-          // the user, which is the one thing it is not.
+          
+          
+          
           duration: duration.hero * 3,
           useNativeDriver: true,
         }),
@@ -74,8 +74,8 @@ function startPulse(): () => void {
     if (mounted === 0) {
       loop?.stop();
       loop = null;
-      // Reset, so the next skeleton to mount starts from the dim end rather than
-      // wherever the previous screen happened to stop.
+      
+      
       pulse.setValue(0);
     }
   };
@@ -85,9 +85,9 @@ function useSkeletonPulse(): Animated.AnimatedInterpolation<number> {
   const opacity = useRef(
     pulse.interpolate({
       inputRange: [0, 1],
-      // A narrow range on purpose. The placeholders are already only a step
-      // above the page; fading them to near-invisible makes the layout appear to
-      // flicker rather than to wait.
+      
+      
+      
       outputRange: [0.45, 0.9],
     }),
   ).current;
@@ -97,7 +97,7 @@ function useSkeletonPulse(): Animated.AnimatedInterpolation<number> {
   return opacity;
 }
 
-/** One pulsing rectangle. Everything below is made of these. */
+
 export function SkeletonBlock({ style }: { style?: StyleProp<ViewStyle> }) {
   const opacity = useSkeletonPulse();
   const styles = useStyles();
@@ -105,7 +105,7 @@ export function SkeletonBlock({ style }: { style?: StyleProp<ViewStyle> }) {
   return <Animated.View style={[styles.block, style, { opacity }]} />;
 }
 
-/** A card-shaped placeholder, in the same slot a real card would occupy. */
+
 export function SkeletonCard({
   variant,
   width,
@@ -124,24 +124,24 @@ export function SkeletonCard({
   return (
     <View style={[styles.card, { width: size.width }]}>
       <SkeletonBlock style={[styles.artwork, size]} />
-      {/* Two lines under the artwork, the second shorter, because that is what a
-          real card has -- a full-width title and a shorter subtitle. Matching
-          the real thing is the entire job. */}
+      {
+
+}
       <SkeletonBlock style={styles.titleLine} />
       <SkeletonBlock style={styles.subtitleLine} />
     </View>
   );
 }
 
-/** A heading and a row of cards, sized like a real `ContentRow`. */
+
 export function SkeletonRow({ variant }: { variant: CardVariant }) {
   const { cardSize, contentWidth } = useMetrics();
   const styles = useStyles();
 
-  // Exactly as many as would be visible, plus one. Rendering a fixed number
-  // would leave a gap on a TV and overflow a phone -- and an overflowing row of
-  // placeholders is a row that has to be laid out and then clipped, which is
-  // work done to show nothing.
+  
+  
+  
+  
   const count = Math.ceil(contentWidth / cardSize[variant].width) + 1;
 
   return (
@@ -156,7 +156,7 @@ export function SkeletonRow({ variant }: { variant: CardVariant }) {
   );
 }
 
-/** A hero-shaped placeholder: the artwork block, a title bar and two buttons. */
+
 export function SkeletonHero() {
   const { hero } = useMetrics();
   const styles = useStyles();
@@ -182,13 +182,13 @@ export function SkeletonHero() {
   );
 }
 
-/**
- * The whole first paint of a browse screen: a hero and some rails.
- *
- * `rows` defaults to three, which is about what fits under a hero on a
- * television before the fold. More would be laid out to be scrolled to, and
- * nobody scrolls a loading screen.
- */
+
+
+
+
+
+
+
 export function SkeletonScreen({
   rows = 3,
   variant = 'poster',
@@ -214,8 +214,8 @@ const useStyles = makeStyles(m => ({
   block: {
     backgroundColor: colors.surface,
     borderRadius: radius.sm,
-    // Placeholders must never take D-pad focus. They are not interactive, and a
-    // remote landing on one is a remote that has landed on nothing.
+    
+    
     overflow: 'hidden',
   },
   screen: {
@@ -230,8 +230,8 @@ const useStyles = makeStyles(m => ({
   titleLine: {
     height: m.typography.body.fontSize,
     marginTop: spacing.sm,
-    // Not the full width. A title that exactly fills its card reads as a filled
-    // bar; three quarters reads as a line of text.
+    
+    
     width: '75%',
   },
   subtitleLine: {
@@ -252,8 +252,8 @@ const useStyles = makeStyles(m => ({
     flexDirection: 'row',
     paddingHorizontal: m.gutter.horizontal - spacing.xs,
     paddingVertical: spacing.sm,
-    // The row is not scrollable and the placeholders past the edge are not worth
-    // laying out, so the whole strip is simply clipped.
+    
+    
     overflow: 'hidden',
   },
   hero: {

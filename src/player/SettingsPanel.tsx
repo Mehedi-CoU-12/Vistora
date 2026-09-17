@@ -32,28 +32,28 @@ interface SettingsPanelProps {
   onToggleMute: () => void;
   loop: boolean;
   onToggleLoop: () => void;
-  /** Touch only: hand playback to the system's floating window. */
+  
   onPictureInPicture?: () => void;
-  /** One line per fact about the stream: resolution, protocol, speed. */
+  
   info: string[];
   edges: EdgeInsets;
 }
 
-/**
- * Everything that is a *setting* rather than a control.
- *
- * The split is worth being strict about, because it is what keeps the overlay
- * usable: play, skip and seek are things you do constantly and they live on the
- * bar; speed, picture size, audio track and subtitles are things you set once for
- * a piece of content and then forget. Putting the second group on the bar too --
- * which is the obvious way to build this -- gives a phone a row of nine tiny
- * buttons over the video, and a TV a focus row so long that reaching Back takes
- * eight presses.
- *
- * The panel changes shape rather than scaling: a column down the side where
- * there is width for one (TV, tablet, phone in landscape), and a sheet up from
- * the bottom on a narrow screen, which is where a thumb can actually reach.
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 export function SettingsPanel({
   onClose,
   rate,
@@ -80,9 +80,9 @@ export function SettingsPanel({
   const sheet = chrome.panelMode === 'sheet';
 
   return (
-    // autoFocus so opening the panel with the remote lands focus inside it.
-    // Without it the D-pad is still driving the bar underneath, and the panel is
-    // a picture of a menu rather than a menu.
+    
+    
+    
     <TVFocusGuideView
       autoFocus
       style={[
@@ -210,17 +210,17 @@ function Section({
   );
 }
 
-/**
- * Padding that keeps the panel clear of the system bars and the cutout.
- *
- * A function rather than an object literal in the JSX for the same reason as in
- * `PlayerControls`: the safe-area insets are not part of `Metrics`, so this is
- * the one piece of the panel's layout that a cached StyleSheet cannot hold.
- *
- * A sheet takes the left and right insets only when they exceed its own padding
- * -- it spans the full width, so in landscape a cutout inset can be larger than
- * the margin, while in portrait it is zero.
- */
+
+
+
+
+
+
+
+
+
+
+
 function panelPadding(edges: EdgeInsets, sheet: boolean) {
   return sheet
     ? {
@@ -235,15 +235,15 @@ function panelPadding(edges: EdgeInsets, sheet: boolean) {
       };
 }
 
-/**
- * A track list, including the two selections that are not tracks.
- *
- * "Auto" is not the same as picking the first track and it is the correct
- * default: a stream can mark a track as the one to use -- the original-language
- * audio, a forced subtitle for a foreign-language scene -- and Media3 honours
- * that until we override it. Offering only the concrete tracks would quietly
- * throw that information away.
- */
+
+
+
+
+
+
+
+
+
 function TrackSection({
   title,
   tracks,
@@ -320,9 +320,9 @@ function TrackRow({
   return (
     <ControlButton
       icon={selected ? 'tick' : undefined}
-      // Reserved rather than conditional: without the empty slot the unselected
-      // rows would sit a tick's width to the left of the selected one, so the
-      // list would appear to indent whichever row happens to be current.
+      
+      
+      
       reserveIcon
       label={label}
       accessibilityLabel={label}
@@ -345,18 +345,18 @@ const useStyles = makeStyles(metrics => {
       gap: spacing.sm,
       paddingTop: spacing.lg,
     },
-    /** Up from the bottom edge: where a thumb can reach on a narrow screen. */
+    
     sheet: {
       left: 0,
       right: 0,
       bottom: 0,
-      // Never more than about two thirds of the height, so the picture the
-      // settings are being applied to stays visible while they change.
+      
+      
       maxHeight: '72%',
       borderTopLeftRadius: radius.lg,
       borderTopRightRadius: radius.lg,
     },
-    /** Down the side: full height, where there is width to spare for it. */
+    
     side: {
       top: 0,
       right: 0,
@@ -391,8 +391,8 @@ const useStyles = makeStyles(metrics => {
     },
     optionRow: {
       flexDirection: 'row',
-      // Wrapping is what lets eight speeds and a 320dp panel coexist, and it is
-      // also what keeps the row intact when the phone is turned.
+      
+      
       flexWrap: 'wrap',
       gap: chrome.gap,
     },

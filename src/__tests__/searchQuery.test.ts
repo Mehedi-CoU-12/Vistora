@@ -61,16 +61,16 @@ describe('ilikeFilter', () => {
     expect(ilikeFilter(['title'], 'news')).toBe('title.ilike."%news%"');
   });
 
-  /**
-   * The case the quoting exists for. PostgREST splits an `or` on commas, so an
-   * unquoted value containing one would be read as the start of another filter
-   * and the request would fail -- on an entirely ordinary film title.
-   */
+  
+
+
+
+
   it('keeps a comma inside the value rather than letting it split the filter', () => {
     const filter = ilikeFilter(['title'], 'Crouching Tiger, Hidden Dragon');
 
     expect(filter).toBe('title.ilike."%Crouching Tiger, Hidden Dragon%"');
-    // One clause, not two: everything after the column name is inside the quotes.
+    
     expect(filter.split('.ilike.')).toHaveLength(2);
   });
 
@@ -87,8 +87,8 @@ describe('ilikeFilter', () => {
   });
 
   it('quotes a term that is itself a PostgREST operator name', () => {
-    // 'eq' unquoted after `.ilike.` is just a value, but the quoting means even
-    // a term like `not.eq` cannot be reinterpreted as syntax.
+    
+    
     expect(ilikeFilter(['title'], 'not.eq')).toBe('title.ilike."%not.eq%"');
   });
 

@@ -1,15 +1,15 @@
-/**
- * Shape of the PostgreSQL schema, as seen by the client.
- *
- * These types mirror supabase/migrations/0001_initial_schema.sql by hand. Once
- * your project is up you can generate them instead and delete the hand-written
- * versions:
- *
- *   npx supabase gen types typescript --project-id <ref> > src/types/database.ts
- *
- * Keeping them here for now means the app typechecks before you have a project,
- * and it keeps the whole schema readable in one screen.
- */
+
+
+
+
+
+
+
+
+
+
+
+
 
 export type CategoryKind =
   | 'live_tv'
@@ -19,33 +19,33 @@ export type CategoryKind =
   | 'anime'
   | 'other';
 
-/**
- * The kinds whose titles live in the `movies` table.
- *
- * Cartoons and anime are not separate tables -- they are rows in `movies` whose
- * category carries the matching kind. Naming the subset keeps
- * `fetchMovies({categoryKind})` from accepting 'live_tv', which would silently
- * return nothing.
- */
+
+
+
+
+
+
+
+
 export type MovieCategoryKind = Extract<
   CategoryKind,
   'movie' | 'cartoon' | 'anime'
 >;
 
-/**
- * How the player should interpret `stream_url`.
- *
- * Three of these name a container the device decodes itself. `youtube` is the
- * odd one and the difference is load-bearing: it means the URL is a PAGE, not
- * media, so nothing in the app can play it.
- *
- * It stays in this union because the database enum still has the value and rows
- * carrying it still arrive -- migration 0004 added it and Postgres cannot drop
- * an enum value, so pretending it is gone would just move the surprise to
- * runtime. What changed is what the app does with one: `toStream` in
- * types/content.ts refuses it, and the item is presented as unavailable. See
- * `PlayableProtocol` there for the narrower union everything downstream uses.
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 export type StreamProtocol = 'hls' | 'dash' | 'mp4' | 'youtube' | 'other';
 
 export type EventStatus =
@@ -74,7 +74,7 @@ export interface ChannelRow {
   logo_url: string | null;
   stream_url: string;
   stream_protocol: StreamProtocol;
-  /** Extra HTTP headers some CDNs require (Referer, User-Agent). Reserved. */
+  
   stream_headers: Record<string, string> | null;
   category_id: string | null;
   channel_number: number | null;
@@ -103,12 +103,12 @@ export interface MovieRow {
   updated_at: string;
 }
 
-/**
- * A title made of episodes. Note what is NOT here: `stream_url`. A series has
- * nothing to play -- selecting one opens its episode list -- and the schema
- * says so by omitting the column rather than by making it nullable. See the
- * header of supabase/migrations/0005_series_and_episodes.sql.
- */
+
+
+
+
+
+
 export interface SeriesRow {
   id: string;
   slug: string;
@@ -118,10 +118,10 @@ export interface SeriesRow {
   backdrop_url: string | null;
   release_year: number | null;
   content_rating: string | null;
-  /** Provenance, e.g. 'youtube'. Written by importers; never read by the app. */
+  
   source: string | null;
   source_id: string | null;
-  /** Denormalised, maintained by a trigger. Counts every episode, active or not. */
+  
   episode_count: number;
   category_id: string | null;
   sort_order: number;
@@ -136,7 +136,7 @@ export interface EpisodeRow {
   slug: string;
   title: string;
   description: string | null;
-  /** 16:9 still, not a portrait poster -- which is why it is not `poster_url`. */
+  
   thumbnail_url: string | null;
   stream_url: string;
   stream_protocol: StreamProtocol;
@@ -167,7 +167,7 @@ export interface SportsEventRow {
   away_team: string | null;
   description: string | null;
   poster_url: string | null;
-  /** Null until the provider publishes a URL, which is why it is nullable here. */
+  
   stream_url: string | null;
   stream_protocol: StreamProtocol;
   starts_at: string;
@@ -179,11 +179,11 @@ export interface SportsEventRow {
   updated_at: string;
 }
 
-/**
- * The generic parameter `@supabase/supabase-js` expects. Only the pieces the app
- * actually uses are filled in; Insert/Update are typed loosely because the client
- * never writes (RLS forbids it -- writes happen from the future admin tool).
- */
+
+
+
+
+
 export interface Database {
   public: {
     Tables: {
