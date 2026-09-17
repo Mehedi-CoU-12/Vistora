@@ -1,4 +1,3 @@
-/* eslint-disable no-bitwise -- MD5, HMAC and base64 are defined in terms of bit operations. */
 const SECRET_BYTES = new Uint8Array([
   0xef, 0xa8, 0x91, 0x97, 0x4e, 0xec, 0xd3, 0x14, 0x8d, 0xf6, 0x3a, 0xa6, 0x11,
   0x60, 0x2d, 0xef, 0xd1, 0x01, 0x25, 0x9b, 0xa5, 0x21, 0x02, 0x2c, 0x57, 0xae,
@@ -9,10 +8,6 @@ const SIGNATURE_BODY_MAX_BYTES = 102_400;
 
 const B64_ALPHABET =
   'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-
-// ---------------------------------------------------------------------------
-// Text and base64
-// ---------------------------------------------------------------------------
 
 export function utf8Bytes(input: string): Uint8Array {
   const out: number[] = [];
@@ -104,12 +99,6 @@ export function base64Encode(bytes: Uint8Array): string {
   return out;
 }
 
-/**
- * Decodes standard base64, tolerating missing padding and embedded whitespace.
- * Callers holding a non-standard alphabet (JWT's URL-safe form, CloudFront's
- * policy encoding) normalize to the standard alphabet first, because those two
- * disagree about what `_` means.
- */
 export function base64Decode(input: string): Uint8Array | null {
   const body = input.replace(/[\s\r\n]/g, '').replace(/[=]+$/, '');
 
@@ -139,10 +128,6 @@ export function base64Decode(input: string): Uint8Array | null {
 
   return out.subarray(0, outIndex);
 }
-
-// ---------------------------------------------------------------------------
-// MD5 and HMAC-MD5
-// ---------------------------------------------------------------------------
 
 const MD5_SHIFTS = [
   7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 5, 9, 14, 20, 5,
@@ -264,16 +249,6 @@ export function hmacMd5(key: Uint8Array, message: Uint8Array): Uint8Array {
   return md5(outerInput);
 }
 
-// ---------------------------------------------------------------------------
-// Signing
-// ---------------------------------------------------------------------------
-
-/**
- * Percent-decoding as the API's own client does it: form encoding, so `+` is a
- * space. Matches `Url::query_pairs()` on the Rust side, which the canonical
- * string is built from -- signing the raw encoded text instead would produce a
- * signature the server disagrees with.
- */
 function percentDecode(input: string): string {
   const spaced = input.replace(/\+/g, ' ');
   try {
@@ -307,11 +282,6 @@ function urlPath(url: string): string | null {
   return rest.slice(0, end);
 }
 
-/**
- * Query parameters sorted by key, values kept in their original order within a
- * key -- the shape of the `BTreeMap<String, Vec<String>>` the Rust client
- * builds. The server signs the same ordering, so this is not cosmetic.
- */
 export function sortedQueryString(url: string): string {
   const queryStart = url.indexOf('?');
   if (queryStart === -1) {
@@ -470,10 +440,6 @@ export function buildSignedHeaders(
   return headers;
 }
 
-// ---------------------------------------------------------------------------
-// Client identity
-// ---------------------------------------------------------------------------
-
 const ANDROID_BUILDS: Array<[string, string]> = [
   ['9', 'PQ3A.190605.03081104'],
   ['10', 'QP1A.191005.007.A3'],
@@ -544,12 +510,6 @@ export function randomSpoofedIp(): string {
   return `${prefix}.${third}.${fourth}`;
 }
 
-/**
- * A plausible MovieBox Android client, randomized per app launch.
- *
- * The API keys its rate limiting off this identity, so a fixed one would have
- * every Vistora install share a bucket.
- */
 export function createIdentity(): ClientIdentity {
   const [androidVersion, build] = pick(ANDROID_BUILDS);
   const [model, brand] = pick(DEVICES);

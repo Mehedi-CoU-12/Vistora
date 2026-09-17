@@ -7,7 +7,6 @@ export interface MovieBoxSession {
   token: string;
   userId: string | null;
 
-  /** Epoch seconds from the JWT's `exp`, or null when it carries none. */
   expiresAt: number | null;
   createdAt: number;
 }
@@ -48,7 +47,6 @@ export function parseJwtClaims(token: string): JwtClaims {
     return { userId: null, expiresAt: null };
   }
 
-  // JWT uses the URL-safe alphabet, where `-` and `_` stand in for `+` and `/`.
   const bytes = base64Decode(payload.replace(/-/g, '+').replace(/_/g, '/'));
   if (bytes === null) {
     return { userId: null, expiresAt: null };
@@ -94,10 +92,6 @@ export function sessionFromToken(
   );
 }
 
-/**
- * A session is spent a minute before its stated expiry, so a request that is
- * already in flight does not land on the far side of it.
- */
 export function isSessionValid(session: MovieBoxSession): boolean {
   if (session.token.trim() === '') {
     return false;

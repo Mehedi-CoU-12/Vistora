@@ -97,7 +97,6 @@ describe('createMovieBoxClient', () => {
     expect(calls[0].body).toBe('{}');
     expect(calls[0].headers.Authorization).toBeUndefined();
 
-    // Both later calls ride the same session.
     expect(calls[1].headers.Authorization).toBe('Bearer visitor-jwt');
     expect(calls[2].headers.Authorization).toBe('Bearer visitor-jwt');
   });

@@ -1,13 +1,3 @@
-/**
- * Resolves playable streams from the MovieBox mobile API.
- *
- * Ported from the Rust client in MovieBox-Tui. The API takes its own
- * `subjectId`, not Vistora's content id, so resolving an item is two calls:
- * search the catalogue by title to find the subject, then ask for its play
- * info. The signing, session and host-pool machinery all of that rides on
- * lives in ./moviebox.
- */
-
 import type { ContentItem } from '../../types/content';
 import type { StreamCandidate, StreamSource } from '../streamResolver';
 import {
@@ -26,11 +16,6 @@ const SUBJECT_TYPE_SERIES = 2;
 
 const client = createMovieBoxClient();
 
-/**
- * Subject ids do not change, and a failed search is worth remembering too --
- * an item MovieBox does not carry should not re-search on every playback
- * attempt. Keyed by Vistora's content id.
- */
 const subjectIdCache = new Map<string, string | null>();
 
 function searchTitleFor(item: ContentItem): string {
@@ -45,15 +30,6 @@ function wantedSubjectType(item: ContentItem): number {
     : SUBJECT_TYPE_MOVIE;
 }
 
-/**
- * Picks the subject a search result set is actually about.
- *
- * Search is fuzzy and will happily return a documentary *about* the film, so
- * an exact title match of the right kind is preferred over rank; the year
- * breaks ties between remakes. Falling back to the top hit of the right kind
- * is deliberate -- MovieBox titles carry release-group noise that `matchKey`
- * cannot always strip.
- */
 export function selectSubject(
   subjects: MovieBoxSubject[],
   title: string,

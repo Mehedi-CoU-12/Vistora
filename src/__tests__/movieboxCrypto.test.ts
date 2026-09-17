@@ -43,7 +43,6 @@ describe('md5 (RFC 1321 test suite)', () => {
   });
 
   it('hashes across a block boundary', () => {
-    // 56 bytes forces the length field into a second block.
     expect(md5Hex(utf8Bytes('a'.repeat(56)))).toBe(
       '3b0c8ac703f828b04c6c197006d17218',
     );

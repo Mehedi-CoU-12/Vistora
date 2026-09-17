@@ -10,7 +10,6 @@ export interface MovieBoxSubject {
   subjectId: string;
   title: string;
 
-  /** 1 for a film, 2 for a series, per the API's own numbering. */
   subjectType: number;
   releaseYear: number | null;
 }
@@ -65,10 +64,6 @@ function readNumber(source: Json | null, ...keys: string[]): number | null {
 
   return null;
 }
-
-// ---------------------------------------------------------------------------
-// Titles
-// ---------------------------------------------------------------------------
 
 const LANGUAGE_TAGS = [
   'hindi',
@@ -184,17 +179,12 @@ export function cleanTitle(rawTitle: string): string {
   return cleaned === '' ? rawTitle.trim() : cleaned;
 }
 
-/** Collapses a title to the form used for comparing two titles for a match. */
 export function matchKey(title: string): string {
   return cleanTitle(title)
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 }
-
-// ---------------------------------------------------------------------------
-// Stream URLs
-// ---------------------------------------------------------------------------
 
 const NOTICE_MARKERS = [
   '1c7de0bd3393702d9191801f15f88f8d',
@@ -203,10 +193,6 @@ const NOTICE_MARKERS = [
   'notice',
 ];
 
-/**
- * MovieBox serves a "this app is deprecated" clip in place of some streams.
- * Playing it looks exactly like a successful resolve, so it is filtered here.
- */
 export function isDeprecationNoticeUrl(url: string): boolean {
   const lower = url.toLowerCase();
   return (
@@ -283,10 +269,6 @@ function parseResolutions(raw: string): number[] {
     .filter(value => !Number.isNaN(value));
 }
 
-// ---------------------------------------------------------------------------
-// Endpoint payloads
-// ---------------------------------------------------------------------------
-
 export function playInfoToCandidates(
   payload: unknown,
   userAgent: string,
@@ -306,8 +288,6 @@ export function playInfoToCandidates(
     const signCookie = readString(stream, 'signCookie') ?? '';
     const rawUrl = readString(stream, 'url') ?? '';
 
-    // The manifest recovered from the signing policy wins: it carries every
-    // rendition, where the plain url is one of them.
     const playableUrl =
       resolveDashManifestFromPolicy(signCookie) ??
       (rawUrl.startsWith('http') && !isDeprecationNoticeUrl(rawUrl)
@@ -361,8 +341,6 @@ export function playInfoToCandidates(
 export function searchToSubjects(payload: unknown): MovieBoxSubject[] {
   const data = asObject(payload);
 
-  // Search answers with `results[].subjects[]`; some deployments flatten it to
-  // a bare `list[]`.
   const grouped = asArray(asObject(asArray(data?.results)[0])?.subjects);
   const entries = grouped.length > 0 ? grouped : asArray(data?.list);
 

@@ -9,8 +9,6 @@ const native = NativeModules.VistoraOrientation as
   | OrientationNative
   | undefined;
 
-export const canControlOrientation = native != null;
-
 export function lockLandscape(): void {
   native?.lockLandscape();
 }

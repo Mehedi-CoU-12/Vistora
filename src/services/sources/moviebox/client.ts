@@ -51,10 +51,6 @@ async function fetchWithTimeout(
   }
 }
 
-/**
- * The API wraps successful payloads in a `data` envelope, and callers only
- * ever want what is inside it.
- */
 function unwrapEnvelope(payload: unknown): unknown {
   if (payload !== null && typeof payload === 'object' && 'data' in payload) {
     return (payload as { data: unknown }).data;
@@ -138,8 +134,6 @@ export function createMovieBoxClient(
         activeHostIndex = index;
         return unwrapEnvelope(payload);
       } catch {
-        // Transport failure, timeout or unparseable body -- the next host in
-        // the pool serves the same API, so there is nothing to report yet.
         continue;
       }
     }
@@ -164,11 +158,6 @@ export function createMovieBoxClient(
     return Math.min(seconds * 1000, MAX_BACKOFF_MS);
   }
 
-  /**
-   * The API can hand back a rotated token on any response, not just at login.
-   * Ignoring it would keep sending a token the server has already moved on
-   * from, which comes back as a pool-wide failure a request later.
-   */
   function absorbSessionHeader(response: Response): void {
     const raw = response.headers.get('x-user');
     if (raw === null || raw === '') {
@@ -182,9 +171,7 @@ export function createMovieBoxClient(
         return;
       }
       session = sessionFromToken(token, readString(parsed, 'uid', 'userId'));
-    } catch {
-      // A malformed header is not worth failing a good response over.
-    }
+    } catch {}
   }
 
   async function fetchFreshSession(): Promise<string> {
@@ -202,10 +189,6 @@ export function createMovieBoxClient(
     return token;
   }
 
-  /**
-   * Concurrent callers share one login. Without this, opening a screen that
-   * resolves several items at once would fire a visitor-login per item.
-   */
   async function ensureSession(): Promise<string> {
     if (session !== null && isSessionValid(session)) {
       return session.token;
@@ -236,10 +219,10 @@ export function createMovieBoxClient(
     try {
       return await requestHosts(method, pathAndQuery, body, token);
     } catch (error) {
-      // A rejected token is not distinguishable from a dead host: the pool
-      // swallows per-host status codes, so an expired session surfaces only as
-      // every host failing. Re-authenticating once covers both.
-      if (!(error instanceof MovieBoxError) || error.kind !== 'hostsExhausted') {
+      if (
+        !(error instanceof MovieBoxError) ||
+        error.kind !== 'hostsExhausted'
+      ) {
         throw error;
       }
 
