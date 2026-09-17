@@ -2,7 +2,7 @@ import {
   createMovieBoxClient,
   HOST_POOL,
   MovieBoxError,
-} from '../services/sources/moviebox/client';
+} from '../services/moviebox/client';
 
 interface StubResponse {
   status?: number;

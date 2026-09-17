@@ -1,10 +1,10 @@
-import { base64Encode, utf8Bytes } from '../services/sources/moviebox/crypto';
+import { base64Encode, utf8Bytes } from '../services/moviebox/crypto';
 import {
   createSession,
   isSessionValid,
   parseJwtClaims,
   sessionFromToken,
-} from '../services/sources/moviebox/session';
+} from '../services/moviebox/session';
 
 const jwt = (payload: object): string => {
   const encoded = base64Encode(utf8Bytes(JSON.stringify(payload)))

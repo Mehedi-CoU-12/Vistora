@@ -12,7 +12,7 @@ import {
   sortedQueryString,
   utf8Bytes,
   utf8String,
-} from '../services/sources/moviebox/crypto';
+} from '../services/moviebox/crypto';
 
 const hex = (bytes: Uint8Array): string =>
   Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
