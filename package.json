@@ -12,15 +12,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "jest",
-    "import:iptv": "node scripts/import-iptv.mjs",
-    "import:movies": "node scripts/import-archive.mjs --kind=movie",
-    "import:cartoons": "node scripts/import-archive.mjs --kind=cartoon",
-    "import:anime": "node scripts/import-anime.mjs",
-    "import:anime-pd": "node scripts/import-archive.mjs --kind=anime",
-    "scrape": "node scripts/scrape.mjs",
-    "scrape:tmdb": "node scripts/scrape.mjs --source=tmdb",
-    "scrape:jikan": "node scripts/scrape.mjs --source=jikan",
-    "scrape:new": "node scripts/scrape.mjs --source=archive-new"
+    "import:iptv": "node scripts/import-iptv.mjs"
   },
   "dependencies": {
     "@react-navigation/native": "^7.3.18",
