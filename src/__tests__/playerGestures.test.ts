@@ -44,6 +44,12 @@ describe('swipeSeekSeconds', () => {
   it('is a no-op before the layer has been measured', () => {
     expect(swipeSeekSeconds(120, 0)).toBe(0);
   });
+
+  it('honours the window the swipe-seek setting asks for', () => {
+    expect(swipeSeekSeconds(400, 400, 45)).toBe(45);
+    expect(swipeSeekSeconds(400, 400, 900)).toBe(900);
+    expect(swipeSeekSeconds(200, 400, 900)).toBe(450);
+  });
 });
 
 describe('verticalDragFraction', () => {

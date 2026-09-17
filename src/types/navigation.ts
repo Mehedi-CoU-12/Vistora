@@ -1,6 +1,12 @@
 import type { Playback } from '../services/streamResolver';
 import type { ContentItem } from './content';
 
+export interface PlayQueue {
+  items: ContentItem[];
+
+  index: number;
+}
+
 export type RootStackParamList = {
   Browse: undefined;
 
@@ -17,6 +23,8 @@ export type RootStackParamList = {
     playback: Playback;
     title: string;
     subtitle?: string;
+
+    queue?: PlayQueue;
   };
 };
 

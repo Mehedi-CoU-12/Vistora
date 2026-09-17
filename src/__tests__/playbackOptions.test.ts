@@ -1,12 +1,19 @@
 import {
   clampSeekTarget,
   describeTracks,
-  hasSeekLanded,
+  describeVideoTracks,
+  formatBitrate,
+  formatCountdown,
   formatRate,
   formatSeekDelta,
+  formatSkipStep,
+  hasSeekLanded,
   nextScalingMode,
   resizeModeFor,
   SCALING_MODES,
+  SEEK_GESTURE_SPEEDS,
+  SEEK_GESTURE_WINDOW_SECONDS,
+  sleepTimerLabel,
   stepScalingMode,
   timeForTrackX,
 } from '../player/playbackOptions';
@@ -99,11 +106,13 @@ describe('scaling modes', () => {
     expect(resizeModeFor('fit')).toBe('contain');
     expect(resizeModeFor('fill')).toBe('cover');
     expect(resizeModeFor('stretch')).toBe('stretch');
+    expect(resizeModeFor('native')).toBe('none');
   });
 
   it('cycles forwards and wraps', () => {
     expect(nextScalingMode('fit')).toBe('fill');
-    expect(nextScalingMode('stretch')).toBe('fit');
+    expect(nextScalingMode('stretch')).toBe('native');
+    expect(nextScalingMode('native')).toBe('fit');
   });
 
   it('is reversible in both directions', () => {
@@ -162,5 +171,114 @@ describe('describeTracks', () => {
     expect(
       describeTracks([{ index: 0, title: '   ', language: '  ' }]),
     ).toEqual([{ index: 0, label: 'Track 1' }]);
+  });
+});
+
+
+describe('swipe seek speeds', () => {
+  it('gets longer with every step up', () => {
+    const windows = SEEK_GESTURE_SPEEDS.map(
+      speed => SEEK_GESTURE_WINDOW_SECONDS[speed],
+    );
+
+    expect(windows).toEqual([...windows].sort((a, b) => a - b));
+    expect(new Set(windows).size).toBe(windows.length);
+  });
+});
+
+describe('formatSkipStep', () => {
+  it('stays in seconds below a minute', () => {
+    expect(formatSkipStep(5)).toBe('5s');
+    expect(formatSkipStep(30)).toBe('30s');
+  });
+
+  it('switches to minutes on the minute', () => {
+    expect(formatSkipStep(60)).toBe('1m');
+    expect(formatSkipStep(90)).toBe('90s');
+  });
+});
+
+describe('sleepTimerLabel', () => {
+  it('names the off position rather than showing a zero', () => {
+    expect(sleepTimerLabel(0)).toBe('Off');
+    expect(sleepTimerLabel(-5)).toBe('Off');
+  });
+
+  it('reads whole hours as hours', () => {
+    expect(sleepTimerLabel(45)).toBe('45m');
+    expect(sleepTimerLabel(60)).toBe('1h');
+  });
+});
+
+describe('formatCountdown', () => {
+  it('rounds up, so the last second is shown rather than skipped', () => {
+    expect(formatCountdown(9400)).toBe('10');
+    expect(formatCountdown(1)).toBe('1');
+    expect(formatCountdown(0)).toBe('0');
+  });
+
+  it('never goes negative once the deadline has passed', () => {
+    expect(formatCountdown(-500)).toBe('0');
+  });
+});
+
+describe('formatBitrate', () => {
+  it('switches unit at a megabit', () => {
+    expect(formatBitrate(850_000)).toBe('850 kbps');
+    expect(formatBitrate(2_400_000)).toBe('2.4 Mbps');
+  });
+
+  it('says nothing when the stream reported nothing usable', () => {
+    expect(formatBitrate(0)).toBeUndefined();
+    expect(formatBitrate(undefined)).toBeUndefined();
+    expect(formatBitrate(NaN)).toBeUndefined();
+  });
+});
+
+describe('describeVideoTracks', () => {
+  it('lists the sharpest first, whatever order the stream gave', () => {
+    expect(
+      describeVideoTracks([
+        { index: 0, height: 480 },
+        { index: 1, height: 1080 },
+        { index: 2, height: 720 },
+      ]).map(track => track.label),
+    ).toEqual(['1080p', '720p', '480p']);
+  });
+
+  it('keeps the stream index for selection, not the display order', () => {
+    expect(describeVideoTracks([{ index: 4, height: 360 }])).toEqual([
+      { index: 4, label: '360p', detail: undefined },
+    ]);
+  });
+
+  it('carries the bitrate as a detail line', () => {
+    expect(
+      describeVideoTracks([{ index: 0, height: 1080, bitrate: 5_000_000 }]),
+    ).toEqual([{ index: 0, label: '1080p', detail: '5 Mbps' }]);
+  });
+
+  it('falls back to the bitrate when there is no height to name', () => {
+    expect(describeVideoTracks([{ index: 0, bitrate: 128_000 }])).toEqual([
+      { index: 0, label: '128 kbps', detail: '128 kbps' },
+    ]);
+  });
+
+  it('drops tracks that describe neither size nor bitrate', () => {
+    expect(describeVideoTracks([{ index: 0 }, { index: 1, height: 0 }])).toEqual(
+      [],
+    );
+  });
+
+  it('separates two tracks that share a height', () => {
+    expect(
+      describeVideoTracks([
+        { index: 0, height: 1080, bitrate: 3_000_000 },
+        { index: 1, height: 1080, bitrate: 8_000_000 },
+      ]),
+    ).toEqual([
+      { index: 1, label: '1080p', detail: '8 Mbps' },
+      { index: 0, label: '1080p', detail: '3 Mbps' },
+    ]);
   });
 });

@@ -19,7 +19,8 @@ export type PlayerFeedback =
   | { kind: 'level'; axis: 'volume' | 'brightness'; value: number }
   | { kind: 'rate'; rate: number }
   | { kind: 'scaling'; mode: ScalingMode }
-  | { kind: 'locked' };
+  | { kind: 'locked' }
+  | { kind: 'sleep' };
 
 const FADE_MS = 140;
 
@@ -120,6 +121,14 @@ function Readout({
         <>
           <Text style={styles.headline}>Locked</Text>
           <Text style={styles.detail}>Press Unlock to use the controls</Text>
+        </>
+      );
+
+    case 'sleep':
+      return (
+        <>
+          <Text style={styles.headline}>Sleep</Text>
+          <Text style={styles.detail}>The timer ran out, so playback paused</Text>
         </>
       );
   }

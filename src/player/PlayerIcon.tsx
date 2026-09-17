@@ -9,6 +9,7 @@ export type IconName =
   | 'pause'
   | 'rewind'
   | 'forward'
+  | 'next'
   | 'close'
   | 'settings'
   | 'lock'
@@ -88,6 +89,25 @@ function Shape({ name, size, color }: PlayerIconProps) {
             size={half}
             color={color}
             style={styles.overlap}
+          />
+        </View>
+      );
+    }
+
+    case 'next': {
+      const glyph = size * 0.58;
+
+      return (
+        <View style={styles.row}>
+          <Triangle direction="right" size={glyph} color={color} />
+          <View
+            style={{
+              width: stroke,
+              height: glyph * 0.8,
+              marginLeft: stroke,
+              borderRadius: stroke / 2,
+              backgroundColor: color,
+            }}
           />
         </View>
       );

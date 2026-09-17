@@ -40,6 +40,16 @@ export function SeriesScreen() {
 
   const hasSeasonHeaders = sections.length > 1;
 
+  const episodes = useMemo(
+    () => sections.flatMap(section => section.data),
+    [sections],
+  );
+
+  const playEpisode = useCallback(
+    (episode: ContentItem) => playItem(episode, episodes),
+    [episodes, playItem],
+  );
+
   const renderItem = useCallback(
     ({
       item,
@@ -52,13 +62,13 @@ export function SeriesScreen() {
     }) => (
       <EpisodeRow
         episode={item}
-        onPress={playItem}
+        onPress={playEpisode}
         hasTVPreferredFocus={
           index === 0 && section.season === sections[0]?.season
         }
       />
     ),
-    [playItem, sections],
+    [playEpisode, sections],
   );
 
   const renderSectionHeader = useCallback(

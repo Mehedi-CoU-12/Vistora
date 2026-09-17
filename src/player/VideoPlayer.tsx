@@ -20,15 +20,25 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Video, {
   SelectedTrackType,
+  SelectedVideoTrackType,
   type OnLoadData,
   type OnProgressData,
   type OnSeekData,
   type OnVideoErrorData,
+  type OnVideoTracksData,
   type SelectedTrack,
+  type SelectedVideoTrack,
   type VideoRef,
 } from 'react-native-video';
 
 import type { Playback } from '../services/streamResolver';
+import {
+  isDefaultPlayerPrefs,
+  resetPlayerPrefs,
+  setPlayerPref,
+  usePlayerPrefs,
+  type PlayerPrefs,
+} from '../state/playerPrefs';
 import { colors, makeStyles, spacing, useMetrics } from '../theme';
 import type { Stream } from '../types/content';
 import { ControlButton } from './ControlButton';
@@ -38,13 +48,14 @@ import {
   clamp01,
   clampSeekTarget,
   describeTracks,
+  describeVideoTracks,
   hasSeekLanded,
   HOLD_TO_SPEED_RATE,
   MEDIA3_EXTENSION,
   nextScalingMode,
   resizeModeFor,
   SEEK_CHAIN_MS,
-  SEEK_STEP_SECONDS,
+  SEEK_GESTURE_WINDOW_SECONDS,
   stepScalingMode,
   type ScalingMode,
   type TrackChoice,
@@ -53,6 +64,7 @@ import {
 import { PlayerControls } from './PlayerControls';
 import { resolveOverlayEdges } from './playerLayout';
 import { SettingsPanel } from './SettingsPanel';
+import { UpNextCard } from './UpNextCard';
 import { useOverlayFade } from './useOverlayFade';
 import {
   usePlayerGestures,
@@ -61,10 +73,21 @@ import {
 } from './usePlayerGestures';
 import { useRemoteControl } from './useRemoteControl';
 
+export interface UpNextItem {
+  title: string;
+  subtitle?: string;
+}
+
 interface VideoPlayerProps {
   playback: Playback;
   title: string;
   subtitle?: string;
+
+  upNext?: UpNextItem;
+
+  onPlayNext?: () => void;
+
+  advancing?: boolean;
 
   onExit: () => void;
 
@@ -93,12 +116,33 @@ const MIN_BRIGHTNESS = 0.15;
 
 const MAX_DIM_OPACITY = 0.85;
 
+const UP_NEXT_COUNTDOWN_MS = 10000;
+
+const COUNTDOWN_TICK_MS = 250;
+
+interface UpNextState {
+  deadline: number | null;
+}
+
 export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
-  ({ playback, title, subtitle, onExit, onCanDismissChange }, ref) => {
+  (
+    {
+      playback,
+      title,
+      subtitle,
+      upNext,
+      onPlayNext,
+      advancing = false,
+      onExit,
+      onCanDismissChange,
+    },
+    ref,
+  ) => {
     const metrics = useMetrics();
     const insets = useSafeAreaInsets();
     const styles = useStyles();
     const videoRef = useRef<VideoRef>(null);
+    const prefs = usePlayerPrefs();
 
     const [candidateIndex, setCandidateIndex] = useState(0);
     const candidates = playback.candidates;
@@ -132,17 +176,26 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
     const [volume, setVolume] = useState(1);
     const [muted, setMuted] = useState(false);
     const [brightness, setBrightness] = useState(1);
-    const [scaling, setScaling] = useState<ScalingMode>('fit');
     const [loop, setLoop] = useState(false);
 
     const [audioTracks, setAudioTracks] = useState<TrackChoice[]>([]);
     const [textTracks, setTextTracks] = useState<TrackChoice[]>([]);
+    const [qualities, setQualities] = useState<TrackChoice[]>([]);
     const [selectedAudio, setSelectedAudio] = useState<TrackSelection>('auto');
     const [selectedText, setSelectedText] = useState<TrackSelection>('auto');
+    const [selectedQuality, setSelectedQuality] =
+      useState<TrackSelection>('auto');
     const [resolution, setResolution] = useState<string | null>(null);
     const [inPictureInPicture, setInPictureInPicture] = useState(false);
 
+    const [sleepMinutes, setSleepMinutes] = useState(0);
+    const [sleepDeadline, setSleepDeadline] = useState<number | null>(null);
+    const [upNextState, setUpNextState] = useState<UpNextState | null>(null);
+    const [now, setNow] = useState(() => Date.now());
+
     const [feedback, setFeedback] = useState<PlayerFeedback | null>(null);
+
+    const scaling = prefs.scaling;
 
     const timelineEnd = stream.isLive
       ? seekableDuration
@@ -174,8 +227,9 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       seekBarFocused,
       volume,
       brightness,
-      scaling,
       inPictureInPicture,
+      prefs,
+      upNextState,
     });
     live.current = {
       currentTime,
@@ -190,8 +244,9 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       seekBarFocused,
       volume,
       brightness,
-      scaling,
       inPictureInPicture,
+      prefs,
+      upNextState,
     };
 
     const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -358,11 +413,17 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
 
     const applyScaling = useCallback(
       (mode: ScalingMode) => {
-        setScaling(mode);
-        live.current.scaling = mode;
+        setPlayerPref('scaling', mode);
         showFeedback({ kind: 'scaling', mode });
       },
       [showFeedback],
+    );
+
+    const changePref = useCallback(
+      <K extends keyof PlayerPrefs>(key: K, value: PlayerPrefs[K]) => {
+        setPlayerPref(key, value);
+      },
+      [],
     );
 
     const toggleLock = useCallback(() => {
@@ -419,7 +480,8 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
           togglePlayback();
           return;
         }
-        nudgeSeek(zone === 'left' ? -SEEK_STEP_SECONDS : SEEK_STEP_SECONDS);
+        const step = live.current.prefs.skipStep;
+        nudgeSeek(zone === 'left' ? -step : step);
       },
       [nudgeSeek, togglePlayback],
     );
@@ -473,6 +535,9 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
         }
 
         if (axis === 'volume') {
+          if (live.current.prefs.keepDeviceVolume) {
+            return;
+          }
           const next = clamp01(base.volume + amount);
           setVolume(next);
           live.current.volume = next;
@@ -532,7 +597,10 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
           return;
         }
         applyScaling(
-          stepScalingMode(live.current.scaling, direction === 'in' ? 1 : -1),
+          stepScalingMode(
+            live.current.prefs.scaling,
+            direction === 'in' ? 1 : -1,
+          ),
         );
       },
       [applyScaling],
@@ -550,7 +618,10 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
         onPinch: handlePinch,
       },
 
-      { enabled: metrics.isTouch && !settingsOpen },
+      {
+        enabled: metrics.isTouch && !settingsOpen && upNextState === null,
+        seekWindowSeconds: SEEK_GESTURE_WINDOW_SECONDS[prefs.seekSpeed],
+      },
     );
 
     const remote = useRemoteControl(
@@ -559,12 +630,12 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
         onTogglePlay: togglePlayback,
         onPlay: () => setIsPaused(false),
         onPause: () => setIsPaused(true),
-        onSkip: direction => nudgeSeek(direction * SEEK_STEP_SECONDS),
+        onSkip: direction => nudgeSeek(direction * live.current.prefs.skipStep),
         onMenu: openSettings,
         onStop: onExit,
         shouldSeekWithArrows: () => {
           const l = live.current;
-          if (l.settingsOpen || l.locked || !l.canSeek) {
+          if (l.settingsOpen || l.locked || !l.canSeek || l.upNextState) {
             return false;
           }
           return !l.overlayVisible || l.seekBarFocused;
@@ -573,9 +644,18 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       { enabled: metrics.isTV },
     );
 
+    const cancelUpNext = useCallback(() => {
+      setUpNextState(null);
+      live.current.upNextState = null;
+    }, []);
+
     const dismissTop = useCallback(() => {
       if (live.current.settingsOpen) {
         closeSettings();
+        return true;
+      }
+      if (live.current.upNextState) {
+        cancelUpNext();
         return true;
       }
       if (live.current.locked) {
@@ -584,11 +664,11 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
         return true;
       }
       return false;
-    }, [closeSettings, revealOverlay, showFeedback]);
+    }, [cancelUpNext, closeSettings, revealOverlay, showFeedback]);
 
     useImperativeHandle(ref, () => ({ dismissTop }), [dismissTop]);
 
-    const canDismiss = settingsOpen || locked;
+    const canDismiss = settingsOpen || locked || upNextState !== null;
 
     useEffect(() => {
       onCanDismissChange?.(canDismiss);
@@ -626,6 +706,10 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
           )}`,
         );
       }
+    }, []);
+
+    const handleVideoTracks = useCallback((data: OnVideoTracksData) => {
+      setQualities(describeVideoTracks(data.videoTracks ?? []));
     }, []);
 
     const settlePendingSeek = useCallback((reportedTime: number) => {
@@ -721,11 +805,78 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
 
     const handleAudioBecomingNoisy = useCallback(() => setIsPaused(true), []);
 
+    const startUpNext = useCallback(() => {
+      setIsPaused(true);
+      setUpNextState({
+        deadline: live.current.prefs.autoplayNext
+          ? Date.now() + UP_NEXT_COUNTDOWN_MS
+          : null,
+      });
+      revealOverlay();
+    }, [revealOverlay]);
+
     const handleEnd = useCallback(() => {
-      if (!loop) {
-        onExit();
+      if (loop) {
+        return;
       }
-    }, [loop, onExit]);
+
+      if (onPlayNext) {
+        startUpNext();
+        return;
+      }
+
+      onExit();
+    }, [loop, onExit, onPlayNext, startUpNext]);
+
+    const playNextNow = useCallback(() => {
+      const holding: UpNextState = { deadline: null };
+      setUpNextState(holding);
+      live.current.upNextState = holding;
+      onPlayNext?.();
+    }, [onPlayNext]);
+
+    const changeSleepTimer = useCallback((minutes: number) => {
+      setSleepMinutes(minutes);
+      setSleepDeadline(minutes > 0 ? Date.now() + minutes * 60_000 : null);
+    }, []);
+
+    const countdownActive = sleepDeadline !== null || upNextState !== null;
+
+    useEffect(() => {
+      if (!countdownActive) {
+        return;
+      }
+
+      const timer = setInterval(() => setNow(Date.now()), COUNTDOWN_TICK_MS);
+      return () => clearInterval(timer);
+    }, [countdownActive]);
+
+    const sleepRemainingMs =
+      sleepDeadline === null ? null : Math.max(0, sleepDeadline - now);
+
+    useEffect(() => {
+      if (sleepDeadline === null || now < sleepDeadline) {
+        return;
+      }
+
+      setSleepDeadline(null);
+      setSleepMinutes(0);
+      setIsPaused(true);
+      showFeedback({ kind: 'sleep' });
+    }, [now, showFeedback, sleepDeadline]);
+
+    const upNextRemainingMs =
+      upNextState?.deadline == null
+        ? null
+        : Math.max(0, upNextState.deadline - now);
+
+    useEffect(() => {
+      if (upNextState?.deadline == null || now < upNextState.deadline) {
+        return;
+      }
+
+      playNextNow();
+    }, [now, playNextNow, upNextState]);
 
     const retry = useCallback(() => {
       setError(null);
@@ -750,10 +901,35 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       setCandidateIndex(0);
       setError(null);
       setIsBuffering(true);
+      setIsPaused(false);
+      setCurrentTime(0);
+      setDuration(0);
+      setSeekableDuration(0);
+      setBuffered(0);
+      setPendingSeek(null);
+      setUpNextState(null);
+      setQualities([]);
+      setSelectedQuality('auto');
+      setSelectedAudio(previous =>
+        typeof previous === 'number' ? 'auto' : previous,
+      );
+      setSelectedText(previous =>
+        typeof previous === 'number' ? 'auto' : previous,
+      );
     }, [playback]);
+
     const edges = useMemo(
       () => resolveOverlayEdges(metrics, insets),
       [insets, metrics],
+    );
+
+    const subtitleStyle = useMemo(
+      () => ({
+        fontSize: prefs.subtitleSize,
+        paddingBottom: prefs.subtitleLift,
+        opacity: prefs.subtitleOpacity,
+      }),
+      [prefs.subtitleLift, prefs.subtitleOpacity, prefs.subtitleSize],
     );
 
     const streamInfo = useMemo(() => {
@@ -804,14 +980,17 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
           resizeMode={resizeModeFor(scaling)}
           paused={isPaused}
           rate={boosting ? HOLD_TO_SPEED_RATE : rate}
-          volume={volume}
-          muted={muted}
+          volume={prefs.keepDeviceVolume ? 1 : volume}
+          muted={prefs.keepDeviceVolume ? false : muted}
           repeat={loop}
           selectedAudioTrack={trackProp(selectedAudio)}
           selectedTextTrack={trackProp(selectedText)}
+          selectedVideoTrack={videoTrackProp(selectedQuality)}
+          subtitleStyle={subtitleStyle}
           controls={false}
           progressUpdateInterval={500}
           onLoad={handleLoad}
+          onVideoTracks={handleVideoTracks}
           onProgress={handleProgress}
           onSeek={handleSeek}
           onBuffer={handleBuffer}
@@ -849,7 +1028,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
         ) : null}
 
         {}
-        {metrics.isTV && !overlayVisible ? (
+        {metrics.isTV && !overlayVisible && upNextState === null ? (
           <Pressable
             style={styles.wakeLayer}
             focusable
@@ -861,7 +1040,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
         ) : null}
 
         {}
-        {overlayFade.mounted ? (
+        {overlayFade.mounted && upNextState === null ? (
           <Animated.View
             style={[styles.overlayLayer, { opacity: overlayFade.opacity }]}
             pointerEvents={overlayVisible ? 'box-none' : 'none'}
@@ -873,6 +1052,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
               isPaused={isPaused}
               isLive={stream.isLive}
               canSeek={canSeek}
+              skipStep={prefs.skipStep}
               position={displayPosition}
               start={0}
               end={timelineEnd}
@@ -894,12 +1074,25 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
               onPictureInPicture={
                 metrics.isTouch ? enterPictureInPicture : undefined
               }
+              onPlayNext={onPlayNext ? playNextNow : undefined}
               onExit={onExit}
             />
           </Animated.View>
         ) : null}
 
         <GestureFeedback feedback={feedback} />
+
+        {upNextState && upNext ? (
+          <UpNextCard
+            title={upNext.title}
+            subtitle={upNext.subtitle}
+            remainingMs={upNextRemainingMs}
+            busy={advancing}
+            onPlayNow={playNextNow}
+            onCancel={cancelUpNext}
+            edges={edges}
+          />
+        ) : null}
 
         {settingsOpen && metrics.isTouch ? (
           <Pressable
@@ -912,11 +1105,15 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
         {settingsOpen ? (
           <SettingsPanel
             onClose={closeSettings}
+            edges={edges}
             rate={rate}
             onRateChange={next => {
               setRate(next);
               showFeedback({ kind: 'rate', rate: next });
             }}
+            qualities={qualities}
+            selectedQuality={selectedQuality}
+            onSelectQuality={setSelectedQuality}
             scaling={scaling}
             onScalingChange={applyScaling}
             audioTracks={audioTracks}
@@ -925,15 +1122,28 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
             textTracks={textTracks}
             selectedText={selectedText}
             onSelectText={setSelectedText}
+            volume={volume}
+            onVolumeChange={next => {
+              setVolume(next);
+              setMuted(false);
+              showFeedback({ kind: 'level', axis: 'volume', value: next });
+            }}
             muted={muted}
             onToggleMute={() => setMuted(previous => !previous)}
             loop={loop}
             onToggleLoop={() => setLoop(previous => !previous)}
+            sleepMinutes={sleepMinutes}
+            sleepRemainingMs={sleepRemainingMs}
+            onSleepChange={changeSleepTimer}
+            hasUpNext={Boolean(onPlayNext)}
+            prefs={prefs}
+            onPrefChange={changePref}
+            onResetPrefs={resetPlayerPrefs}
+            prefsAreDefault={isDefaultPlayerPrefs(prefs)}
             onPictureInPicture={
               metrics.isTouch ? enterPictureInPicture : undefined
             }
             info={streamInfo}
-            edges={edges}
           />
         ) : null}
       </View>
@@ -951,6 +1161,13 @@ function trackProp(selection: TrackSelection): SelectedTrack {
     return { type: SelectedTrackType.DISABLED };
   }
   return { type: SelectedTrackType.INDEX, value: selection };
+}
+
+function videoTrackProp(selection: TrackSelection): SelectedVideoTrack {
+  if (typeof selection === 'number') {
+    return { type: SelectedVideoTrackType.INDEX, value: selection };
+  }
+  return { type: SelectedVideoTrackType.AUTO };
 }
 
 function buildSource(stream: Stream) {

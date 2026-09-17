@@ -91,13 +91,19 @@ interface GestureState {
 
 export function usePlayerGestures(
   handlers: PlayerGestureHandlers,
-  { enabled }: { enabled: boolean },
+  {
+    enabled,
+    seekWindowSeconds = SWIPE_SEEK_WINDOW_SECONDS,
+  }: { enabled: boolean; seekWindowSeconds?: number },
 ) {
   const handlersRef = useRef(handlers);
   handlersRef.current = handlers;
 
   const enabledRef = useRef(enabled);
   enabledRef.current = enabled;
+
+  const seekWindowRef = useRef(seekWindowSeconds);
+  seekWindowRef.current = seekWindowSeconds;
 
   const state = useRef<GestureState>({
     axis: null,
@@ -212,7 +218,7 @@ export function usePlayerGestures(
         handlersRef.current.onDragMove(
           s.axis,
           s.axis === 'seek'
-            ? swipeSeekSeconds(gesture.dx, s.width)
+            ? swipeSeekSeconds(gesture.dx, s.width, seekWindowRef.current)
             : verticalDragFraction(gesture.dy, s.height),
         );
       },

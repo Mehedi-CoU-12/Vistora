@@ -7,8 +7,8 @@ import { formatTime } from './formatTime';
 import { PlayerIcon } from './PlayerIcon';
 import {
   formatRate,
+  formatSkipStep,
   SCALING_LABEL,
-  SEEK_STEP_SECONDS,
   type ScalingMode,
 } from './playbackOptions';
 import {
@@ -31,6 +31,8 @@ interface PlayerControlsProps {
 
   canSeek: boolean;
 
+  skipStep: number;
+
   position: number;
   start: number;
   end: number;
@@ -52,6 +54,8 @@ interface PlayerControlsProps {
   onGoLive: () => void;
 
   onPictureInPicture?: () => void;
+
+  onPlayNext?: () => void;
   onExit: () => void;
 }
 
@@ -96,6 +100,7 @@ function UnlockedControls({
   isPaused,
   isLive,
   canSeek,
+  skipStep,
   position,
   start,
   end,
@@ -114,6 +119,7 @@ function UnlockedControls({
   onToggleLock,
   onGoLive,
   onPictureInPicture,
+  onPlayNext,
   onExit,
 }: PlayerControlsProps) {
   const styles = useStyles();
@@ -138,8 +144,8 @@ function UnlockedControls({
       <ControlButton
         icon="rewind"
         variant="skip"
-        accessibilityLabel={`Back ${SEEK_STEP_SECONDS} seconds`}
-        onPress={() => onSkip(-SEEK_STEP_SECONDS)}
+        accessibilityLabel={`Back ${formatSkipStep(skipStep)}`}
+        onPress={() => onSkip(-skipStep)}
         disabled={!canSeek}
       />
       <ControlButton
@@ -152,10 +158,18 @@ function UnlockedControls({
       <ControlButton
         icon="forward"
         variant="skip"
-        accessibilityLabel={`Forward ${SEEK_STEP_SECONDS} seconds`}
-        onPress={() => onSkip(SEEK_STEP_SECONDS)}
+        accessibilityLabel={`Forward ${formatSkipStep(skipStep)}`}
+        onPress={() => onSkip(skipStep)}
         disabled={!canSeek}
       />
+      {onPlayNext ? (
+        <ControlButton
+          icon="next"
+          variant="skip"
+          accessibilityLabel="Start the next episode"
+          onPress={onPlayNext}
+        />
+      ) : null}
     </View>
   );
 
@@ -296,9 +310,9 @@ function UnlockedControls({
 
         {chrome.showsKeyHints ? (
           <Text style={styles.hint}>
-            OK selects · Back exits · left/right skips {SEEK_STEP_SECONDS}s when
-            the controls are hidden or the bar is focused · press and hold to
-            keep skipping
+            OK selects · Back exits · left/right skips{' '}
+            {formatSkipStep(skipStep)} when the controls are hidden or the bar
+            is focused · press and hold to keep skipping
           </Text>
         ) : null}
       </TVFocusGuideView>
