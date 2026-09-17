@@ -16,6 +16,7 @@ import {
 } from '../navigation/rails';
 import { catalogTabs, type TabId } from '../navigation/tabs';
 import { fetchCategories } from '../services/contentService';
+import { fetchHomeRails } from '../services/moviebox/catalogue';
 import { useContinueWatching } from '../state/continueWatching';
 import { useMyList } from '../state/myList';
 import type { ContentItem } from '../types/content';
@@ -34,27 +35,40 @@ interface HomeData {
 export function HomeScreen({ onSeeAll }: { onSeeAll: (id: TabId) => void }) {
   const { data, isLoading, error, reload } =
     useAsyncData<HomeData>(async () => {
-      const kinds = await Promise.all(
-        catalogTabs().map(async tab => {
-          const [items, categories] = await Promise.all([
-            tab.catalog.load(),
-            fetchCategories(tab.catalog.categoryKind),
-          ]);
+      const liveTab = catalogTabs().find(tab => tab.id === 'live-tv');
 
-          return { tab, items: withGenre(items, categories), categories };
-        }),
-      );
+      const [catalogueRails, live] = await Promise.all([
+        fetchHomeRails().catch(() => []),
+        liveTab === undefined
+          ? Promise.resolve(null)
+          : Promise.all([
+              liveTab.catalog.load(),
+              fetchCategories(liveTab.catalog.categoryKind),
+            ]).then(([items, categories]) => ({
+              tab: liveTab,
+              items: withGenre(items, categories),
+              categories,
+            })),
+      ]);
+
+      const browse: Rail[] = catalogueRails.map(rail => ({
+        id: rail.id,
+        title: rail.title,
+        items: rail.items,
+        cardVariant: 'poster',
+      }));
+
+      const liveRails =
+        live === null
+          ? []
+          : homeRails(live.tab, live.items, live.categories, RAILS_PER_KIND);
 
       return {
         featured: pickFeatured(
-          kinds.flatMap(kind => kind.items),
+          browse.flatMap(rail => rail.items),
           SESSION_SEED,
         ),
-        rails: interleave(
-          kinds.map(kind =>
-            homeRails(kind.tab, kind.items, kind.categories, RAILS_PER_KIND),
-          ),
-        ).slice(0, MAX_RAILS),
+        rails: interleave([liveRails, browse]).slice(0, MAX_RAILS),
       };
     }, []);
 
@@ -113,7 +127,7 @@ export function HomeScreen({ onSeeAll }: { onSeeAll: (id: TabId) => void }) {
     return (
       <EmptyState
         title="No content yet"
-        message="Your database is reachable but empty. Apply supabase/seed.sql to load sample channels, movies and fixtures."
+        message="Nothing to show yet. MovieBox returned no titles and no live channels were found."
       />
     );
   }
