@@ -5,6 +5,7 @@ This document explains how the stream resolution system works and how to add new
 ## Overview
 
 When a user clicks on a movie/episode in the app, the `usePlayItem` hook calls `resolveStream()` which:
+
 1. Checks all registered stream sources
 2. Asks each source if it can resolve the item
 3. Collects all candidates from applicable sources
@@ -14,6 +15,7 @@ When a user clicks on a movie/episode in the app, the `usePlayItem` hook calls `
 ## Built-in Stream Sources
 
 ### 1. Stored Stream Source (`storedStream.ts`)
+
 - **ID**: `stored`
 - **Purpose**: Uses pre-stored stream URLs from the database
 - **When Active**: When `item.stream !== null`
@@ -21,6 +23,7 @@ When a user clicks on a movie/episode in the app, the `usePlayItem` hook calls `
 - **Source**: Database records
 
 ### 2. External Stream Source (`externalStream.ts`)
+
 - **ID**: `external`
 - **Purpose**: Generic external API integration
 - **When Active**: When `REACT_APP_EXTERNAL_STREAM_API` is configured and item has no stored stream
@@ -28,6 +31,7 @@ When a user clicks on a movie/episode in the app, the `usePlayItem` hook calls `
 - **Configuration**: Set `REACT_APP_EXTERNAL_STREAM_API` environment variable
 
 **Expected API Response Format:**
+
 ```json
 [
   {
@@ -44,6 +48,7 @@ When a user clicks on a movie/episode in the app, the `usePlayItem` hook calls `
 ```
 
 ### 3. MovieBox Stream Source (`movieboxStream.ts`)
+
 - **ID**: `moviebox`
 - **Purpose**: MovieBox API integration (like MovieBox-Tui)
 - **When Active**: When `REACT_APP_MOVIEBOX_API` is configured
@@ -56,6 +61,7 @@ When a user clicks on a movie/episode in the app, the `usePlayItem` hook calls `
   - Codec and format detection
 
 **Expected API Response Format:**
+
 ```json
 {
   "data": {
@@ -76,6 +82,7 @@ When a user clicks on a movie/episode in the app, the `usePlayItem` hook calls `
 ## Configuration
 
 ### Environment Variables
+
 Create or update `.env` file:
 
 ```env
@@ -88,6 +95,7 @@ REACT_APP_MOVIEBOX_API=https://api.moviebox.com/v1
 To add your own stream source:
 
 1. Create a new file in `src/services/sources/`:
+
 ```typescript
 import type { ContentItem } from '../../types/content';
 import type { StreamCandidate, StreamSource } from '../streamResolver';
@@ -103,7 +111,7 @@ export const customStreamSource: StreamSource = {
   resolve: async (item: ContentItem): Promise<StreamCandidate[]> => {
     // Fetch streams from your provider
     const streams = await fetchStreamsFromProvider(item);
-    
+
     return streams.map(stream => ({
       stream: {
         url: stream.url,
@@ -121,6 +129,7 @@ export const customStreamSource: StreamSource = {
 ```
 
 2. Register it in `src/services/sources/index.ts`:
+
 ```typescript
 import { customStreamSource } from './customStream';
 
@@ -158,6 +167,7 @@ Navigate to Player with Playback
 ## Stream Protocol Support
 
 Supported protocols in `PlayableProtocol`:
+
 - `hls` - HTTP Live Streaming (.m3u8)
 - `dash` - Dynamic Adaptive Streaming (.mpd)
 - `mp4` - MPEG-4 Video
@@ -174,9 +184,9 @@ const candidate: StreamCandidate = {
     url: 'https://secure-stream.com/video.mp4',
     protocol: 'mp4',
     headers: {
-      'Authorization': 'Bearer token123',
+      Authorization: 'Bearer token123',
       'User-Agent': 'Vistora/1.0',
-      'Cookie': 'session=abc123',
+      Cookie: 'session=abc123',
     },
     isLive: false,
   },
@@ -188,11 +198,13 @@ const candidate: StreamCandidate = {
 ## Caching
 
 Stream resolution results are cached using TTL (Time To Live):
+
 - Default TTL: 5 minutes
 - Cache key format: `{kind}:{id}` (e.g., `movie:123`)
 - When multiple sources contribute: shortest TTL is used
 
 To invalidate cache manually:
+
 ```typescript
 import { invalidateResolution } from '../services/streamResolver';
 invalidateResolution(item);

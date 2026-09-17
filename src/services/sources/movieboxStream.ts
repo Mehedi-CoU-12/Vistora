@@ -18,41 +18,72 @@ interface MovieBoxResponse {
   streams?: MovieBoxStream[];
 }
 
-const MOVIEBOX_API = process.env.REACT_APP_MOVIEBOX_API || '';
 const MOVIEBOX_REFERER = 'https://sportslive.wine';
+
+const MOVIEBOX_HOSTS = [
+  'https://api6.aoneroom.com',
+  'https://api5.aoneroom.com',
+  'https://api4.aoneroom.com',
+  'https://api4sg.aoneroom.com',
+  'https://api3.aoneroom.com',
+  'https://api6sg.aoneroom.com',
+  'https://api.inmoviebox.com',
+];
+
+function getMovieBoxHosts(): string[] {
+  const customApi = process.env.REACT_APP_MOVIEBOX_API?.trim();
+  if (customApi) {
+    return [customApi, ...MOVIEBOX_HOSTS];
+  }
+  return MOVIEBOX_HOSTS;
+}
 
 async function getMovieBoxStreams(
   item: ContentItem,
 ): Promise<MovieBoxStream[]> {
-  if (!MOVIEBOX_API) {
+  const hosts = getMovieBoxHosts();
+  if (hosts.length === 0) {
     return [];
   }
 
-  try {
-    const params = new URLSearchParams({
-      title: item.title,
-      type: item.kind === 'series' ? 'series' : 'movie',
-      id: item.id,
-    });
+  const params = new URLSearchParams({
+    title: item.title,
+    type: item.kind === 'series' ? 'series' : 'movie',
+    id: item.id,
+  });
 
-    const response = await fetch(`${MOVIEBOX_API}/streams?${params}`, {
-      headers: {
-        Referer: MOVIEBOX_REFERER,
-        'User-Agent': 'Vistora/1.0',
-      },
-    });
+  for (const host of hosts) {
+    try {
+      const response = await fetch(`${host}/streams?${params}`, {
+        headers: {
+          Referer: MOVIEBOX_REFERER,
+          'User-Agent': 'Vistora/1.0',
+        },
+      });
 
-    if (!response.ok) {
-      return [];
+      if (!response.ok) {
+        continue;
+      }
+
+      const data: MovieBoxResponse = await response.json();
+      const streams = data.data?.list || data.list || data.streams || [];
+      const result = Array.isArray(streams) ? streams : [];
+
+      if (result.length > 0) {
+        console.log(`[movieboxStream] Got streams from ${host}`);
+        return result;
+      }
+    } catch (error) {
+      console.debug(
+        `[movieboxStream] Host ${host} failed:`,
+        error instanceof Error ? error.message : error,
+      );
+      continue;
     }
-
-    const data: MovieBoxResponse = await response.json();
-    const streams = data.data?.list || data.list || data.streams || [];
-    return Array.isArray(streams) ? streams : [];
-  } catch (error) {
-    console.warn('[movieboxStream] Failed to fetch streams:', error);
-    return [];
   }
+
+  console.warn('[movieboxStream] All hosts exhausted for:', item.title);
+  return [];
 }
 
 function getMaxResolution(resolutions?: string): string {
@@ -77,7 +108,7 @@ export const movieboxStreamSource: StreamSource = {
   id: 'moviebox',
 
   canResolve: (item: ContentItem) =>
-    !!MOVIEBOX_API && item.stream === null && item.kind !== 'channel',
+    item.stream === null && item.kind !== 'channel',
 
   resolve: async (item: ContentItem): Promise<StreamCandidate[]> => {
     const streams = await getMovieBoxStreams(item);
