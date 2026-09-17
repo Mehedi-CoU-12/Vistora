@@ -1,4 +1,9 @@
-import { SUPABASE_ANON_KEY, SUPABASE_URL } from '@env';
+import {
+  REACT_APP_EXTERNAL_STREAM_API,
+  REACT_APP_MOVIEBOX_API,
+  SUPABASE_ANON_KEY,
+  SUPABASE_URL,
+} from '@env';
 
 const url = SUPABASE_URL?.trim() ?? '';
 const anonKey = SUPABASE_ANON_KEY?.trim() ?? '';
@@ -9,6 +14,11 @@ function isUnset(value: string): boolean {
     value.startsWith('your-') ||
     value.includes('your-project-ref')
   );
+}
+
+function optional(value: string | undefined): string {
+  const trimmed = value?.trim() ?? '';
+  return isUnset(trimmed) ? '' : trimmed;
 }
 
 function validate(): string | null {
@@ -46,4 +56,6 @@ export const configError: string | null = validate();
 export const env = {
   supabaseUrl: url,
   supabaseAnonKey: anonKey,
+  movieboxApi: optional(REACT_APP_MOVIEBOX_API),
+  externalStreamApi: optional(REACT_APP_EXTERNAL_STREAM_API),
 } as const;

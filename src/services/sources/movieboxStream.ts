@@ -1,3 +1,4 @@
+import { env } from '../../config/env';
 import type { ContentItem } from '../../types/content';
 import type { StreamCandidate, StreamSource } from '../streamResolver';
 
@@ -31,7 +32,7 @@ const MOVIEBOX_HOSTS = [
 ];
 
 function getMovieBoxHosts(): string[] {
-  const customApi = process.env.REACT_APP_MOVIEBOX_API?.trim();
+  const customApi = env.movieboxApi;
   if (customApi) {
     return [customApi, ...MOVIEBOX_HOSTS];
   }

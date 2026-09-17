@@ -1,3 +1,4 @@
+import { env } from '../../config/env';
 import type { ContentItem } from '../../types/content';
 import type { StreamCandidate, StreamSource } from '../streamResolver';
 
@@ -10,7 +11,7 @@ interface ExternalStreamResponse {
   headers?: Record<string, string>;
 }
 
-const EXTERNAL_API_BASE = process.env.REACT_APP_EXTERNAL_STREAM_API || '';
+const EXTERNAL_API_BASE = env.externalStreamApi;
 
 async function fetchExternalStreams(
   item: ContentItem,
