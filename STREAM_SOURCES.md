@@ -51,11 +51,11 @@ When a user clicks on a movie/episode in the app, the `usePlayItem` hook calls `
 
 - **ID**: `moviebox`
 - **Purpose**: MovieBox API integration, ported from the Rust client in MovieBox-Tui
-- **When Active**: Always, for any non-channel item with no stream of its own
+- **When Active**: Always. MovieBox is both the catalogue and the stream source for everything except live TV.
 - **TTL**: 5 minutes
 - **Configuration**: None. The host pool is built in.
 
-The implementation lives in [`src/services/sources/moviebox/`](src/services/sources/moviebox/):
+The implementation lives in [`src/services/moviebox/`](src/services/moviebox/):
 
 | File         | Responsibility                                                 |
 | ------------ | -------------------------------------------------------------- |
