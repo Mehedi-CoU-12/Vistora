@@ -1,10 +1,11 @@
 import { useRoute, type RouteProp } from '@react-navigation/native';
 import React, { useCallback, useMemo } from 'react';
-import { Image, SectionList, Text, TVFocusGuideView, View } from 'react-native';
+import { SectionList, Text, TVFocusGuideView, View } from 'react-native';
 
 import { AppHeader } from '../components/AppHeader';
 import { Badge } from '../components/Badge';
 import { Focusable } from '../components/Focusable';
+import { RemoteImage } from '../components/RemoteImage';
 import { ScreenContainer } from '../components/ScreenContainer';
 import { EmptyState, ErrorState, LoadingState } from '../components/StateViews';
 import { useAsyncData } from '../hooks/useAsyncData';
@@ -144,6 +145,7 @@ function SeriesHero({ series }: { series: SeriesDetail }) {
   const styles = useStyles();
   const { contentWidth } = useMetrics();
 
+  const heroWidth = Math.min(contentWidth, 420);
   const artwork = series.backdropUrl ?? series.posterUrl;
 
   if (!artwork && !series.description) {
@@ -153,14 +155,15 @@ function SeriesHero({ series }: { series: SeriesDetail }) {
   return (
     <View style={styles.hero}>
       {artwork ? (
-        <Image
-          source={{ uri: artwork }}
+        <RemoteImage
+          url={artwork}
+          displayWidth={heroWidth}
           style={[
             styles.heroImage,
 
             {
-              width: Math.min(contentWidth, 420),
-              height: Math.round(Math.min(contentWidth, 420) * (9 / 16)),
+              width: heroWidth,
+              height: Math.round(heroWidth * (9 / 16)),
             },
           ]}
           resizeMode="cover"
@@ -207,8 +210,9 @@ function EpisodeRow({
             style={[styles.thumb, { width: thumbWidth, height: thumbHeight }]}
           >
             {episode.imageUrl ? (
-              <Image
-                source={{ uri: episode.imageUrl }}
+              <RemoteImage
+                url={episode.imageUrl}
+                displayWidth={thumbWidth}
                 style={styles.thumbImage}
                 resizeMode="cover"
               />

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import {
   backgroundAlpha,
@@ -15,6 +15,7 @@ import type { ContentItem } from '../types/content';
 import { Badge } from './Badge';
 import { Focusable } from './Focusable';
 import { Gradient } from './Gradient';
+import { RemoteImage } from './RemoteImage';
 
 interface ContentCardProps {
   item: ContentItem;
@@ -29,7 +30,7 @@ interface ContentCardProps {
   showTitle?: boolean;
 }
 
-export function ContentCard({
+export const ContentCard = React.memo(function ContentCardView({
   item,
   variant,
   onPress,
@@ -76,8 +77,9 @@ export function ContentCard({
             ]}
           >
             {item.imageUrl ? (
-              <Image
-                source={{ uri: item.imageUrl }}
+              <RemoteImage
+                url={item.imageUrl}
+                displayWidth={size.width}
                 style={isMark ? styles.mark : styles.image}
                 resizeMode={isMark ? 'contain' : 'cover'}
               />
@@ -144,7 +146,9 @@ export function ContentCard({
       )}
     </Focusable>
   );
-}
+});
+
+ContentCard.displayName = 'ContentCard';
 
 function clamp01(value: number): number {
   return Math.min(Math.max(value, 0), 1);

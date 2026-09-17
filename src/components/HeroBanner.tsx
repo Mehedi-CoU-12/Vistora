@@ -1,6 +1,5 @@
 import React, { useCallback, useState } from 'react';
 import {
-  Image,
   StyleSheet,
   Text,
   TVFocusGuideView,
@@ -22,6 +21,7 @@ import {
 import { metaParts, type ContentItem } from '../types/content';
 import { Badge } from './Badge';
 import { Gradient } from './Gradient';
+import { RemoteImage } from './RemoteImage';
 import { TextButton } from './TextButton';
 
 interface HeroBannerProps {
@@ -45,7 +45,7 @@ export function HeroBanner({
   eyebrow,
   hasTVPreferredFocus = false,
 }: HeroBannerProps) {
-  const { hero, isTV, gutter } = useMetrics();
+  const { hero, isTV, gutter, width: screenWidth } = useMetrics();
   const styles = useStyles();
 
   const [width, setWidth] = useState(0);
@@ -100,8 +100,9 @@ export function HeroBanner({
       scrollSnapAlign="start"
     >
       {fill ? (
-        <Image
-          source={{ uri: fill }}
+        <RemoteImage
+          url={fill}
+          displayWidth={screenWidth}
           style={StyleSheet.absoluteFill}
           resizeMode="cover"
           accessibilityElementsHidden
@@ -148,8 +149,9 @@ export function HeroBanner({
           style={[styles.aside, { width: asideWidth }]}
           pointerEvents="none"
         >
-          <Image
-            source={{ uri: aside }}
+          <RemoteImage
+            url={aside}
+            displayWidth={asideWidth}
             style={styles.asideImage}
             resizeMode="contain"
             accessibilityElementsHidden
