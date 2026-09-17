@@ -8,3 +8,21 @@
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
 # Add any project specific keep options here:
+
+-keep,allowobfuscation @interface com.facebook.proguard.annotations.DoNotStrip
+-keep,allowobfuscation @interface com.facebook.react.bridge.ReactMethod
+
+-keepclassmembers class * {
+    @com.facebook.react.bridge.ReactMethod *;
+}
+
+-keep class com.vistora.** { *; }
+
+-keep class * extends com.facebook.react.bridge.ReactContextBaseJavaModule { *; }
+-keep class * extends com.facebook.react.bridge.NativeModule { *; }
+-keep class * extends com.facebook.react.uimanager.ViewManager { *; }
+-keep class * implements com.facebook.react.ReactPackage { *; }
+
+-dontwarn okhttp3.**
+-dontwarn okio.**
+-dontwarn javax.annotation.**
