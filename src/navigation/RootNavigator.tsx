@@ -5,7 +5,9 @@ import {
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
+import { StyleSheet, View } from 'react-native';
 
+import { ResolvingOverlay } from '../components/ResolvingOverlay';
 import { BrowseScreen } from '../screens/BrowseScreen';
 import { DetailsScreen } from '../screens/DetailsScreen';
 import { PlayerScreen } from '../screens/PlayerScreen';
@@ -38,6 +40,19 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  * list cannot be a tab (there is one per series) and cannot be a modal over the
  * grid (it is where you spend time, not a glance), and unlike `Details` it has
  * to fetch, because a card does not carry seventy-five episodes with it.
+ *
+ * ---------------------------------------------------------------------------
+ * The one thing drawn outside the navigator
+ * ---------------------------------------------------------------------------
+ * `ResolvingOverlay` is a sibling of the whole `NavigationContainer`, not a
+ * screen and not a modal route. Pressing Play now waits on a network call before
+ * the player can be pushed, and that wait belongs to the app rather than to any
+ * one screen -- it starts on Home, on a details screen or on an episode row, and
+ * it has to cover whichever of them the viewer is looking at.
+ *
+ * A route would have been the navigator-shaped answer and is the wrong one: it
+ * would put a screen in the history that Back could return to, for a state that
+ * lasts a few hundred milliseconds and must never be returned to.
  */
 const navigationTheme: Theme = {
   ...DarkTheme,
@@ -53,30 +68,43 @@ const navigationTheme: Theme = {
 
 export function RootNavigator() {
   return (
-    <NavigationContainer theme={navigationTheme}>
-      <Stack.Navigator
-        initialRouteName="Browse"
-        screenOptions={{
-          headerShown: false,
-          // Slide/fade transitions on a TV read as sluggish, and a mid-transition
-          // screen is a screen where focus is briefly nowhere.
-          animation: 'fade',
-          contentStyle: { backgroundColor: colors.background },
-        }}
-      >
-        <Stack.Screen name="Browse" component={BrowseScreen} />
-        <Stack.Screen name="Details" component={DetailsScreen} />
-        <Stack.Screen name="Series" component={SeriesScreen} />
-        <Stack.Screen
-          name="Player"
-          component={PlayerScreen}
-          options={{
-            // The player is its own world: no background peeking through while
-            // the surface initialises.
-            contentStyle: { backgroundColor: '#000' },
+    <View style={styles.root}>
+      <NavigationContainer theme={navigationTheme}>
+        <Stack.Navigator
+          initialRouteName="Browse"
+          screenOptions={{
+            headerShown: false,
+            // Slide/fade transitions on a TV read as sluggish, and a mid-transition
+            // screen is a screen where focus is briefly nowhere.
+            animation: 'fade',
+            contentStyle: { backgroundColor: colors.background },
           }}
-        />
-      </Stack.Navigator>
-    </NavigationContainer>
+        >
+          <Stack.Screen name="Browse" component={BrowseScreen} />
+          <Stack.Screen name="Details" component={DetailsScreen} />
+          <Stack.Screen name="Series" component={SeriesScreen} />
+          <Stack.Screen
+            name="Player"
+            component={PlayerScreen}
+            options={{
+              // The player is its own world: no background peeking through while
+              // the surface initialises.
+              contentStyle: { backgroundColor: '#000' },
+            }}
+          />
+        </Stack.Navigator>
+      </NavigationContainer>
+
+      {/* Last child, so it draws over every screen. Renders null unless a
+          resolution is actually in flight -- see the note in its own file on
+          why an always-mounted transparent view would break TV focus. */}
+      <ResolvingOverlay />
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+});

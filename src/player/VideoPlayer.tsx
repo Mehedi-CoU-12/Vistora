@@ -28,6 +28,7 @@ import Video, {
   type VideoRef,
 } from 'react-native-video';
 
+import type { Playback } from '../services/streamResolver';
 import { colors, makeStyles, spacing, useMetrics } from '../theme';
 import type { Stream } from '../types/content';
 import { ControlButton } from './ControlButton';
@@ -61,7 +62,19 @@ import {
 import { useRemoteControl } from './useRemoteControl';
 
 interface VideoPlayerProps {
-  stream: Stream;
+  /**
+   * Every URL that could play this, best first, already resolved.
+   *
+   * A list rather than a `Stream`, and that is what makes failover possible at
+   * all: the component that discovers a URL will not open is this one, so it is
+   * the only place that can try the next without sending the viewer back to
+   * browse and asking them to press Play again.
+   *
+   * This is a type-only import from the services layer. The component still
+   * imports nothing from navigation and nothing from the platform, so it stays
+   * embeddable in something that is not a route -- see the note on `onExit`.
+   */
+  playback: Playback;
   title: string;
   subtitle?: string;
   /** Leave the player: user pressed Back, or a VOD reached its end. */
@@ -149,11 +162,24 @@ const MIN_BRIGHTNESS = 0.15;
 const MAX_DIM_OPACITY = 0.85;
 
 export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
-  ({ stream, title, subtitle, onExit, onCanDismissChange }, ref) => {
+  ({ playback, title, subtitle, onExit, onCanDismissChange }, ref) => {
     const metrics = useMetrics();
     const insets = useSafeAreaInsets();
     const styles = useStyles();
     const videoRef = useRef<VideoRef>(null);
+
+    /**
+     * Which candidate is playing. Advanced by `handleError`; see the failover
+     * note there.
+     *
+     * Everything below this line reads `stream`, exactly as it did when that was
+     * a prop -- deriving it here is what kept the failover change from touching
+     * the seek bar, the track selection, the gestures or the controls.
+     */
+    const [candidateIndex, setCandidateIndex] = useState(0);
+    const candidates = playback.candidates;
+    const candidate = candidates[candidateIndex];
+    const stream = candidate.stream;
 
     const [isPaused, setIsPaused] = useState(false);
     const [isBuffering, setIsBuffering] = useState(true);
@@ -819,17 +845,54 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       [],
     );
 
-    const handleError = useCallback((event: OnVideoErrorData) => {
-      setIsBuffering(false);
-      // Media3's own message is far more useful than a generic string -- "Source
-      // error", "Response code: 403" -- so surface it instead of hiding it.
-      setError(
-        event.error?.errorString ??
+    /**
+     * A candidate would not open: move to the next one, or give up.
+     *
+     * -----------------------------------------------------------------------
+     * Why the retry is silent, and automatic
+     * -----------------------------------------------------------------------
+     * The failure this handles is overwhelmingly a URL that has expired or a
+     * mirror that is down, and the viewer can do precisely nothing about either.
+     * Showing them "Response code: 403" and a Try again button, as this used to,
+     * asks them to make a decision using information they cannot act on -- and
+     * the decision is always "yes, obviously, try the other one".
+     *
+     * So the player makes it. A dead first candidate now costs a second of
+     * buffering, which is indistinguishable from an ordinary slow start, rather
+     * than costing the title. The error screen is reserved for the case where
+     * that is genuinely the end of the road.
+     *
+     * The warning is kept because the alternative is a source that is dead for
+     * everything being invisible: playback still works, every time, just always
+     * from the fallback.
+     */
+    const handleError = useCallback(
+      (event: OnVideoErrorData) => {
+        // Media3's own message is far more useful than a generic string --
+        // "Source error", "Response code: 403" -- so surface it instead of
+        // hiding it.
+        const detail =
+          event.error?.errorString ??
           event.error?.localizedDescription ??
           event.error?.errorException ??
-          'Unknown playback error',
-      );
-    }, []);
+          'Unknown playback error';
+
+        const next = candidateIndex + 1;
+
+        if (next < candidates.length) {
+          console.warn(
+            `[VideoPlayer] "${candidates[candidateIndex].label}" failed (${detail}); trying "${candidates[next].label}"`,
+          );
+          setIsBuffering(true);
+          setCandidateIndex(next);
+          return;
+        }
+
+        setIsBuffering(false);
+        setError(detail);
+      },
+      [candidateIndex, candidates],
+    );
 
     const handlePictureInPictureStatus = useCallback(
       ({ isActive }: { isActive: boolean }) => setInPictureInPicture(isActive),
@@ -866,14 +929,55 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       }
     }, [loop, onExit]);
 
+    /**
+     * Start again from the best candidate.
+     *
+     * Back to the top of the list rather than retrying the one that just failed:
+     * by the time this button is reachable every candidate has already been
+     * tried once, so the only thing that can have changed is the network -- and
+     * if it has come back, the viewer should get the best stream rather than the
+     * last-resort one.
+     */
     const retry = useCallback(() => {
       setError(null);
       setIsBuffering(true);
-      // Re-issuing the source is what actually restarts a failed load.
-      videoRef.current?.setSource(buildSource(stream));
-    }, [stream]);
+      setCandidateIndex(0);
+      // Re-issuing the source is what actually restarts a failed load. Needed
+      // even though the effect below also re-issues on change, because when the
+      // list has one entry the source object is identical and nothing changed.
+      videoRef.current?.setSource(buildSource(candidates[0].stream));
+    }, [candidates]);
 
     const source = useMemo(() => buildSource(stream), [stream]);
+
+    /**
+     * Hands a newly chosen candidate to the native player.
+     *
+     * The `source` prop changing is not reliably enough on its own here: after
+     * an error Media3 is sitting in a failed state, and `setSource` is what
+     * actually makes it load again -- the same knowledge `retry` above depends
+     * on. Skipped on the first run, where the prop itself is doing the work.
+     */
+    const isInitialSource = useRef(true);
+    useEffect(() => {
+      if (isInitialSource.current) {
+        isInitialSource.current = false;
+        return;
+      }
+      videoRef.current?.setSource(source);
+    }, [source]);
+
+    /**
+     * A different title arrived in the same mounted player: start its list from
+     * the top. Without this, playing something new after a failover would begin
+     * at whatever index the previous title happened to end on -- or crash, if
+     * the new list is shorter.
+     */
+    useEffect(() => {
+      setCandidateIndex(0);
+      setError(null);
+      setIsBuffering(true);
+    }, [playback]);
     const edges = useMemo(
       () => resolveOverlayEdges(metrics, insets),
       [insets, metrics],
@@ -888,11 +992,33 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       if (resolution) {
         lines.push(resolution);
       }
+      // Which mirror is actually playing. Worth a line because after a silent
+      // failover the picture gives no clue that the first choice failed, and
+      // "why is this the 720p one" is otherwise unanswerable from the device.
+      lines.push(
+        candidates.length > 1
+          ? `${candidate.label} · ${candidateIndex + 1} of ${candidates.length}`
+          : candidate.label,
+      );
       return lines;
-    }, [resolution, stream.isLive, stream.protocol]);
+    }, [
+      candidate.label,
+      candidateIndex,
+      candidates.length,
+      resolution,
+      stream.isLive,
+      stream.protocol,
+    ]);
 
     if (error) {
-      return <PlaybackError detail={error} onRetry={retry} onExit={onExit} />;
+      return (
+        <PlaybackError
+          detail={error}
+          attempts={candidates.length}
+          onRetry={retry}
+          onExit={onExit}
+        />
+      );
     }
 
     return (
@@ -1133,12 +1259,23 @@ function buildSource(stream: Stream) {
   };
 }
 
+/**
+ * The end of the road: every candidate was tried and none of them opened.
+ *
+ * Reached far less often than it used to be -- a single dead mirror is now
+ * handled silently by `handleError` -- which is what lets this screen say
+ * something stronger than "try again". If it is showing, the problem is the
+ * title or the network, not this particular URL.
+ */
 function PlaybackError({
   detail,
+  attempts,
   onRetry,
   onExit,
 }: {
   detail: string;
+  /** How many candidates were tried. Always at least one. */
+  attempts: number;
   onRetry: () => void;
   onExit: () => void;
 }) {
@@ -1149,8 +1286,10 @@ function PlaybackError({
       <Text style={styles.errorTitle}>This stream would not play</Text>
       <Text style={styles.errorDetail}>{detail}</Text>
       <Text style={styles.errorHint}>
-        The app reached the server, but the video could not be opened. Common
-        causes: the stream is offline, the URL has expired, or the source
+        {attempts > 1
+          ? `All ${attempts} sources for this title were tried and none of them opened. `
+          : 'The app reached the server, but the video could not be opened. '}
+        Common causes: the stream is offline, the URL has expired, or the source
         requires headers this device is not sending.
       </Text>
 

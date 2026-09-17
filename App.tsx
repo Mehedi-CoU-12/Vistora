@@ -1,17 +1,31 @@
 import React from 'react';
-import {SafeAreaProvider} from 'react-native-safe-area-context';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import {RootNavigator} from './src/navigation/RootNavigator';
-import {MetricsProvider} from './src/theme';
+import { RootNavigator } from './src/navigation/RootNavigator';
+import { installStreamSources } from './src/services/sources';
+import { MetricsProvider } from './src/theme';
+
+/**
+ * Turns the stream sources on, once, as this module is first imported.
+ *
+ * Module scope rather than an effect: resolution is driven by a press, which
+ * cannot happen before the first render, so there is nothing an effect would
+ * order correctly that this does not -- and an effect would re-run the
+ * registration on every remount of the root. `installStreamSources` replaces by
+ * id, so a Fast Refresh that re-runs this cannot accumulate duplicates.
+ */
+installStreamSources();
 
 /**
  * Vistora -- a media app for Android TV and Android phones/tablets.
  *
  * The whole architecture in one paragraph: screens ask `contentService` for
  * data, which asks Supabase over HTTPS and returns app models. When the user
- * selects something, the resulting `stream_url` is handed to `VideoPlayer`,
- * which gives it to Media3/ExoPlayer, which opens its own connection to the
- * CDN. Supabase serves metadata; it never carries video.
+ * presses Play, `usePlayItem` asks `streamResolver` where the title can actually
+ * be watched right now; the ranked answer is handed to `VideoPlayer`, which
+ * gives the first candidate to Media3/ExoPlayer and falls through to the next if
+ * it will not open. ExoPlayer opens its own connection to the CDN. Supabase
+ * serves metadata; it never carries video.
  *
  * The two providers wrapping the navigator are the whole of the app's responsive
  * setup, and they are ordered deliberately:

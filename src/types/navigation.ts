@@ -1,4 +1,5 @@
-import type { ContentItem, Stream } from './content';
+import type { Playback } from '../services/streamResolver';
+import type { ContentItem } from './content';
 
 /**
  * Route names and their parameters.
@@ -7,9 +8,10 @@ import type { ContentItem, Stream } from './content';
  * params for state persistence and deep links, so a Date or a class instance
  * would not survive. `Stream` is deliberately a plain object for this reason.
  *
- * Note the Player route takes a `Stream`, not a channel or movie id. The player
- * therefore does not re-fetch anything and does not care what kind of content it
- * was handed -- the screen that navigated already has the metadata.
+ * Note the Player route takes a resolved `Playback`, not a channel or movie id.
+ * The player therefore does not re-fetch anything and does not care what kind of
+ * content it was handed -- `usePlayItem` has already found the URLs by the time
+ * this route is pushed.
  */
 export type RootStackParamList = {
   /**
@@ -51,8 +53,21 @@ export type RootStackParamList = {
   Details: {
     item: ContentItem;
   };
+  /**
+   * Playback, already resolved.
+   *
+   * Carries the whole ranked candidate list rather than one URL, which is what
+   * lets the player fail over to the next mirror when one will not open instead
+   * of showing an error screen -- see the failover note in player/VideoPlayer.tsx.
+   *
+   * Resolution happens in `usePlayItem`, BEFORE this route is pushed, so that a
+   * title with no playable source is refused on the screen the viewer is already
+   * looking at rather than on a black one they have to back out of. `Playback`
+   * is plain JSON (a list of `Stream`s plus labels), so it survives React
+   * Navigation serialising params for state persistence and deep links.
+   */
   Player: {
-    stream: Stream;
+    playback: Playback;
     title: string;
     subtitle?: string;
   };
