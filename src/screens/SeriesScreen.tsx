@@ -114,10 +114,7 @@ export function SeriesScreen() {
           ListEmptyComponent={
             <EmptyState
               title="No episodes"
-              message={
-                'This series has no episodes yet. Re-run `npm run import:anime` ' +
-                'and apply the seed file it writes.'
-              }
+              message="This series has no episodes available from MovieBox."
               action={{ label: 'Reload', onPress: reload }}
             />
           }
