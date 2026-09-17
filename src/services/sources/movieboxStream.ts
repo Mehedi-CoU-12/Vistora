@@ -4,9 +4,9 @@ import {
   playInfoToCandidates,
   matchKey,
   searchToSubjects,
-} from './moviebox/adapt';
-import type { MovieBoxSubject } from './moviebox/adapt';
-import { createMovieBoxClient } from './moviebox/client';
+} from '../moviebox/adapt';
+import type { MovieBoxSubject } from '../moviebox/adapt';
+import { createMovieBoxClient } from '../moviebox/client';
 
 const SEARCH_PATH = '/wefeed-mobile-bff/subject-api/search/v2';
 const PLAY_INFO_PATH = '/wefeed-mobile-bff/subject-api/play-info/v2';
@@ -61,6 +61,10 @@ export function selectSubject(
 }
 
 async function findSubjectId(item: ContentItem): Promise<string | null> {
+  if (item.movieboxSubjectId !== undefined) {
+    return item.movieboxSubjectId;
+  }
+
   const cached = subjectIdCache.get(item.id);
   if (cached !== undefined) {
     return cached;
