@@ -50,29 +50,69 @@ When a user clicks on a movie/episode in the app, the `usePlayItem` hook calls `
 ### 3. MovieBox Stream Source (`movieboxStream.ts`)
 
 - **ID**: `moviebox`
-- **Purpose**: MovieBox API integration (like MovieBox-Tui)
-- **When Active**: When `REACT_APP_MOVIEBOX_API` is configured
+- **Purpose**: MovieBox API integration, ported from the Rust client in MovieBox-Tui
+- **When Active**: Always, for any non-channel item with no stream of its own
 - **TTL**: 5 minutes
-- **Configuration**: Set `REACT_APP_MOVIEBOX_API` environment variable
-- **Features**:
-  - Automatic quality extraction from resolutions
-  - Support for DASH and HLS protocols
-  - Cookie-based authentication headers
-  - Codec and format detection
+- **Configuration**: None. The host pool is built in.
 
-**Expected API Response Format:**
+The implementation lives in [`src/services/sources/moviebox/`](src/services/sources/moviebox/):
+
+| File         | Responsibility                                                 |
+| ------------ | -------------------------------------------------------------- |
+| `crypto.ts`  | MD5, HMAC-MD5, base64 and the request signing the API requires |
+| `session.ts` | Visitor bearer tokens and their JWT expiry                     |
+| `client.ts`  | Host pool, retry, session lifecycle                            |
+| `adapt.ts`   | Payload to `StreamCandidate` mapping, title normalization      |
+
+**How a resolve works**
+
+The API is keyed by its own `subjectId`, not by Vistora's content id, so
+resolving an item takes two calls:
+
+1. `POST /wefeed-mobile-bff/subject-api/search/v2` with the item's title
+   (the _series_ title for an episode) to find the subject.
+2. `GET /wefeed-mobile-bff/subject-api/play-info/v2?subjectId={id}`, plus
+   `&se={season}&ep={episode}` for an episode.
+
+Both calls are signed and carry a visitor bearer token obtained from
+`POST /wefeed-mobile-bff/user-api/visitor-login`. Unsigned or unauthenticated
+requests are rejected.
+
+**Requirements the API imposes**
+
+- **Signing.** Every request carries `x-tr-signature` (HMAC-MD5 over a
+  canonical form of method, headers, sorted query, body hash and timestamp)
+  and `x-client-token` (the timestamp plus the MD5 of its reverse), alongside
+  `x-client-info`, `x-client-status` and `x-forwarded-for`.
+- **Host pool.** Seven interchangeable hosts; a request walks the pool,
+  rotating past `403/406/407/429/500/502/503/504` and honouring `Retry-After`.
+- **Session rotation.** A rotated token can arrive on any response in the
+  `x-user` header. Exhausting the whole pool is treated as a rejected session
+  and triggers exactly one re-authentication.
+
+**Stream extraction**
+
+`play-info` returns a `streams[]` array. For each entry the DASH manifest is
+recovered from the `CloudFront-Policy` in `signCookie` where present — the
+policy names the directory holding every rendition, while the plain `url` is a
+single one — and the signing cookie is passed through as a request header.
+Streams that resolve to MovieBox's "app deprecated" notice clip are dropped.
+
+**Example `play-info` payload:**
 
 ```json
 {
   "data": {
-    "list": [
+    "title": "Sample Movie",
+    "displayResolutions": "480,720,1080",
+    "streams": [
       {
-        "url": "https://stream.example.com/manifest.mpd",
-        "quality": "1080p",
-        "format": "DASH",
-        "codecName": "H.265",
+        "id": "9999",
+        "format": "MP4",
+        "codecName": "hevc",
         "resolutions": "1080,720,480",
-        "signCookie": "session=abc123; path=/;"
+        "url": "https://macdn.example.com/video.mp4",
+        "signCookie": "CloudFront-Policy=...;CloudFront-Signature=...;"
       }
     ]
   }
@@ -86,9 +126,16 @@ When a user clicks on a movie/episode in the app, the `usePlayItem` hook calls `
 Create or update `.env` file:
 
 ```env
-REACT_APP_EXTERNAL_STREAM_API=https://api.example.com/v1
-REACT_APP_MOVIEBOX_API=https://api.moviebox.com/v1
+# Optional. Base URL for the generic external stream API; empty disables that source.
+REACT_APP_EXTERNAL_STREAM_API=
+
 ```
+
+It is read through `@env` (react-native-dotenv) and surfaced on the `env`
+object in [`src/config/env.ts`](src/config/env.ts). `.env` is read at build
+time, so restart Metro with `npm start -- --reset-cache` after changing it.
+
+The MovieBox source needs no configuration -- its host pool is built in.
 
 ## Creating a Custom Stream Source
 

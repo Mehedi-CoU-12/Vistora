@@ -1,108 +1,125 @@
-import { env } from '../../config/env';
+/**
+ * Resolves playable streams from the MovieBox mobile API.
+ *
+ * Ported from the Rust client in MovieBox-Tui. The API takes its own
+ * `subjectId`, not Vistora's content id, so resolving an item is two calls:
+ * search the catalogue by title to find the subject, then ask for its play
+ * info. The signing, session and host-pool machinery all of that rides on
+ * lives in ./moviebox.
+ */
+
 import type { ContentItem } from '../../types/content';
 import type { StreamCandidate, StreamSource } from '../streamResolver';
+import {
+  playInfoToCandidates,
+  matchKey,
+  searchToSubjects,
+} from './moviebox/adapt';
+import type { MovieBoxSubject } from './moviebox/adapt';
+import { createMovieBoxClient } from './moviebox/client';
 
-interface MovieBoxStream {
-  url: string;
-  quality: string;
-  format: string;
-  codecName?: string;
-  resolutions?: string;
-  signCookie?: string;
+const SEARCH_PATH = '/wefeed-mobile-bff/subject-api/search/v2';
+const PLAY_INFO_PATH = '/wefeed-mobile-bff/subject-api/play-info/v2';
+
+const SUBJECT_TYPE_MOVIE = 1;
+const SUBJECT_TYPE_SERIES = 2;
+
+const client = createMovieBoxClient();
+
+/**
+ * Subject ids do not change, and a failed search is worth remembering too --
+ * an item MovieBox does not carry should not re-search on every playback
+ * attempt. Keyed by Vistora's content id.
+ */
+const subjectIdCache = new Map<string, string | null>();
+
+function searchTitleFor(item: ContentItem): string {
+  return item.kind === 'episode' && item.seriesTitle !== undefined
+    ? item.seriesTitle
+    : item.title;
 }
 
-interface MovieBoxResponse {
-  data?: {
-    list?: MovieBoxStream[];
-  };
-  list?: MovieBoxStream[];
-  streams?: MovieBoxStream[];
+function wantedSubjectType(item: ContentItem): number {
+  return item.kind === 'series' || item.kind === 'episode'
+    ? SUBJECT_TYPE_SERIES
+    : SUBJECT_TYPE_MOVIE;
 }
 
-const MOVIEBOX_REFERER = 'https://sportslive.wine';
-
-const MOVIEBOX_HOSTS = [
-  'https://api6.aoneroom.com',
-  'https://api5.aoneroom.com',
-  'https://api4.aoneroom.com',
-  'https://api4sg.aoneroom.com',
-  'https://api3.aoneroom.com',
-  'https://api6sg.aoneroom.com',
-  'https://api.inmoviebox.com',
-];
-
-function getMovieBoxHosts(): string[] {
-  const customApi = env.movieboxApi;
-  if (customApi) {
-    return [customApi, ...MOVIEBOX_HOSTS];
+/**
+ * Picks the subject a search result set is actually about.
+ *
+ * Search is fuzzy and will happily return a documentary *about* the film, so
+ * an exact title match of the right kind is preferred over rank; the year
+ * breaks ties between remakes. Falling back to the top hit of the right kind
+ * is deliberate -- MovieBox titles carry release-group noise that `matchKey`
+ * cannot always strip.
+ */
+export function selectSubject(
+  subjects: MovieBoxSubject[],
+  title: string,
+  subjectType: number,
+  year?: number,
+): MovieBoxSubject | null {
+  const ofKind = subjects.filter(
+    subject => subject.subjectType === subjectType,
+  );
+  const pool = ofKind.length > 0 ? ofKind : subjects;
+  if (pool.length === 0) {
+    return null;
   }
-  return MOVIEBOX_HOSTS;
-}
 
-async function getMovieBoxStreams(
-  item: ContentItem,
-): Promise<MovieBoxStream[]> {
-  const hosts = getMovieBoxHosts();
-  if (hosts.length === 0) {
-    return [];
+  const key = matchKey(title);
+  const exact = pool.filter(subject => matchKey(subject.title) === key);
+
+  if (exact.length > 0) {
+    if (year !== undefined) {
+      const sameYear = exact.find(subject => subject.releaseYear === year);
+      if (sameYear !== undefined) {
+        return sameYear;
+      }
+    }
+    return exact[0];
   }
 
-  const params = new URLSearchParams({
-    title: item.title,
-    type: item.kind === 'series' ? 'series' : 'movie',
-    id: item.id,
+  return pool[0];
+}
+
+async function findSubjectId(item: ContentItem): Promise<string | null> {
+  const cached = subjectIdCache.get(item.id);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const title = searchTitleFor(item);
+
+  const payload = await client.post(SEARCH_PATH, {
+    keyword: title,
+    page: 1,
+    perPage: 15,
+    subjectType: 0,
   });
 
-  for (const host of hosts) {
-    try {
-      const response = await fetch(`${host}/streams?${params}`, {
-        headers: {
-          Referer: MOVIEBOX_REFERER,
-          'User-Agent': 'Vistora/1.0',
-        },
-      });
+  const subject = selectSubject(
+    searchToSubjects(payload),
+    title,
+    wantedSubjectType(item),
+    item.meta?.year,
+  );
 
-      if (!response.ok) {
-        continue;
-      }
+  const subjectId = subject?.subjectId ?? null;
+  subjectIdCache.set(item.id, subjectId);
+  return subjectId;
+}
 
-      const data: MovieBoxResponse = await response.json();
-      const streams = data.data?.list || data.list || data.streams || [];
-      const result = Array.isArray(streams) ? streams : [];
+function playInfoPath(item: ContentItem, subjectId: string): string {
+  const season = item.season ?? 0;
+  const episode = item.episodeNumber ?? 0;
 
-      if (result.length > 0) {
-        console.log(`[movieboxStream] Got streams from ${host}`);
-        return result;
-      }
-    } catch (error) {
-      console.debug(
-        `[movieboxStream] Host ${host} failed:`,
-        error instanceof Error ? error.message : error,
-      );
-      continue;
-    }
+  if (season > 0 && episode > 0) {
+    return `${PLAY_INFO_PATH}?subjectId=${subjectId}&se=${season}&ep=${episode}`;
   }
 
-  console.warn('[movieboxStream] All hosts exhausted for:', item.title);
-  return [];
-}
-
-function getMaxResolution(resolutions?: string): string {
-  if (!resolutions) return '720p';
-
-  const nums = resolutions
-    .split(',')
-    .map(r => parseInt(r.trim(), 10))
-    .filter(n => !isNaN(n))
-    .sort((a, b) => b - a);
-
-  return nums.length > 0 ? `${nums[0]}p` : '720p';
-}
-
-function buildLabel(stream: MovieBoxStream): string {
-  const quality = stream.quality || getMaxResolution(stream.resolutions);
-  const codec = stream.codecName || stream.format || 'MP4';
-  return `${quality} ${codec}`.trim();
+  return `${PLAY_INFO_PATH}?subjectId=${subjectId}`;
 }
 
 export const movieboxStreamSource: StreamSource = {
@@ -112,36 +129,23 @@ export const movieboxStreamSource: StreamSource = {
     item.stream === null && item.kind !== 'channel',
 
   resolve: async (item: ContentItem): Promise<StreamCandidate[]> => {
-    const streams = await getMovieBoxStreams(item);
+    try {
+      const subjectId = await findSubjectId(item);
 
-    return streams
-      .filter(stream => stream.url && stream.url.startsWith('http'))
-      .map(stream => {
-        const headers: Record<string, string> = {
-          Referer: MOVIEBOX_REFERER,
-          'User-Agent': 'Vistora/1.0',
-        };
+      if (subjectId === null) {
+        return [];
+      }
 
-        if (stream.signCookie) {
-          headers.Cookie = stream.signCookie
-            .trim()
-            .split(';')
-            .map(s => s.trim())
-            .filter(s => s)
-            .join('; ');
-        }
-
-        return {
-          stream: {
-            url: stream.url,
-            protocol: stream.url.includes('.mpd') ? 'dash' : 'hls',
-            headers: Object.keys(headers).length > 0 ? headers : undefined,
-            isLive: false,
-          },
-          label: buildLabel(stream),
-          quality: stream.quality || getMaxResolution(stream.resolutions),
-        };
-      });
+      const playInfo = await client.get(playInfoPath(item, subjectId));
+      return playInfoToCandidates(playInfo, client.userAgent());
+    } catch (error) {
+      console.debug(
+        '[movieboxStream] Could not resolve:',
+        item.title,
+        error instanceof Error ? error.message : error,
+      );
+      return [];
+    }
   },
 
   ttlMs: 5 * 60 * 1000,

@@ -1,6 +1,5 @@
 import {
   REACT_APP_EXTERNAL_STREAM_API,
-  REACT_APP_MOVIEBOX_API,
   SUPABASE_ANON_KEY,
   SUPABASE_URL,
 } from '@env';
@@ -56,6 +55,5 @@ export const configError: string | null = validate();
 export const env = {
   supabaseUrl: url,
   supabaseAnonKey: anonKey,
-  movieboxApi: optional(REACT_APP_MOVIEBOX_API),
   externalStreamApi: optional(REACT_APP_EXTERNAL_STREAM_API),
 } as const;

@@ -236,7 +236,7 @@ export async function fetchSeriesDetail(
     posterUrl: row.poster_url,
     backdropUrl: row.backdrop_url,
     subtitle: card.subtitle,
-    seasons: groupEpisodesBySeason(episodeRows),
+    seasons: groupEpisodesBySeason(episodeRows, row.title),
     episodeCount: episodeRows.length,
   };
 }

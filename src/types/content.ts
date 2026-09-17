@@ -47,6 +47,9 @@ export interface ContentItem {
   description?: string;
 
   meta?: ContentMeta;
+  season?: number;
+  episodeNumber?: number;
+  seriesTitle?: string;
 }
 
 export interface ContentMeta {
@@ -197,7 +200,10 @@ export function seriesToContentItem(row: SeriesRow): ContentItem {
   };
 }
 
-export function episodeToContentItem(row: EpisodeRow): ContentItem {
+export function episodeToContentItem(
+  row: EpisodeRow,
+  seriesTitle?: string,
+): ContentItem {
   return {
     id: row.id,
     kind: 'episode',
@@ -214,6 +220,9 @@ export function episodeToContentItem(row: EpisodeRow): ContentItem {
     meta: { duration: formatDuration(row.duration_seconds) ?? undefined },
     stream: toStream(row, false),
     unavailableLabel: unavailableLabelFor(row),
+    season: row.season,
+    episodeNumber: row.episode_number,
+    seriesTitle,
   };
 }
 
@@ -222,7 +231,10 @@ export interface Season {
   episodes: ContentItem[];
 }
 
-export function groupEpisodesBySeason(rows: EpisodeRow[]): Season[] {
+export function groupEpisodesBySeason(
+  rows: EpisodeRow[],
+  seriesTitle?: string,
+): Season[] {
   const bySeason = new Map<number, EpisodeRow[]>();
 
   for (const row of rows) {
@@ -241,7 +253,7 @@ export function groupEpisodesBySeason(rows: EpisodeRow[]): Season[] {
       episodes: episodes
         .slice()
         .sort((a, b) => a.episode_number - b.episode_number)
-        .map(episodeToContentItem),
+        .map(row => episodeToContentItem(row, seriesTitle)),
     }));
 }
 
