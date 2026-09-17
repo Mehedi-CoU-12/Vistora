@@ -1,5 +1,6 @@
 import {
   fetchAnime,
+  fetchCartoons,
   fetchChannels,
   fetchMovies,
 } from '../services/contentService';
@@ -51,7 +52,7 @@ export const TABS: readonly TabDef[] = [
       load: options => fetchChannels(options),
       countNoun: ['channel', 'channels'],
       emptyMessage:
-        'No active channels were returned. Add rows to the `channels` table, or apply supabase/seed.sql.',
+        'No active channels were returned. Add rows to the `channels` table with `npm run import:iptv`.',
     },
   },
   {
@@ -61,10 +62,9 @@ export const TABS: readonly TabDef[] = [
     catalog: {
       categoryKind: 'movie',
       cardVariant: 'poster',
-      load: options => fetchMovies({ ...options, categoryKind: 'movie' }),
+      load: options => fetchMovies(options),
       countNoun: ['film', 'films'],
-      emptyMessage:
-        'No films yet. Run `npm run import:movies`, then apply the seed file it writes.',
+      emptyMessage: 'MovieBox returned no films. Check your connection.',
     },
   },
   {
@@ -78,8 +78,7 @@ export const TABS: readonly TabDef[] = [
       load: options => fetchAnime(options),
 
       countNoun: ['title', 'titles'],
-      emptyMessage:
-        'No anime yet. Apply the migrations in supabase/migrations/, then run `npm run import:anime` and apply the seed file it writes.',
+      emptyMessage: 'MovieBox returned no anime. Check your connection.',
     },
   },
   {
@@ -89,10 +88,9 @@ export const TABS: readonly TabDef[] = [
     catalog: {
       categoryKind: 'cartoon',
       cardVariant: 'poster',
-      load: options => fetchMovies({ ...options, categoryKind: 'cartoon' }),
+      load: options => fetchCartoons(options),
       countNoun: ['title', 'titles'],
-      emptyMessage:
-        'No cartoons yet. Run `npm run import:cartoons`, then apply the seed file it writes.',
+      emptyMessage: 'MovieBox returned no cartoons. Check your connection.',
     },
   },
 ];
