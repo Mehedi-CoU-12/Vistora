@@ -22,32 +22,7 @@ When a user clicks on a movie/episode in the app, the `usePlayItem` hook calls `
 - **TTL**: 1 hour
 - **Source**: Database records
 
-### 2. External Stream Source (`externalStream.ts`)
-
-- **ID**: `external`
-- **Purpose**: Generic external API integration
-- **When Active**: When `REACT_APP_EXTERNAL_STREAM_API` is configured and item has no stored stream
-- **TTL**: 5 minutes
-- **Configuration**: Set `REACT_APP_EXTERNAL_STREAM_API` environment variable
-
-**Expected API Response Format:**
-
-```json
-[
-  {
-    "url": "https://stream.example.com/video.mp4",
-    "quality": "1080p",
-    "codec": "H.264",
-    "format": "MP4",
-    "resolutions": "1080,720,480",
-    "headers": {
-      "Authorization": "Bearer token"
-    }
-  }
-]
-```
-
-### 3. MovieBox Stream Source (`movieboxStream.ts`)
+### 2. MovieBox Stream Source (`movieboxStream.ts`)
 
 - **ID**: `moviebox`
 - **Purpose**: MovieBox API integration, ported from the Rust client in MovieBox-Tui
@@ -126,8 +101,6 @@ Streams that resolve to MovieBox's "app deprecated" notice clip are dropped.
 Create or update `.env` file:
 
 ```env
-# Optional. Base URL for the generic external stream API; empty disables that source.
-REACT_APP_EXTERNAL_STREAM_API=
 
 ```
 
@@ -182,7 +155,6 @@ import { customStreamSource } from './customStream';
 
 export function installStreamSources(): void {
   registerSource(storedStreamSource);
-  registerSource(externalStreamSource);
   registerSource(movieboxStreamSource);
   registerSource(customStreamSource); // Add your source
 }
