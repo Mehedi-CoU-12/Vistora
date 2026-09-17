@@ -31,7 +31,7 @@ react-native-video  ──►  Media3 / ExoPlayer
                        Video CDN / origin
 ```
 
-Supabase answers "*where* is this video?". The device fetches the bytes itself.
+Supabase answers "_where_ is this video?". The device fetches the bytes itself.
 
 There is no proxy, no relay, no Edge Function in the media path, and no Node
 server anywhere in the project. Backend bandwidth stays at zero whether one
@@ -43,7 +43,7 @@ The boundary is enforced by module structure, not by convention:
 It accepts a `Stream` — a URL, a protocol, an `isLive` flag — and nothing else.
 
 One consequence to be aware of: since the device connects directly, the stream
-host must be reachable *from the TV* and must accept its requests. If a provider
+host must be reachable _from the TV_ and must accept its requests. If a provider
 requires a `Referer` or `User-Agent`, that goes in the `channels.stream_headers`
 column, not into a proxy.
 
@@ -53,13 +53,13 @@ column, not into a proxy.
 
 These are the versions this project has actually been built and run against:
 
-| | |
-|---|---|
-| Node | 24.14 (≥ 22.11 required) |
-| JDK | **17** — Android Gradle Plugin requires it; 21+ fails with an obscure Kotlin error |
-| Android SDK | `platforms;android-37.0`, `build-tools;37.0.0` |
-| NDK | `27.1.12297006` — Gradle installs this automatically on first build (~2.5 GB) |
-| Device | Android TV emulator (`system-images;android-36;android-tv;x86_64`) or a real TV |
+|             |                                                                                    |
+| ----------- | ---------------------------------------------------------------------------------- |
+| Node        | 24.14 (≥ 22.11 required)                                                           |
+| JDK         | **17** — Android Gradle Plugin requires it; 21+ fails with an obscure Kotlin error |
+| Android SDK | `platforms;android-37.0`, `build-tools;37.0.0`                                     |
+| NDK         | `27.1.12297006` — Gradle installs this automatically on first build (~2.5 GB)      |
+| Device      | Android TV emulator (`system-images;android-36;android-tv;x86_64`) or a real TV    |
 
 `android/gradle.properties` pins `org.gradle.java.home` to JDK 17 so the build
 does not depend on whichever `java` happens to be first on your PATH.
@@ -93,7 +93,7 @@ cp .env.example .env
 
 Fill in `SUPABASE_URL` and `SUPABASE_ANON_KEY` from **Project Settings → API**.
 
-`.env` is read at *build* time and inlined into the JS bundle, so after changing
+`.env` is read at _build_ time and inlined into the JS bundle, so after changing
 it you must restart Metro with a cleared cache:
 
 ```bash
@@ -151,7 +151,7 @@ adb shell input keyevent 23   # DPAD_CENTER / OK
 adb shell input keyevent 4    # BACK
 ```
 
-To see which element actually holds focus — as opposed to which one *looks*
+To see which element actually holds focus — as opposed to which one _looks_
 focused — read the accessibility tree rather than trusting a screenshot:
 
 ```bash
@@ -160,22 +160,22 @@ adb shell uiautomator dump /sdcard/ui.xml && adb pull /sdcard/ui.xml
 
 ## Scripts
 
-| Command | Purpose |
-|---|---|
-| `npm run android` | Build and install the debug APK |
-| `npm start` | Metro dev server |
-| `npm run typecheck` | `tsc --noEmit` |
-| `npm run lint` | ESLint |
-| `npm test` | Jest unit tests |
-| `npm run import:iptv` | Build a channel seed file from iptv-org |
-| `npm run import:movies` | Build a film seed file from archive.org |
-| `npm run import:cartoons` | Build a cartoon seed file from archive.org |
-| `npm run import:anime` | Build an anime **series** seed file from official YouTube channels — needs `YOUTUBE_API_KEY` |
-| `npm run import:anime-pd` | Build a seed file of the handful of public-domain anime *films* on archive.org |
-| `npm run scrape -- --source=jikan` | Build an anime **catalogue** seed file from MyAnimeList — no API key needed |
-| `npm run scrape` | Scrape a website for on-demand titles — `-- --list` shows the sources, `-- --source=<name>` picks one |
-| `npm run scrape:tmdb` | Build a film seed file from TMDB — catalogue metadata with the official trailer as the stream; needs `TMDB_API_KEY` |
-| `python3 scripts/generate-android-icons.py <logo>` | Regenerate every launcher, banner and splash asset from the source logo |
+| Command                                            | Purpose                                                                                                             |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `npm run android`                                  | Build and install the debug APK                                                                                     |
+| `npm start`                                        | Metro dev server                                                                                                    |
+| `npm run typecheck`                                | `tsc --noEmit`                                                                                                      |
+| `npm run lint`                                     | ESLint                                                                                                              |
+| `npm test`                                         | Jest unit tests                                                                                                     |
+| `npm run import:iptv`                              | Build a channel seed file from iptv-org                                                                             |
+| `npm run import:movies`                            | Build a film seed file from archive.org                                                                             |
+| `npm run import:cartoons`                          | Build a cartoon seed file from archive.org                                                                          |
+| `npm run import:anime`                             | Build an anime **series** seed file from official YouTube channels — needs `YOUTUBE_API_KEY`                        |
+| `npm run import:anime-pd`                          | Build a seed file of the handful of public-domain anime _films_ on archive.org                                      |
+| `npm run scrape -- --source=jikan`                 | Build an anime **catalogue** seed file from MyAnimeList — no API key needed                                         |
+| `npm run scrape`                                   | Scrape a website for on-demand titles — `-- --list` shows the sources, `-- --source=<name>` picks one               |
+| `npm run scrape:tmdb`                              | Build a film seed file from TMDB — catalogue metadata with the official trailer as the stream; needs `TMDB_API_KEY` |
+| `python3 scripts/generate-android-icons.py <logo>` | Regenerate every launcher, banner and splash asset from the source logo                                             |
 
 ---
 
@@ -190,15 +190,15 @@ everything:
 python3 scripts/generate-android-icons.py assets/vistora-logo.png
 ```
 
-| Output | Used by |
-|---|---|
-| `mipmap-*/ic_launcher_foreground.png` + `mipmap-anydpi-v26/*.xml` | Phone/tablet launcher, API 26+ (adaptive icon) |
-| `mipmap-*/ic_launcher_monochrome.png` + `mipmap-anydpi-v33/*.xml` | Android 13+ "Themed icons" |
-| `mipmap-*/ic_launcher{,_round}.png` | Launchers below API 26 |
-| `drawable-*/banner.png` | The Android **TV home screen** — a TV launcher draws `android:banner`, not the icon |
-| `drawable-*/splash_icon.png` | The mark, in the API 31+ platform splash's icon slot |
-| `drawable-*/splash_branding.png` | The name and motto, in that splash's branding slot |
-| `drawable-*/splash_lockup.png` | The whole lock-up, for the window-background splash |
+| Output                                                            | Used by                                                                             |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `mipmap-*/ic_launcher_foreground.png` + `mipmap-anydpi-v26/*.xml` | Phone/tablet launcher, API 26+ (adaptive icon)                                      |
+| `mipmap-*/ic_launcher_monochrome.png` + `mipmap-anydpi-v33/*.xml` | Android 13+ "Themed icons"                                                          |
+| `mipmap-*/ic_launcher{,_round}.png`                               | Launchers below API 26                                                              |
+| `drawable-*/banner.png`                                           | The Android **TV home screen** — a TV launcher draws `android:banner`, not the icon |
+| `drawable-*/splash_icon.png`                                      | The mark, in the API 31+ platform splash's icon slot                                |
+| `drawable-*/splash_branding.png`                                  | The name and motto, in that splash's branding slot                                  |
+| `drawable-*/splash_lockup.png`                                    | The whole lock-up, for the window-background splash                                 |
 
 Three things about this worth knowing before you change any of it:
 
@@ -207,23 +207,23 @@ Three things about this worth knowing before you change any of it:
   pixels onto the vertical axis and taking the topmost band of rows; run with
   `--debug` to see the boxes it picked, and `--crop L,T,R,B` to override them.
 - **The source's navy backdrop is knocked out to transparency.** An adaptive
-  icon's foreground layer *must* be transparent, because the launcher masks it
+  icon's foreground layer _must_ be transparent, because the launcher masks it
   into a circle or squircle and composites it over the background layer itself.
 - **The splash is entirely native, and there are three launch paths.** Which one
   a device takes is decided by resource qualifiers, not by code:
 
-  | Device | Surface that shows the splash | What it shows |
-  |---|---|---|
-  | Phone/tablet, API 31+ | the platform's own splash screen | mark in the icon slot, name + motto in the branding slot |
-  | Phone/tablet, API 24–30 | `windowBackground` (`drawable/`) | the whole lock-up, centred |
-  | Android TV, any API | `windowBackground` (`drawable-television/`) | the whole lock-up, centred |
+  | Device                  | Surface that shows the splash               | What it shows                                            |
+  | ----------------------- | ------------------------------------------- | -------------------------------------------------------- |
+  | Phone/tablet, API 31+   | the platform's own splash screen            | mark in the icon slot, name + motto in the branding slot |
+  | Phone/tablet, API 24–30 | `windowBackground` (`drawable/`)            | the whole lock-up, centred                               |
+  | Android TV, any API     | `windowBackground` (`drawable-television/`) | the whole lock-up, centred                               |
 
   From targetSdk 31 the platform draws its own splash at every cold start and
   that is **mandatory** — it cannot be disabled, only styled. Android TV,
   however, does not get one at all. Both facts are load-bearing, and each was
   learned by breaking it:
 
-  *The flicker.* The platform dismisses its splash with a **fade**, as soon as
+  _The flicker._ The platform dismisses its splash with a **fade**, as soon as
   the activity's first frame lands — which on React Native is long before the JS
   bundle has loaded. Anything drawing the logo underneath therefore reappeared as
   that fade completed. A frame-by-frame capture of a real launch showed the logo
@@ -253,12 +253,12 @@ Three things about this worth knowing before you change any of it:
      enter/exit are all changes in that set, so none of them reach `onCreate` at
      all.
   2. Even on a genuine recreate, `setOnExitAnimationListener` only fires when the
-     platform actually *presented* a splash, and it presents one for launches,
+     platform actually _presented_ a splash, and it presents one for launches,
      not for reconfiguration. No splash, no hold. This is the protection that
      survives someone narrowing `configChanges` later.
   3. The hold releases immediately if the React root already has children.
 
-  Note what (3) does and does not cover. A recreate builds a *new* React root,
+  Note what (3) does and does not cover. A recreate builds a _new_ React root,
   empty at first, so this check would not catch that case — it catches a listener
   firing on an activity whose UI is already up. It is the last layer, not the
   first.
@@ -268,14 +268,14 @@ Three things about this worth knowing before you change any of it:
   so gating on `savedInstanceState` would skip the hold exactly where it is
   needed and let the fade back in.
 
-  *The dark TV.* The first attempt at the above set `windowBackground` to a flat
+  _The dark TV._ The first attempt at the above set `windowBackground` to a flat
   colour on API 31+, reasoning that the platform splash covered the whole load.
   On Android TV, which has no platform splash, that produced a plain dark screen
   and no logo for the entire bundle load. Hence `drawable-television/`, which the
   resource system prefers over `drawable-v31/` because the UI-mode qualifier
   outranks the platform-version qualifier.
 
-  *No JS splash.* A JS splash cannot start until the bundle has loaded, which is
+  _No JS splash._ A JS splash cannot start until the bundle has loaded, which is
   the wait it would exist to cover, so it can only draw the logo a second time
   after a native splash already did. That was the third layer in the original
   bug.
@@ -292,12 +292,12 @@ Three things about this worth knowing before you change any of it:
 The stack has three routes — `Browse`, `Series` and `Player` — and everything
 browsable lives behind tabs inside `Browse`:
 
-| Tab | Content | Card |
-|---|---|---|
-| Home | A shelf per kind, twelve items each | mixed |
-| Live TV | `channels` | 16:9 tile |
-| Movies | `movies` where the category is `kind = 'movie'` | poster |
-| Anime | `series` **and** `movies` where `kind = 'anime'` | poster |
+| Tab     | Content                                          | Card      |
+| ------- | ------------------------------------------------ | --------- |
+| Home    | A shelf per kind, twelve items each              | mixed     |
+| Live TV | `channels`                                       | 16:9 tile |
+| Movies  | `movies` where the category is `kind = 'movie'`  | poster    |
+| Anime   | `series` **and** `movies` where `kind = 'anime'` | poster    |
 
 `Series` is the only screen between browsing and playing, and it earns the
 depth: an episode list cannot be a tab (there is one per series) and should not
@@ -322,7 +322,7 @@ beside a grid; what differs between Live TV and Anime is which query fills it,
 which categories the filter offers, and whether the artwork is a poster or a
 tile. All three are fields on a `CatalogSpec` in `src/navigation/tabs.ts`, which
 is the single list of what this app browses — `HomeScreen` derives its shelves
-from the same array, so a new content kind gets a tab *and* a shelf, or neither.
+from the same array, so a new content kind gets a tab _and_ a shelf, or neither.
 
 **A visited tab stays mounted on touch and is unmounted on TV.** On a phone that
 keeps scroll position and the selected category, which is what a tab bar implies.
@@ -353,7 +353,7 @@ Three legal routes remain, and the app uses all of them, because they are good
 at opposite things. The first two below return content you can genuinely sit
 and watch — licensed episodes, public-domain films — and between them they will
 fill a tab with dozens of titles, not thousands. The third returns the
-*catalogue*: poster, synopsis, year and genre for the whole of MyAnimeList,
+_catalogue_: poster, synopsis, year and genre for the whole of MyAnimeList,
 with the publisher's own trailer as the stream, so a card plays ninety seconds
 rather than an episode.
 
@@ -397,13 +397,13 @@ psql "$DATABASE_URL" -f supabase/seed_anime_series.sql
 ```
 
 The migrations must go first, and separately: PostgreSQL will not let a new enum
-value be *used* in the transaction that adds it.
+value be _used_ in the transaction that adds it.
 
 ### 2. Public-domain films — `npm run import:anime-pd`
 
 The archive.org path still exists and still works, and still returns almost
 nothing: only pre-1953 Japanese animation has lapsed, and little of it carries
-the explicit licence metadata that importer requires. It writes *films*, which
+the explicit licence metadata that importer requires. It writes _films_, which
 have no episodes and are not series in any useful sense — so the Anime tab
 loads both tables and interleaves them alphabetically. A tab that showed one and
 not the other would be lying about what is in the library.
@@ -452,7 +452,7 @@ that pays for the episode to be free.
 This does not bend [the one architectural rule](#the-one-architectural-rule) —
 it restates it. Supabase still stores nothing but a link and this app still
 never touches a byte of video. Only the component consuming the link differs,
-and it differs *because* pretending otherwise is what would break the rule.
+and it differs _because_ pretending otherwise is what would break the rule.
 
 ### Why `series` and `episodes` are new tables
 
@@ -469,7 +469,7 @@ states.
 
 One consequence worth knowing: a series and an unpublished fixture both have
 `stream: null`, and they mean opposite things. The card used to infer "broken"
-from that and would have stamped *Not started* on every show in the Anime tab,
+from that and would have stamped _Not started_ on every show in the Anime tab,
 so the distinction is now carried explicitly by `ContentItem.unavailableLabel`.
 
 ---
@@ -503,12 +503,12 @@ colour are props rather than font metrics. The player's whole icon set is drawn
 the same way, for the same reasons.
 
 This is not a reversal of `TabBar`'s **labels rather than icons**. That argument
-is specifically that the *tabs* are content kinds whose distinctions — anime
+is specifically that the _tabs_ are content kinds whose distinctions — anime
 against films, a channel against either — have no pictogram anyone would read
 correctly. Search is the opposite case: the magnifier is the one pictogram that
 is unambiguous at three metres and at thirty centimetres, and it is what every TV
 platform already uses here. Since the pill no longer says anything out loud,
-`TextButton`'s props make the accessible name a *type-level* requirement — a
+`TextButton`'s props make the accessible name a _type-level_ requirement — a
 button with an `icon` and no `label` will not compile without an
 `accessibilityLabel`.
 
@@ -545,17 +545,17 @@ underneath whatever the D-pad had focused.
 `isFirstRow` on this screen, so the first result card never seeds focus — a card
 stealing it mid-search would send the next keystroke to the focus engine instead
 of the query. On TV the field takes `hasTVPreferredFocus`, which gives it D-pad
-focus *without* opening the leanback IME over the results; on a phone it takes
+focus _without_ opening the leanback IME over the results; on a phone it takes
 `autoFocus` instead, because arriving at a search screen and then having to tap
 the field is a wasted tap.
 
 **What each kind matches** — the lists live in `*_SEARCH_COLUMNS` in
 `services/contentService.ts`:
 
-| Kind | Columns |
-|---|---|
-| Live TV | `name`, `description` |
-| Movies / Anime | `title`, `description` |
+| Kind                                 | Columns                                          |
+| ------------------------------------ | ------------------------------------------------ |
+| Live TV                              | `name`, `description`                            |
+| Movies / Anime                       | `title`, `description`                           |
 | Sports (`fetchSportsEvents`, no tab) | `title`, `competition`, `home_team`, `away_team` |
 
 `channels.channel_number` is deliberately absent — it is an integer column and
@@ -574,7 +574,7 @@ surgery is unit-tested rather than checked against a live database. (It is not
 about SQL injection: supabase-js sends the value as a query-string parameter and
 PostgREST binds it into a prepared statement.)
 
-Backslashes are stripped from the term, which *is* load-bearing: `\` is `LIKE`'s
+Backslashes are stripped from the term, which _is_ load-bearing: `\` is `LIKE`'s
 escape character, so a term ending in one produces `'%foo\%'` and PostgreSQL
 raises "LIKE pattern must not end with escape character" — a 500 from a stray
 keystroke. `%`, `_` and `*` are left alone and reach `ILIKE` as wildcards, which
@@ -586,11 +586,11 @@ can start anywhere, so btree's ordering is no help — so PostgreSQL scans.
 Measured with `explain (analyze)` on PostgreSQL 18, against the exact query
 `contentService` generates:
 
-| Table size | Plan chosen | Time |
-|---|---|---|
-| 10,000 channels | seq scan | ~14ms |
-| 20,000 movies | seq scan | ~5ms |
-| 200,000 movies | BitmapOr over two trigram indexes | ~1.6ms (vs ~79ms scanning) |
+| Table size      | Plan chosen                       | Time                       |
+| --------------- | --------------------------------- | -------------------------- |
+| 10,000 channels | seq scan                          | ~14ms                      |
+| 20,000 movies   | seq scan                          | ~5ms                       |
+| 200,000 movies  | BitmapOr over two trigram indexes | ~1.6ms (vs ~79ms scanning) |
 
 So a personal library — even a full iptv-org channel import — is already faster
 than the 300ms debounce in front of it.
@@ -604,7 +604,7 @@ grows, not a fix for something currently slow.
 > was applied to a real PostgreSQL 18 instance — twice, to confirm it is
 > idempotent — where the forced plan is the expected `BitmapOr` with `is_active`
 > in the recheck condition, confirming the partial indexes match the app's query.
-> But unlike everything in [Verified](#verified) below, the *UI* has not been
+> But unlike everything in [Verified](#verified) below, the _UI_ has not been
 > driven on a real Android TV or phone: the D-pad path from the field into the
 > results and the leanback IME are unexercised.
 
@@ -658,7 +658,7 @@ knows what a column is called. Renaming a column touches exactly one file.
 
 ## Why `react-native-tvos` instead of plain React Native
 
-Core React Native *runs* on Android TV — a TV app is just an Android app — but it
+Core React Native _runs_ on Android TV — a TV app is just an Android app — but it
 does not ship the focus primitives a 10-foot UI needs: `TVFocusGuideView`,
 `useTVEventHandler`, `Platform.isTV`, and TV-correct `Pressable` focus
 semantics. Those live in the community fork.
@@ -681,15 +681,15 @@ of rows without the app computing any geometry.
 ```
 
 Do not remove this. `@react-native-tvos/virtualized-lists` declares
-`peerDependencies: { "react-native": "0.87.1" }` — an exact pin on *upstream*
+`peerDependencies: { "react-native": "0.87.1" }` — an exact pin on _upstream_
 RN, which the alias does not satisfy. Without the override, npm silently
 installs a **second complete copy of React Native** at
 `node_modules/react-native/node_modules/react-native`, which causes:
 
-* TypeScript to lose every TV API (the fork adds them via a
+- TypeScript to lose every TV API (the fork adds them via a
   `declare module 'react-native'` augmentation, which then lands on the wrong
   copy), and
-* Metro to bundle two React Natives, an `Invariant Violation` at runtime.
+- Metro to bundle two React Natives, an `Invariant Violation` at runtime.
 
 When bumping versions, bump the dependency and the override together, then
 confirm with:
@@ -728,7 +728,7 @@ focus returns to the eighth card, not the first. This single prop is most of the
 difference between a native-feeling TV app and a ported phone app.
 
 **Virtualization and the D-pad.** In plain React Native, a horizontal `FlatList`
-breaks D-pad navigation: the focus engine can only reach views that *exist*, so
+breaks D-pad navigation: the focus engine can only reach views that _exist_, so
 focus stops dead at the last rendered cell and the row appears to end early. The
 fork's `VirtualizedList` solves this by wrapping the scroller in a focus guide
 with `trapFocusLeft`/`trapFocusRight` active while unrendered cells remain, so
@@ -750,12 +750,12 @@ actually have on a 20:9 screen: letterbox the frame, or crop it to fill.
 
 **Row alignment beats "scroll into view".** Android's default focus scrolling
 (`requestChildRectangleOnScreen`) moves the minimum distance needed to reveal the
-focused *card* — which leaves the row's heading clipped off the top edge, so the
+focused _card_ — which leaves the row's heading clipped off the top edge, so the
 user cannot see which row they are in. The fix is the fork's item snapping: the
 scroller sets `snapToAlignment="item"`, each `ContentRow` marks itself with
 `scrollSnapAlign="start"`, and the whole section (heading included) is then
 aligned. The fork walks up from the focused view to the nearest ancestor carrying
-that prop, which is why the *section* is marked rather than the card.
+that prop, which is why the _section_ is marked rather than the card.
 
 **Grid cards are fluid, not fixed.** With a fixed card width, whether the last
 column fits depends on screen width, sidebar width and padding all agreeing — and
@@ -785,10 +785,10 @@ resource qualifier, and the same APK installs on both devices, so it cannot
 express even two answers, let alone three. The manifest therefore declares
 nothing, and `DeviceOrientation` owns the policy:
 
-| When | Policy | Why |
-|---|---|---|
-| TV, always | `SCREEN_ORIENTATION_LANDSCAPE` | A television is landscape and nothing else. Pinning it means no stray sensor reading or `adb shell` rotation can hand a 10-foot UI a portrait window. |
-| Phone, browsing | `SCREEN_ORIENTATION_USER` | Portrait in an upright hand, landscape when turned — and it honours the rotation lock in quick settings. `FULL_SENSOR` would override that lock, which is not ours to override while merely browsing. |
+| When                   | Policy                                | Why                                                                                                                                                                                                                                           |
+| ---------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| TV, always             | `SCREEN_ORIENTATION_LANDSCAPE`        | A television is landscape and nothing else. Pinning it means no stray sensor reading or `adb shell` rotation can hand a 10-foot UI a portrait window.                                                                                         |
+| Phone, browsing        | `SCREEN_ORIENTATION_USER`             | Portrait in an upright hand, landscape when turned — and it honours the rotation lock in quick settings. `FULL_SENSOR` would override that lock, which is not ours to override while merely browsing.                                         |
 | Phone, video on screen | `SCREEN_ORIENTATION_SENSOR_LANDSCAPE` | A 16:9 stream in a portrait window is a band across the middle with two thirds of the display unused. `SENSOR_` so the phone can be held either way up; a viewer who turns it the "wrong" way gets a correct picture, not an upside-down one. |
 
 `MainActivity.onCreate` applies the resting policy (the first two rows) before
@@ -800,7 +800,7 @@ The third row is the one exception where the app overrides the owner's rotation
 lock, and it is deliberate: a locked-portrait phone is exactly the case the
 policy exists to answer. It is applied by `PlayerScreen` through a small native
 module, `OrientationModule`, which is two calls to `setRequestedOrientation` and
-knows nothing about video — the decision of *when* belongs to the screen that
+knows nothing about video — the decision of _when_ belongs to the screen that
 knows a player is mounted.
 
 **Why the lock lives in `PlayerScreen` and not in `VideoPlayer`.** Same reason as
@@ -820,7 +820,7 @@ installed APK costs a video its landscape lock instead of throwing.
 
 The television test is
 `UiModeManager.getCurrentModeType() == UI_MODE_TYPE_TELEVISION`, which is
-deliberately the *exact* test React Native uses for `Platform.isTV` (see
+deliberately the _exact_ test React Native uses for `Platform.isTV` (see
 `AndroidInfoModule.uiMode()`). Matching it is the point: JS branches its whole
 layout on `Platform.isTV`, so a native check using some other signal —
 `FEATURE_LEANBACK`, say, which a phone can report and a Fire TV can omit — could
@@ -837,18 +837,18 @@ playback all survive a turn of the phone.
 `src/theme/metrics.ts` turns a window size into every screen-dependent value, and
 `MetricsProvider` re-resolves it when the window changes. What varies:
 
-| | TV | Phone (portrait) | Phone (landscape) |
-|---|---|---|---|
-| Screen padding | 48 / 27dp overscan | 16 / 12dp + real system insets | 24 / 12dp + insets |
-| Poster card | 124 × 186dp, fixed | ~2.8 across, fluid | ~7 across, fluid |
-| Channel grid | 4 columns | 2 columns | 4 columns |
-| Poster grid | 5 columns | 3 columns | 6 columns |
-| Category picker | sidebar | chip rail | sidebar |
-| Tab bar | top rail | bottom bar | top rail |
-| Headline sizes | reference scale | ×0.78 | ×0.78 |
-| Body / caption | reference scale | unchanged | unchanged |
-| Interaction cue | focus ring + grow | press ring + shrink | press ring + shrink |
-| Min tap target | none | 48dp | 48dp |
+|                 | TV                 | Phone (portrait)               | Phone (landscape)   |
+| --------------- | ------------------ | ------------------------------ | ------------------- |
+| Screen padding  | 48 / 27dp overscan | 16 / 12dp + real system insets | 24 / 12dp + insets  |
+| Poster card     | 124 × 186dp, fixed | ~2.8 across, fluid             | ~7 across, fluid    |
+| Channel grid    | 4 columns          | 2 columns                      | 4 columns           |
+| Poster grid     | 5 columns          | 3 columns                      | 6 columns           |
+| Category picker | sidebar            | chip rail                      | sidebar             |
+| Tab bar         | top rail           | bottom bar                     | top rail            |
+| Headline sizes  | reference scale    | ×0.78                          | ×0.78               |
+| Body / caption  | reference scale    | unchanged                      | unchanged           |
+| Interaction cue | focus ring + grow  | press ring + shrink            | press ring + shrink |
+| Min tap target  | none               | 48dp                           | 48dp                |
 
 Three of those are worth explaining:
 
@@ -857,14 +857,14 @@ Three of those are worth explaining:
   fluid width to adapt to — and 124 × 186 is the size checked on a real device,
   with the row density and focus ring it was tuned for. Touch card widths are
   divided out of the measured content width instead, at a deliberately
-  *fractional* count: a partly visible card at the right edge is the strongest
+  _fractional_ count: a partly visible card at the right edge is the strongest
   available "this row scrolls" cue, and on a phone it is the only one, there
   being no D-pad to nudge and find out with.
 
 - **Only the headlines scale down.** The reflex is to shrink the whole type
   scale for a small screen, and it is wrong here: dp is a physical unit, and a
   phone is ~10× closer but its pixels are ~2.5× smaller, so 15dp of body text is
-  legible on both. What does not survive is type sized against the *width* of the
+  legible on both. What does not survive is type sized against the _width_ of the
   screen — `display` at 34dp is 3.5% of a TV's viewport and 8.7% of a 390dp phone.
 
 - **Overscan and safe-area insets are opposite problems, and each device has
@@ -884,7 +884,10 @@ size, and why component styles are built through `makeStyles`:
 
 ```ts
 const useStyles = makeStyles(m => ({
-  heading: {...m.typography.sectionTitle, paddingHorizontal: m.gutter.horizontal},
+  heading: {
+    ...m.typography.sectionTitle,
+    paddingHorizontal: m.gutter.horizontal,
+  },
 }));
 
 function Row() {
@@ -907,7 +910,7 @@ regression fails a test instead of clipping a column on somebody's television.
 ### The two things that change shape
 
 **The category picker.** `CategoryPicker` swaps its sidebar for a horizontal chip
-rail below 700dp of content width. Note the test is on available *width*, not on
+rail below 700dp of content width. Note the test is on available _width_, not on
 device class: a phone in landscape has ~796dp and keeps the sidebar, which is
 right, because vertical space is what that window is short of and a sidebar costs
 none of it.
@@ -977,19 +980,19 @@ it landed.
 
 ### On a phone: the video surface is the control surface
 
-| Gesture | What it does |
-| --- | --- |
-| Tap | Show / hide the controls |
-| Double-tap left / right | Skip 10s back / forward — repeat to accumulate |
-| Double-tap centre | Play / pause |
-| Swipe horizontally | Scrub, with a live preview, committed on release |
-| Swipe vertically, right half | Volume |
-| Swipe vertically, left half | Brightness |
-| Press and hold | 2× speed while held |
-| Pinch | Cycle picture size: Fit → Fill → Stretch |
+| Gesture                      | What it does                                     |
+| ---------------------------- | ------------------------------------------------ |
+| Tap                          | Show / hide the controls                         |
+| Double-tap left / right      | Skip 10s back / forward — repeat to accumulate   |
+| Double-tap centre            | Play / pause                                     |
+| Swipe horizontally           | Scrub, with a live preview, committed on release |
+| Swipe vertically, right half | Volume                                           |
+| Swipe vertically, left half  | Brightness                                       |
+| Press and hold               | 2× speed while held                              |
+| Pinch                        | Cycle picture size: Fit → Fill → Stretch         |
 
 All eight live on one `PanResponder`, because a gesture is claimed by exactly one
-responder and the claim happens *before* anyone knows what the gesture will turn
+responder and the claim happens _before_ anyone knows what the gesture will turn
 out to be. Two overlapping responders — one for taps, one for drags — means
 whichever claims first wins and the other never fires; the classic symptom is a
 double-tap that only works when your thumb is perfectly still.
@@ -1002,14 +1005,14 @@ gesture would ever fire while the controls were up.
 
 ### Skips accumulate; they are not issued per press
 
-Every skip — button, double-tap, arrow key, media key — adds to a *pending*
+Every skip — button, double-tap, arrow key, media key — adds to a _pending_
 target and restarts a 700ms timer. The seek is issued once, when the user stops.
 Two reasons, both of which you feel immediately on a real stream:
 
-* A seek on an HLS source costs a segment fetch and a decoder flush. Six presses
+- A seek on an HLS source costs a segment fetch and a decoder flush. Six presses
   issued separately means six of those, and the picture stutters through five
   positions nobody asked to see.
-* A held-down remote key repeats at about twenty presses a second.
+- A held-down remote key repeats at about twenty presses a second.
 
 So holding RIGHT builds up `+40s` in the overlay and commits it once. The pending
 target is dropped in `onSeek`, when Media3 confirms the jump — not when the seek
@@ -1023,7 +1026,7 @@ the sliding DVR window the server still holds, which arrives as
 `seekableDuration` in `onProgress` — so the bar is drawn against that, not
 against the duration.
 
-A live playlist always reports *some* seekable duration, typically three
+A live playlist always reports _some_ seekable duration, typically three
 segments, which is just the decoder's own buffer. Offering a scrub bar over 12
 seconds is offering a control with nowhere to go, so under 90 seconds the player
 says "this stream has no rewind window" and shows no bar at all. Above it, the
@@ -1042,14 +1045,14 @@ is indistinguishable from a crash.
 
 The point of the lock is that a pocket, a sleeve or a passenger cannot change
 anything, so while it is on there is exactly one control on screen and no gesture
-touches playback. The one thing a tap *must* still do is bring the Unlock button
+touches playback. The one thing a tap _must_ still do is bring the Unlock button
 back: the overlay auto-hides after four seconds, and a lock that hid its own way
 out would be permanent.
 
 ### A seek must never move the bar backwards
 
 A seek does not land instantly, and both events that report one can carry a
-position from *before* the jump. In react-native-video's Android code `onSeek`
+position from _before_ the jump. In react-native-video's Android code `onSeek`
 fires from `onIsPlayingChanged` and reads `player.getCurrentPosition()` at the
 moment playback resumes; `onProgress` meanwhile keeps ticking on its own 500ms
 timer while Media3 flushes its decoder.
@@ -1100,24 +1103,24 @@ devices; the one thing that moves between them is the transport.
 └─────────────────────────────────┘   └─────────────────────────────────┘
 ```
 
-* **Top left — leave.** One button, in the corner every platform has trained
+- **Top left — leave.** One button, in the corner every platform has trained
   people to look at, and nowhere near anything that changes playback.
-* **Top right — what you set once.** Picture size, pop out, lock, settings, plus
-  two readouts: the LIVE pill, and a speed chip that appears *only* when the rate
+- **Top right — what you set once.** Picture size, pop out, lock, settings, plus
+  two readouts: the LIVE pill, and a speed chip that appears _only_ when the rate
   is not 1×, because a chip permanently reading "1x" is a label for the absence
   of a setting. Icons rather than words: a cluster of small round shapes at the
   edge of the frame reads as chrome, where six words read as a sentence.
-* **Bottom — the scrub bar** and its two readouts; on a TV, skip / play / skip
+- **Bottom — the scrub bar** and its two readouts; on a TV, skip / play / skip
   beneath it as well.
-* **Centre — the transport, on touch only** (`transportPlacement`). A thumb
+- **Centre — the transport, on touch only** (`transportPlacement`). A thumb
   reaches the middle of a phone without the hand moving, it is where every phone
   video app has taught people to look, and it is the only place a control can go
   that adds nothing to the height of a strip of chrome — a bottom strip carrying
-  the bar *and* a 60dp play button is 120dp, about a third of a handset in
+  the bar _and_ a 60dp play button is 120dp, about a third of a handset in
   landscape. A TV keeps the bottom arrangement, because D-pad focus cannot reach
   the middle of the picture without stealing left/right from the scrub bar.
 
-What else differs between the two is only what *exists*: lock and pop out are
+What else differs between the two is only what _exists_: lock and pop out are
 touch-only, key hints and the scrims are TV-only, and on a screen narrower than
 560dp the picture-size and pop-out shortcuts drop out of the cluster
 (`showsOptionShortcuts`) because a back button plus four icons leaves a 390dp
@@ -1129,7 +1132,7 @@ naming. The argument against them was that double-tapping either side of the
 screen already skips and a second route is clutter — true while they were
 competing with five other buttons for one row. With the options moved up, the
 transport row holds three controls and the standard skip/play/skip group fits
-without crowding anything. More to the point, the gesture had been the *only* way
+without crowding anything. More to the point, the gesture had been the _only_ way
 to skip on a phone, and it is the one gesture in the player a new user has no way
 to discover.
 
@@ -1142,7 +1145,7 @@ seconds the whole picture got darker and then lighter again.
 
 Controls only ever occupy the top and bottom strips, so that is where the scrim
 is, and it fades to nothing before it reaches the middle. Each strip can then be
-*darker* than 55% precisely because it is not covering anything worth seeing, so
+_darker_ than 55% precisely because it is not covering anything worth seeing, so
 the text is more legible than before rather than less. The heights are computed
 from what each strip actually holds (`resolveScrimHeights`) rather than set as a
 percentage of the screen, which is the shortcut that does not survive the aspect
@@ -1166,7 +1169,7 @@ subtitle, the two readouts, the live-stream hint — gets a text shadow, which
 costs a couple of dp around each glyph rather than a third of the screen.
 
 The overlay also fades in and out instead
-of cutting, and only a phone gets the fade *out*: on a TV a control that is
+of cutting, and only a phone gets the fade _out_: on a TV a control that is
 fading is still a control the D-pad can reach and press, and it would be
 competing for focus with the invisible layer that replaces it. See
 `useOverlayFade.ts`.
@@ -1181,7 +1184,7 @@ button arrives as a full-colour pictogram at a size and weight nothing else on
 screen shares.
 
 That used to mean a map of geometric characters (U+25B6 for play, U+2699 for the
-gear) and *words* for everything with no character to stand in — which is exactly
+gear) and _words_ for everything with no character to stand in — which is exactly
 why picture size said "Fit" and the lock said "Lock". Roboto has no padlock, no
 picture-in-picture mark and no aspect-ratio mark that is reliably present on
 every Android build, and the failure mode is a tofu box. Characters also arrive
@@ -1207,14 +1210,14 @@ padding — padding the root would inset the gradients from the screen edge.
 
 ## Security model
 
-| | |
-|---|---|
-| In the app | `SUPABASE_URL`, `SUPABASE_ANON_KEY` — both public by design |
-| Never in the app | service-role key, database password, JWT secret |
-| Read access | anyone, but only rows where `is_active = true` |
-| Write access | admins only, via `public.is_admin()` |
+|                  |                                                             |
+| ---------------- | ----------------------------------------------------------- |
+| In the app       | `SUPABASE_URL`, `SUPABASE_ANON_KEY` — both public by design |
+| Never in the app | service-role key, database password, JWT secret             |
+| Read access      | anyone, but only rows where `is_active = true`              |
+| Write access     | admins only, via `public.is_admin()`                        |
 
-RLS is deny-by-default once enabled, so the *absence* of an INSERT/UPDATE/DELETE
+RLS is deny-by-default once enabled, so the _absence_ of an INSERT/UPDATE/DELETE
 policy for `anon` is itself the protection. The `is_active` filter lives in the
 policy, not just in app queries — a draft channel is invisible to a client even
 if someone crafts their own request with the anon key.
@@ -1243,77 +1246,83 @@ Checked against a real PostgreSQL 17 instance and a real Android TV emulator
 (Android 16 / API 36, `leanback_only`, 1920x1080 @ density 320):
 
 **Database**
-* Migration applies cleanly; every constraint tested (bad slugs, non-HTTP URLs,
+
+- Migration applies cleanly; every constraint tested (bad slugs, non-HTTP URLs,
   duplicate channel numbers, `release_year` typos, `status='live'` with no
   stream, `ends_at` before `starts_at`, deleting a sport that has fixtures,
   `updated_at` trigger)
-* RLS: `anon` reads only active rows and **cannot** see the deliberately
+- RLS: `anon` reads only active rows and **cannot** see the deliberately
   inactive `vistora-draft` channel; all `anon` writes denied; non-admin
   `authenticated` denied; admin allowed; self-promotion via `user_metadata`
   correctly fails
-* Seed is idempotent
+- Seed is idempotent
 
 **Build**
-* `BUILD SUCCESSFUL` — debug APK compiles (50 MB), installs, and the system
+
+- `BUILD SUCCESSFUL` — debug APK compiles (50 MB), installs, and the system
   registers it under `android.intent.category.LEANBACK_LAUNCHER`
-* `tsc --noEmit`, ESLint and 11 Jest tests pass
-* Production bundle is 1.6 MB, contains the publishable key only — no
+- `tsc --noEmit`, ESLint and 11 Jest tests pass
+- Production bundle is 1.6 MB, contains the publishable key only — no
   `sb_secret_`, no service-role JWT
 
 **On the device**
-* Home screen renders live data from Supabase; the native window background
+
+- Home screen renders live data from Supabase; the native window background
   matches the JS background, so there is no flash on launch
-* D-pad left/right moves along a row and the row scrolls to follow
-* **Focus memory**: scroll to channel 107, press down then up, focus returns to
+- D-pad left/right moves along a row and the row scrolls to follow
+- **Focus memory**: scroll to channel 107, press down then up, focus returns to
   107 — not to 101
-* **Row alignment**: the focused row's heading stays on screen
-* Live TV grid: 4 columns, nothing clipped, category filter narrows 8 channels
+- **Row alignment**: the focused row's heading stays on screen
+- Live TV grid: 4 columns, nothing clipped, category filter narrows 8 channels
   to 2 without stealing focus from the sidebar
-* Tab rail: LEFT/RIGHT walks the tabs, OK opens one, DOWN enters its content and
+- Tab rail: LEFT/RIGHT walks the tabs, OK opens one, DOWN enters its content and
   UP comes back to the tab you left — not to Home
-* **HLS playback works** — Apple's BipBop reference stream and a 4K sample both
+- **HLS playback works** — Apple's BipBop reference stream and a 4K sample both
   decode through Media3, connecting directly to their CDNs
-* Scheduled fixtures with no `stream_url` show `NOT STARTED` and do not open the
+- Scheduled fixtures with no `stream_url` show `NOT STARTED` and do not open the
   player
 
 **The player, on the TV emulator**
-* Overlay auto-hides after 4s, and **OK brings it back** — see the key-action
+
+- Overlay auto-hides after 4s, and **OK brings it back** — see the key-action
   gotcha below for why that took a fix rather than working first time
-* UP from the button row focuses the scrub bar (thicker track, visible thumb),
+- UP from the button row focuses the scrub bar (thicker track, visible thumb),
   and left/right then scrub instead of moving focus
-* A three-press skip chain moves the position once, 0:28 → 0:58, with the
+- A three-press skip chain moves the position once, 0:28 → 0:58, with the
   buffering spinner appearing at the commit rather than at each press
-* Live channel: LIVE pill, a `-6:15` behind-the-edge readout and a **Go live**
+- Live channel: LIVE pill, a `-6:15` behind-the-edge readout and a **Go live**
   button; VOD: elapsed/total (`0:25 / 10:34`), no LIVE pill, no Go live
-* Settings panel opens as a side column, `1x` and `Fit` shown as the selected
+- Settings panel opens as a side column, `1x` and `Fit` shown as the selected
   options, and the audio list is built from the real stream (`Auto`, `Track 1`)
-* **Back closes the settings panel and stays in the player**; a second Back
+- **Back closes the settings panel and stays in the player**; a second Back
   returns to Home with the row's focus preserved
-* Picture-size cycling applies immediately, with its readout over the video
-* Subtitles from the stream render (BipBop's "Bip!" caption)
+- Picture-size cycling applies immediately, with its readout over the video
+- Subtitles from the stream render (BipBop's "Bip!" caption)
 
 **The rebuilt overlay, on the TV emulator**
-* The three zones render as designed: back at the top left, the picture-size and
+
+- The three zones render as designed: back at the top left, the picture-size and
   settings icons at the top right, and skip / play / skip under the scrub bar
-* All thirteen drawn icons render correctly at their button sizes — no tofu, no
+- All thirteen drawn icons render correctly at their button sizes — no tofu, no
   clipping, and the gear and the aspect brackets are legible at 22dp
-* The accessibility tree names every control (`Leave the player`,
+- The accessibility tree names every control (`Leave the player`,
   `Picture size: Fit. Change it`, `Back 10 seconds`, `Seek bar, 4:02 of 12:14`),
   so the icon-only buttons still announce what they do and what state they are in
-* D-pad UP walks transport → scrub bar → top cluster and back down; pressing OK
+- D-pad UP walks transport → scrub bar → top cluster and back down; pressing OK
   on the picture-size icon cycles `Fit` → `Fill` and **keeps focus on the icon**
   rather than throwing it back to Play
-* The gradient scrims render natively with no banding, and on a near-white title
+- The gradient scrims render natively with no banding, and on a near-white title
   card the subtitle and the scrub bar stay legible — which took the `hold` fix
   in `resolveScrimHeights`, since a ramp that starts at the screen edge is
   already two-thirds gone by the time it reaches the subtitle
-* **Paused, the overlay now stays up**: it used to vanish four seconds after any
+- **Paused, the overlay now stays up**: it used to vanish four seconds after any
   key press because `revealOverlay` re-armed the auto-hide timer regardless of
   playback state, and the effect that pins the controls up only re-runs when one
   of its dependencies changes
 
 **Not verified on a device**
-* Every touch gesture — double-tap skip, swipe-to-scrub, the volume and
+
+- Every touch gesture — double-tap skip, swipe-to-scrub, the volume and
   brightness swipes, press-and-hold speed, pinch, lock — and picture-in-picture.
   Only the Android TV system image is installed here, and a TV emulator is the
   wrong device to judge a thumb on. These need a phone AVD
@@ -1346,7 +1355,7 @@ resource drawable/splash_screen
 react-native-video does `Util.inferContentType("." + type)`. So `type: 'hls'`
 becomes `".hls"`, which Media3 does not recognise, so it falls back to the
 progressive-download extractors and playback dies with an error that lists every
-extractor *except* the one you need:
+extractor _except_ the one you need:
 
 ```
 UnrecognizedInputFormatException: None of the available extractors
@@ -1360,7 +1369,7 @@ confirm which path a stream took is the module list ExoPlayer logs on release �
 
 **Only one half of a key press reaches JavaScript, and which half varies.** A
 press produces ACTION_DOWN then ACTION_UP, so the obvious filter is "ignore the
-UP" — and on this app that ignores *every* press. Verified on the TV emulator:
+UP" — and on this app that ignores _every_ press. Verified on the TV emulator:
 in the player, the only event that arrives is the UP, because the DOWN is
 consumed on the way through the view tree by whatever holds focus. The player
 therefore latches onto whichever action it sees first and ignores that action's
@@ -1389,7 +1398,7 @@ touch can land on.
 
 **`Pressable` overrides pan handlers spread onto it.** It renders
 `<View {...restPropsWithDefaults} {...eventHandlers}>` — its own responder
-handlers come *last*, so `{...panResponder.panHandlers}` passed to a `Pressable`
+handlers come _last_, so `{...panResponder.panHandlers}` passed to a `Pressable`
 is silently replaced. The symptom is a control that reports taps and never
 reports a drag, which reads as a broken gesture rather than as the wrong
 component. `SeekBar` therefore uses a plain `View` for the touch path and a

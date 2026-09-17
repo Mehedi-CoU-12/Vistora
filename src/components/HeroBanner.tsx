@@ -26,68 +26,15 @@ import { TextButton } from './TextButton';
 
 interface HeroBannerProps {
   item: ContentItem;
-  
+
   onPlay: (item: ContentItem) => void;
-  
+
   onMoreInfo?: (item: ContentItem) => void;
-  
+
   eyebrow?: string;
-  
+
   hasTVPreferredFocus?: boolean;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 const MIN_TEXT_WIDTH = 280;
 
@@ -101,18 +48,6 @@ export function HeroBanner({
   const { hero, isTV, gutter } = useMetrics();
   const styles = useStyles();
 
-  
-
-
-
-
-
-
-
-
-
-
-
   const [width, setWidth] = useState(0);
 
   const measure = useCallback((event: LayoutChangeEvent) => {
@@ -121,23 +56,15 @@ export function HeroBanner({
 
   const inMyList = useIsInMyList(item.id);
 
-  
   const sideBySide = hero.align === 'start';
 
-  
   const isMark = item.kind === 'channel';
   const backdrop = item.backdropUrl;
   const poster = item.imageUrl;
 
-  
-
-
-
-
   const fill = isMark ? null : backdrop ?? poster;
   const fillIsStandIn = !isMark && !backdrop && poster !== null;
 
-  
   const asideSource = sideBySide
     ? isMark
       ? poster
@@ -146,17 +73,9 @@ export function HeroBanner({
       : poster
     : null;
 
-  
   const asideWidth = isMark
     ? Math.round(hero.height * 0.42)
     : Math.round((hero.height - spacing.xl * 2) * (2 / 3));
-
-  
-
-
-
-
-
 
   const aside =
     asideSource !== null &&
@@ -165,11 +84,6 @@ export function HeroBanner({
       : null;
 
   const facts = metaParts(item.meta);
-
-  
-
-
-
 
   const canPlay = item.stream !== null;
   const playLabel =
@@ -180,12 +94,6 @@ export function HeroBanner({
       : 'Play';
 
   return (
-    
-    
-    
-    
-    
-    
     <View
       style={[styles.hero, { height: hero.height }]}
       onLayout={measure}
@@ -196,15 +104,10 @@ export function HeroBanner({
           source={{ uri: fill }}
           style={StyleSheet.absoluteFill}
           resizeMode="cover"
-          
-          
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
         />
       ) : (
-        
-        
-        
         <Gradient
           colors={[colors.brandViolet, colors.brandBlue, colors.background]}
           direction="right"
@@ -212,9 +115,7 @@ export function HeroBanner({
         />
       )}
 
-      {
-
-}
+      {}
       {fillIsStandIn ? (
         <View style={styles.standInScrim} pointerEvents="none" />
       ) : null}
@@ -250,8 +151,6 @@ export function HeroBanner({
           <Image
             source={{ uri: aside }}
             style={styles.asideImage}
-            
-            
             resizeMode="contain"
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
@@ -263,10 +162,7 @@ export function HeroBanner({
         style={[
           styles.content,
           sideBySide ? styles.contentStart : styles.contentCenter,
-          
-          
-          
-          
+
           aside ? { paddingRight: asideWidth + spacing.lg } : null,
         ]}
       >
@@ -282,9 +178,6 @@ export function HeroBanner({
 
           <Text
             style={[styles.title, !sideBySide && styles.centered]}
-            
-            
-            
             numberOfLines={2}
           >
             {item.title}
@@ -302,11 +195,6 @@ export function HeroBanner({
               ) : null}
 
               {facts.map((fact, index) => (
-                
-                
-                
-                
-                
                 <React.Fragment key={`${index}-${fact}`}>
                   {index > 0 ? <Text style={styles.factDot}>·</Text> : null}
                   <Text style={styles.fact}>{fact}</Text>
@@ -324,10 +212,7 @@ export function HeroBanner({
             </Text>
           ) : null}
 
-          {
-
-
-}
+          {}
           <TVFocusGuideView
             autoFocus
             style={[styles.actions, !sideBySide && styles.actionsCentered]}
@@ -337,9 +222,6 @@ export function HeroBanner({
               label={playLabel}
               onPress={() => onPlay(item)}
               hasTVPreferredFocus={hasTVPreferredFocus}
-              
-              
-              
               stretch={!sideBySide}
             >
               {color =>
@@ -365,10 +247,7 @@ export function HeroBanner({
               )}
             </TextButton>
 
-            {
-
-
-}
+            {}
             {onMoreInfo && isTV ? (
               <TextButton
                 variant="secondary"
@@ -388,8 +267,7 @@ export function HeroBanner({
 const useStyles = makeStyles(m => ({
   hero: {
     width: '100%',
-    
-    
+
     overflow: 'hidden',
     backgroundColor: colors.surface,
     justifyContent: 'flex-end',
@@ -407,8 +285,7 @@ const useStyles = makeStyles(m => ({
     top: 0,
     bottom: 0,
     left: 0,
-    
-    
+
     width: '72%',
   },
   topFade: {
@@ -423,8 +300,7 @@ const useStyles = makeStyles(m => ({
     bottom: 0,
     left: 0,
     right: 0,
-    
-    
+
     height: '62%',
   },
   aside: {
@@ -461,9 +337,7 @@ const useStyles = makeStyles(m => ({
   title: {
     ...m.typography.heroTitle,
     color: colors.textPrimary,
-    
-    
-    
+
     textShadowColor: shadeAlpha(0.6),
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 12,
@@ -497,8 +371,7 @@ const useStyles = makeStyles(m => ({
     alignItems: 'center',
     gap: spacing.md,
     marginTop: spacing.lg,
-    
-    
+
     alignSelf: 'stretch',
   },
   actionsCentered: {

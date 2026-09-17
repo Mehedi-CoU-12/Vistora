@@ -39,12 +39,6 @@ function makeCandidate(
   return { stream: makeStream(url), label, quality };
 }
 
-
-
-
-
-
-
 function makeSource(
   id: string,
   candidates: StreamCandidate[],
@@ -76,8 +70,6 @@ describe('qualityRank', () => {
     expect(qualityRank('sd')).toBe(480);
   });
 
-  
-  
   it('sorts an unknown quality last rather than in the middle', () => {
     expect(qualityRank(undefined)).toBe(0);
     expect(qualityRank('best available')).toBe(0);
@@ -96,9 +88,6 @@ describe('rankCandidates', () => {
     expect(ranked.map(c => c.stream.url)).toEqual(['b', 'c', 'a']);
   });
 
-  
-  
-  
   it('leaves equal qualities in the order they arrived', () => {
     const ranked = rankCandidates([
       makeCandidate('first', '1080p'),
@@ -106,11 +95,7 @@ describe('rankCandidates', () => {
       makeCandidate('third', '1080p'),
     ]);
 
-    expect(ranked.map(c => c.stream.url)).toEqual([
-      'first',
-      'second',
-      'third',
-    ]);
+    expect(ranked.map(c => c.stream.url)).toEqual(['first', 'second', 'third']);
   });
 
   it('does not mutate the list it was given', () => {
@@ -129,8 +114,6 @@ describe('registerSource', () => {
     expect(registeredSources().map(s => s.id)).toEqual(['first', 'second']);
   });
 
-  
-  
   it('replaces a source registered twice under the same id', () => {
     registerSource(makeSource('dup', [makeCandidate('old')]));
     registerSource(makeSource('dup', [makeCandidate('new')]));
@@ -173,8 +156,6 @@ describe('resolveStream', () => {
     expect(playback.candidates[0].stream.url).toBe('http://a');
   });
 
-  
-  
   it('merges every source rather than stopping at the first', async () => {
     registerSource(makeSource('live', [makeCandidate('http://live', '1080p')]));
     registerSource(
@@ -210,7 +191,6 @@ describe('resolveStream', () => {
     expect(declined.resolve).not.toHaveBeenCalled();
   });
 
-  
   it('skips a source that throws and keeps the rest', async () => {
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
@@ -240,8 +220,6 @@ describe('resolveStream', () => {
     expect(playback.candidates).toHaveLength(1);
   });
 
-  
-  
   it('drops a URL that two sources both returned', async () => {
     registerSource(makeSource('a', [makeCandidate('http://same', '1080p')]));
     registerSource(makeSource('b', [makeCandidate('http://same', '720p')]));
@@ -249,7 +227,7 @@ describe('resolveStream', () => {
     const playback = await resolveStream(makeItem());
 
     expect(playback.candidates).toHaveLength(1);
-    
+
     expect(playback.candidates[0].quality).toBe('1080p');
   });
 
@@ -290,7 +268,6 @@ describe('resolveStream', () => {
     expect(source.resolve).toHaveBeenCalledTimes(2);
   });
 
-  
   it('does not confuse two kinds that share an id', async () => {
     const source = makeSource('one', [makeCandidate('http://a')]);
     registerSource(source);
@@ -301,8 +278,6 @@ describe('resolveStream', () => {
     expect(source.resolve).toHaveBeenCalledTimes(2);
   });
 
-  
-  
   it('resolves afresh after the item is invalidated', async () => {
     const source = makeSource('one', [makeCandidate('http://a')]);
     registerSource(source);
@@ -328,8 +303,6 @@ describe('resolveStream', () => {
 
     await resolveStream(makeItem());
 
-    
-    
     now.mockReturnValue(2000);
     await resolveStream(makeItem());
 
@@ -353,9 +326,7 @@ describe('storedStreamSource', () => {
 
   it('returns the row URL unchanged, so playback is what it always was', async () => {
     const stream = makeStream('http://stored');
-    const candidates = await storedStreamSource.resolve(
-      makeItem({ stream }),
-    );
+    const candidates = await storedStreamSource.resolve(makeItem({ stream }));
 
     expect(candidates).toHaveLength(1);
     expect(candidates[0].stream).toEqual(stream);
@@ -370,8 +341,8 @@ describe('storedStreamSource', () => {
   });
 
   it('returns nothing rather than throwing when there is no stream', async () => {
-    expect(await storedStreamSource.resolve(makeItem({ stream: null }))).toEqual(
-      [],
-    );
+    expect(
+      await storedStreamSource.resolve(makeItem({ stream: null })),
+    ).toEqual([]);
   });
 });

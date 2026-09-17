@@ -62,102 +62,34 @@ import {
 import { useRemoteControl } from './useRemoteControl';
 
 interface VideoPlayerProps {
-  
-
-
-
-
-
-
-
-
-
-
-
   playback: Playback;
   title: string;
   subtitle?: string;
-  
+
   onExit: () => void;
-  
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   onCanDismissChange?: (canDismiss: boolean) => void;
 }
 
 export interface VideoPlayerHandle {
-  
-
-
-
   dismissTop: () => boolean;
 }
 
-
 const OVERLAY_TIMEOUT_MS = 4000;
-
 
 const FEEDBACK_LINGER_MS = 700;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 const SEEK_SETTLE_TOLERANCE_SECONDS = 1;
 
-
-
-
-
-
-
-
 const SEEK_SETTLE_TIMEOUT_MS = 4000;
-
-
-
-
-
-
-
 
 const BUFFER_SPINNER_DELAY_MS = 250;
 
 const LIVE_DVR_MIN_SECONDS = 90;
 
-
 const BEHIND_LIVE_SECONDS = 20;
 
 const MIN_BRIGHTNESS = 0.15;
-
 
 const MAX_DIM_OPACITY = 0.85;
 
@@ -167,14 +99,6 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
     const insets = useSafeAreaInsets();
     const styles = useStyles();
     const videoRef = useRef<VideoRef>(null);
-
-    
-
-
-
-
-
-
 
     const [candidateIndex, setCandidateIndex] = useState(0);
     const candidates = playback.candidates;
@@ -187,18 +111,13 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
 
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
-    
+
     const [seekableDuration, setSeekableDuration] = useState(0);
     const [buffered, setBuffered] = useState(0);
 
-    
     const [pendingSeek, setPendingSeek] = useState<number | null>(null);
-    
+
     const [scrubPreview, setScrubPreview] = useState<number | null>(null);
-
-    
-
-
 
     const seekSettleDeadline = useRef(0);
 
@@ -208,7 +127,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
     const [seekBarFocused, setSeekBarFocused] = useState(false);
 
     const [rate, setRate] = useState(1);
-    
+
     const [boosting, setBoosting] = useState(false);
     const [volume, setVolume] = useState(1);
     const [muted, setMuted] = useState(false);
@@ -235,7 +154,6 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       ? seekableDuration >= LIVE_DVR_MIN_SECONDS
       : timelineEnd > 0;
 
-    
     const displayPosition = scrubPreview ?? pendingSeek ?? currentTime;
 
     const behindLive =
@@ -276,10 +194,6 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       inPictureInPicture,
     };
 
-    
-    
-    
-
     const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const clearHideTimer = useCallback(() => {
@@ -288,22 +202,6 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
         hideTimer.current = null;
       }
     }, []);
-
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     const revealOverlay = useCallback(() => {
       setOverlayVisible(true);
@@ -321,7 +219,6 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       );
     }, [clearHideTimer]);
 
-    
     const dismissOverlay = useCallback(() => {
       clearHideTimer();
       setOverlayVisible(false);
@@ -341,15 +238,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
 
     useEffect(() => clearHideTimer, [clearHideTimer]);
 
-    
-
-
-
     const overlayFade = useOverlayFade(overlayVisible, metrics.isTouch);
-
-    
-    
-    
 
     const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -389,10 +278,6 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       [],
     );
 
-    
-    
-    
-
     const togglePlayback = useCallback(
       () => setIsPaused(paused => !paused),
       [],
@@ -417,8 +302,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
 
         live.current.pendingSeek = target;
         setPendingSeek(target);
-        
-        
+
         seekSettleDeadline.current =
           Date.now() + SEEK_CHAIN_MS + SEEK_SETTLE_TIMEOUT_MS;
         showFeedback({
@@ -439,7 +323,6 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       [revealOverlay, seekNow, showFeedback],
     );
 
-    
     const seekTo = useCallback(
       (target: number) => {
         const l = live.current;
@@ -509,11 +392,6 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       videoRef.current?.enterPictureInPicture();
     }, []);
 
-    
-    
-    
-
-    
     const dragBase = useRef({ position: 0, volume: 1, brightness: 1 });
 
     const scrubTarget = useRef<number | null>(null);
@@ -671,16 +549,9 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
         onHoldEnd: handleHoldEnd,
         onPinch: handlePinch,
       },
-      
-      
-      
-      
+
       { enabled: metrics.isTouch && !settingsOpen },
     );
-
-    
-    
-    
 
     const remote = useRemoteControl(
       {
@@ -702,20 +573,12 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       { enabled: metrics.isTV },
     );
 
-    
-
-
-
-
-
-
     const dismissTop = useCallback(() => {
       if (live.current.settingsOpen) {
         closeSettings();
         return true;
       }
       if (live.current.locked) {
-        
         revealOverlay();
         showFeedback({ kind: 'locked' });
         return true;
@@ -731,15 +594,6 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       onCanDismissChange?.(canDismiss);
     }, [canDismiss, onCanDismissChange]);
 
-    
-
-
-
-
-
-
-
-
     useEffect(() => {
       const subscription = BackHandler.addEventListener(
         'hardwareBackPress',
@@ -748,10 +602,6 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
 
       return () => subscription.remove();
     }, [dismissTop]);
-
-    
-
-
 
     useEffect(() => {
       const subscription = AppState.addEventListener('change', state => {
@@ -762,10 +612,6 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
 
       return () => subscription.remove();
     }, []);
-
-    
-    
-    
 
     const handleLoad = useCallback((data: OnLoadData) => {
       setDuration(Number.isFinite(data.duration) ? data.duration : 0);
@@ -781,14 +627,6 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
         );
       }
     }, []);
-
-    
-
-
-
-
-
-
 
     const settlePendingSeek = useCallback((reportedTime: number) => {
       const pending = live.current.pendingSeek;
@@ -812,11 +650,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       (data: OnProgressData) => {
         setCurrentTime(data.currentTime);
         setBuffered(data.playableDuration);
-        
-        
-        
-        
-        
+
         if (data.seekableDuration > 0) {
           setSeekableDuration(data.seekableDuration);
         }
@@ -824,12 +658,6 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       },
       [settlePendingSeek],
     );
-
-    
-
-
-
-
 
     const handleSeek = useCallback(
       (data: OnSeekData) => {
@@ -845,32 +673,8 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       [],
     );
 
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     const handleError = useCallback(
       (event: OnVideoErrorData) => {
-        
-        
-        
         const detail =
           event.error?.errorString ??
           event.error?.localizedDescription ??
@@ -899,11 +703,6 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       [],
     );
 
-    
-
-
-
-
     const [spinnerVisible, setSpinnerVisible] = useState(false);
 
     useEffect(() => {
@@ -920,7 +719,6 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       return () => clearTimeout(timer);
     }, [isBuffering]);
 
-    
     const handleAudioBecomingNoisy = useCallback(() => setIsPaused(true), []);
 
     const handleEnd = useCallback(() => {
@@ -929,34 +727,15 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       }
     }, [loop, onExit]);
 
-    
-
-
-
-
-
-
-
-
     const retry = useCallback(() => {
       setError(null);
       setIsBuffering(true);
       setCandidateIndex(0);
-      
-      
-      
+
       videoRef.current?.setSource(buildSource(candidates[0].stream));
     }, [candidates]);
 
     const source = useMemo(() => buildSource(stream), [stream]);
-
-    
-
-
-
-
-
-
 
     const isInitialSource = useRef(true);
     useEffect(() => {
@@ -966,12 +745,6 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       }
       videoRef.current?.setSource(source);
     }, [source]);
-
-    
-
-
-
-
 
     useEffect(() => {
       setCandidateIndex(0);
@@ -992,9 +765,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       if (resolution) {
         lines.push(resolution);
       }
-      
-      
-      
+
       lines.push(
         candidates.length > 1
           ? `${candidate.label} · ${candidateIndex + 1} of ${candidates.length}`
@@ -1023,8 +794,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
 
     return (
       <View style={styles.root}>
-        {
-}
+        {}
         <StatusBar hidden />
 
         <Video
@@ -1033,19 +803,13 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
           style={styles.video}
           resizeMode={resizeModeFor(scaling)}
           paused={isPaused}
-          
           rate={boosting ? HOLD_TO_SPEED_RATE : rate}
           volume={volume}
           muted={muted}
           repeat={loop}
           selectedAudioTrack={trackProp(selectedAudio)}
           selectedTextTrack={trackProp(selectedText)}
-          
-          
-          
           controls={false}
-          
-          
           progressUpdateInterval={500}
           onLoad={handleLoad}
           onProgress={handleProgress}
@@ -1055,18 +819,10 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
           onEnd={handleEnd}
           onAudioBecomingNoisy={handleAudioBecomingNoisy}
           onPictureInPictureStatusChanged={handlePictureInPictureStatus}
-          
           preventsDisplaySleepDuringVideoPlayback
         />
 
-        {
-
-
-
-
-
-
-}
+        {}
         {brightness < 1 ? (
           <View
             pointerEvents="none"
@@ -1077,11 +833,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
           />
         ) : null}
 
-        {
-
-
-
-}
+        {}
         {metrics.isTouch ? (
           <View
             style={styles.gestureLayer}
@@ -1096,23 +848,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
           </View>
         ) : null}
 
-        {
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-}
+        {}
         {metrics.isTV && !overlayVisible ? (
           <Pressable
             style={styles.wakeLayer}
@@ -1124,19 +860,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
           />
         ) : null}
 
-        {
-
-
-
-
-
-
-
-
-
-
-
-}
+        {}
         {overlayFade.mounted ? (
           <Animated.View
             style={[styles.overlayLayer, { opacity: overlayFade.opacity }]}
@@ -1178,10 +902,6 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
         <GestureFeedback feedback={feedback} />
 
         {settingsOpen && metrics.isTouch ? (
-          
-          
-          
-          
           <Pressable
             style={styles.backdrop}
             onPress={closeSettings}
@@ -1221,16 +941,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
   },
 );
 
-
-
 VideoPlayer.displayName = 'VideoPlayer';
-
-
-
-
-
-
-
 
 function trackProp(selection: TrackSelection): SelectedTrack {
   if (selection === 'auto') {
@@ -1242,15 +953,6 @@ function trackProp(selection: TrackSelection): SelectedTrack {
   return { type: SelectedTrackType.INDEX, value: selection };
 }
 
-
-
-
-
-
-
-
-
-
 function buildSource(stream: Stream) {
   return {
     uri: stream.url,
@@ -1259,14 +961,6 @@ function buildSource(stream: Stream) {
   };
 }
 
-
-
-
-
-
-
-
-
 function PlaybackError({
   detail,
   attempts,
@@ -1274,7 +968,7 @@ function PlaybackError({
   onExit,
 }: {
   detail: string;
-  
+
   attempts: number;
   onRetry: () => void;
   onExit: () => void;
@@ -1315,9 +1009,7 @@ const useStyles = makeStyles(metrics => ({
     flex: 1,
     backgroundColor: '#000',
   },
-  
-  
-  
+
   video: {
     position: 'absolute',
     top: 0,
@@ -1353,8 +1045,6 @@ const useStyles = makeStyles(metrics => ({
     left: 0,
     right: 0,
     bottom: 0,
-    
-    
   },
   overlayLayer: {
     position: 'absolute',

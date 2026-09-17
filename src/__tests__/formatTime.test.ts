@@ -1,4 +1,4 @@
-import {formatTime} from '../player/formatTime';
+import { formatTime } from '../player/formatTime';
 
 describe('formatTime', () => {
   it('formats under an hour as m:ss', () => {
@@ -13,9 +13,6 @@ describe('formatTime', () => {
     expect(formatTime(3723)).toBe('1:02:03');
   });
 
-  
-  
-  
   it('survives the values a live stream actually produces', () => {
     expect(formatTime(NaN)).toBe('0:00');
     expect(formatTime(Infinity)).toBe('0:00');

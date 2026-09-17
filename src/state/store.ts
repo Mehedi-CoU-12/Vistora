@@ -1,60 +1,11 @@
 import { useSyncExternalStore } from 'react';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export interface Store<T> {
-  
   get: () => T;
-  
+
   set: (next: T) => void;
   subscribe: (listener: () => void) => () => void;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 export function createStore<T>(initial: T): Store<T> {
   let value = initial;
@@ -79,7 +30,6 @@ export function createStore<T>(initial: T): Store<T> {
     },
   };
 }
-
 
 export function useStore<T>(store: Store<T>): T {
   return useSyncExternalStore(store.subscribe, store.get, store.get);

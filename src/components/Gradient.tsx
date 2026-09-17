@@ -1,90 +1,20 @@
 import React, { useMemo } from 'react';
 import { View, type StyleProp, type ViewStyle } from 'react-native';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export type GradientDirection = 'down' | 'up' | 'left' | 'right';
 
 interface GradientProps {
-  
-
-
-
   colors: readonly string[];
-  
+
   direction?: GradientDirection;
-  
-
-
-
-
-
-
 
   easing?: 'ease' | 'linear';
-  
-
-
 
   style?: StyleProp<ViewStyle>;
-  
-
-
-
-
-
-
 
   children?: React.ReactNode;
   pointerEvents?: ViewStyle['pointerEvents'];
 }
-
 
 interface Rgba {
   r: number;
@@ -95,18 +25,12 @@ interface Rgba {
 
 const TRANSPARENT: Rgba = { r: 0, g: 0, b: 0, a: 0 };
 
-
-
-
-
-
 function parseColor(input: string): Rgba {
   const value = input.trim();
 
   if (value.startsWith('#')) {
     const hex = value.slice(1);
 
-    
     if (hex.length === 3) {
       return {
         r: parseInt(hex[0] + hex[0], 16),
@@ -132,7 +56,6 @@ function parseColor(input: string): Rgba {
     /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)$/,
   );
 
-  
   if (!match) {
     return TRANSPARENT;
   }
@@ -145,17 +68,6 @@ function parseColor(input: string): Rgba {
   };
 }
 
-
-
-
-
-
-
-
-
-
-
-
 function mix(from: Rgba, to: Rgba, t: number): string {
   const r = Math.round(from.r + (to.r - from.r) * t);
   const g = Math.round(from.g + (to.g - from.g) * t);
@@ -165,25 +77,17 @@ function mix(from: Rgba, to: Rgba, t: number): string {
   return `rgba(${r}, ${g}, ${b}, ${a.toFixed(3)})`;
 }
 
-
-
-
-
-
-
 function sample(stops: Rgba[], t: number): string {
   if (stops.length === 1) {
     return mix(stops[0], stops[0], 0);
   }
 
   const scaled = t * (stops.length - 1);
-  
-  
+
   const index = Math.min(Math.floor(scaled), stops.length - 2);
 
   return mix(stops[index], stops[index + 1], scaled - index);
 }
-
 
 const EASE_STOPS = 8;
 
@@ -193,16 +97,6 @@ const CSS_DIRECTION: Record<GradientDirection, string> = {
   right: 'to right',
   left: 'to left',
 };
-
-
-
-
-
-
-
-
-
-
 
 export function linearGradient(
   colors: readonly string[],
@@ -218,9 +112,7 @@ export function linearGradient(
         )
       : Array.from({ length: EASE_STOPS }, (_, index) => {
           const position = index / (EASE_STOPS - 1);
-          
-          
-          
+
           return `${sample(parsed, position * position)} ${percent(position)}`;
         });
 

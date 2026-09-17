@@ -8,14 +8,6 @@ import {
 } from '../navigation/rails';
 import type { Category, ContentItem } from '../types/content';
 
-
-
-
-
-
-
-
-
 function item(id: string, overrides: Partial<ContentItem> = {}): ContentItem {
   return {
     id,
@@ -24,7 +16,11 @@ function item(id: string, overrides: Partial<ContentItem> = {}): ContentItem {
     imageUrl: `https://cdn.example.com/${id}.jpg`,
     backdropUrl: null,
     categoryId: 'cat-a',
-    stream: { url: 'https://cdn.example.com/a.m3u8', protocol: 'hls', isLive: false },
+    stream: {
+      url: 'https://cdn.example.com/a.m3u8',
+      protocol: 'hls',
+      isLive: false,
+    },
     ...overrides,
   };
 }
@@ -33,8 +29,11 @@ function category(id: string, name: string): Category {
   return { id, slug: name.toLowerCase(), name, kind: 'movie' };
 }
 
-
-function fill(categoryId: string, count: number, prefix: string): ContentItem[] {
+function fill(
+  categoryId: string,
+  count: number,
+  prefix: string,
+): ContentItem[] {
   return Array.from({ length: count }, (_, index) =>
     item(`${prefix}${index}`, { categoryId }),
   );
@@ -63,11 +62,6 @@ describe('buildRails', () => {
     expect(rails[1].items).toHaveLength(5);
   });
 
-  
-
-
-
-
   it('follows the order the categories arrive in, not the items', () => {
     const rails = buildRails(
       source({
@@ -79,11 +73,6 @@ describe('buildRails', () => {
     expect(rails.map(rail => rail.title)).toEqual(['Action', 'Comedy']);
   });
 
-  
-
-
-
-
   it('drops a category too thin to be a rail, without losing its items', () => {
     const rails = buildRails(
       source({
@@ -92,17 +81,10 @@ describe('buildRails', () => {
       }),
     );
 
-    
-    
     expect(rails).toHaveLength(1);
     expect(rails[0].title).toBe('Movies');
     expect(rails[0].items).toHaveLength(5);
   });
-
-  
-
-
-
 
   it('falls back to a single rail rather than splitting into one', () => {
     const rails = buildRails(
@@ -130,9 +112,9 @@ describe('buildRails', () => {
   });
 
   it('returns nothing at all for an empty kind, rather than an empty rail', () => {
-    expect(buildRails(source({ categories: [category('cat-a', 'Action')] }))).toEqual(
-      [],
-    );
+    expect(
+      buildRails(source({ categories: [category('cat-a', 'Action')] })),
+    ).toEqual([]);
   });
 
   it('caps a rail so a row cannot run on forever', () => {
@@ -166,11 +148,6 @@ describe('interleave', () => {
     cardVariant: 'poster',
   });
 
-  
-
-
-
-
   it('mixes the kinds instead of stacking them', () => {
     expect(
       interleave([
@@ -190,12 +167,11 @@ describe('interleave', () => {
   });
 
   it('ignores empty groups', () => {
-    expect(interleave([[], [rail('tv-1')], []]).map(entry => entry.id)).toEqual([
-      'tv-1',
-    ]);
+    expect(interleave([[], [rail('tv-1')], []]).map(entry => entry.id)).toEqual(
+      ['tv-1'],
+    );
   });
 
-  
   it('is stable for the same input', () => {
     const groups = [[rail('a'), rail('b')], [rail('c')]];
     expect(interleave(groups)).toEqual(interleave(groups));
@@ -212,18 +188,16 @@ describe('pickFeatured', () => {
   });
 
   it('prefers a backdrop over everything else', () => {
-    expect(pickFeatured([plain, withPoster, described, full], 0)?.id).toBe('full');
+    expect(pickFeatured([plain, withPoster, described, full], 0)?.id).toBe(
+      'full',
+    );
   });
 
   it('prefers a synopsis over bare artwork', () => {
-    expect(pickFeatured([plain, withPoster, described], 0)?.id).toBe('described');
+    expect(pickFeatured([plain, withPoster, described], 0)?.id).toBe(
+      'described',
+    );
   });
-
-  
-
-
-
-
 
   it('still returns something when nothing is well furnished', () => {
     expect(pickFeatured([plain], 0)?.id).toBe('plain');
@@ -233,7 +207,6 @@ describe('pickFeatured', () => {
     expect(pickFeatured([], 0)).toBeNull();
   });
 
-  
   it('rotates between equally good candidates', () => {
     const a = item('a', { backdropUrl: 'x', description: 'd' });
     const b = item('b', { backdropUrl: 'y', description: 'd' });
@@ -250,7 +223,6 @@ describe('pickFeatured', () => {
     }
   });
 
-  
   it('survives a negative or fractional seed', () => {
     expect(pickFeatured([plain], -7)?.id).toBe('plain');
     expect(pickFeatured([plain], 3.7)?.id).toBe('plain');
@@ -271,10 +243,6 @@ describe('withGenre', () => {
     expect(tagged.meta).toEqual({ year: 1999, genre: 'Action' });
   });
 
-  
-
-
-
   it('returns the same object when there is no genre to add', () => {
     const original = item('a', { categoryId: null });
     expect(withGenre([original], [])[0]).toBe(original);
@@ -282,7 +250,9 @@ describe('withGenre', () => {
 
   it('leaves an item alone when its category is not in the list', () => {
     const original = item('a', { categoryId: 'cat-missing' });
-    expect(withGenre([original], [category('cat-a', 'Action')])[0]).toBe(original);
+    expect(withGenre([original], [category('cat-a', 'Action')])[0]).toBe(
+      original,
+    );
   });
 });
 
@@ -312,24 +282,20 @@ describe('homeRails', () => {
     ...fill('cat-c', 9, 'c'),
   ];
 
-  
-
-
-
-
   it('takes the fullest rails, not the first ones', () => {
-    expect(homeRails(tab, items, categories, 2).map(rail => rail.title)).toEqual([
-      'Trending',
-      'Classics',
-    ]);
+    expect(
+      homeRails(tab, items, categories, 2).map(rail => rail.title),
+    ).toEqual(['Trending', 'Classics']);
   });
-
-  
 
   it('puts the ones it chose back into the editors order', () => {
     const chosen = homeRails(
       tab,
-      [...fill('cat-a', 20, 'a'), ...fill('cat-b', 4, 'b'), ...fill('cat-c', 9, 'c')],
+      [
+        ...fill('cat-a', 20, 'a'),
+        ...fill('cat-b', 4, 'b'),
+        ...fill('cat-c', 9, 'c'),
+      ],
       categories,
       2,
     );
@@ -340,7 +306,11 @@ describe('homeRails', () => {
   it('breaks a tie on size by the editors order', () => {
     const chosen = homeRails(
       tab,
-      [...fill('cat-a', 5, 'a'), ...fill('cat-b', 5, 'b'), ...fill('cat-c', 5, 'c')],
+      [
+        ...fill('cat-a', 5, 'a'),
+        ...fill('cat-b', 5, 'b'),
+        ...fill('cat-c', 5, 'c'),
+      ],
       categories,
       2,
     );
@@ -348,7 +318,6 @@ describe('homeRails', () => {
     expect(chosen.map(rail => rail.title)).toEqual(['Action', 'Trending']);
   });
 
-  
   it('points every rail at its own tab', () => {
     for (const rail of homeRails(tab, items, categories, 3)) {
       expect(rail.seeAll).toBe('movies');
@@ -356,6 +325,8 @@ describe('homeRails', () => {
   });
 
   it('returns fewer than the limit rather than padding', () => {
-    expect(homeRails(tab, fill('cat-a', 6, 'a'), categories, 2)).toHaveLength(1);
+    expect(homeRails(tab, fill('cat-a', 6, 'a'), categories, 2)).toHaveLength(
+      1,
+    );
   });
 });

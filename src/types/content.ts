@@ -9,145 +9,57 @@ import type {
   StreamProtocol,
 } from './database';
 
-
-
-
-
-
-
-
-
-
-
 export type ContentKind =
   | 'channel'
   | 'movie'
   | 'sports_event'
-  
-
-
-
-
   | 'series'
   | 'episode';
 
-
-
-
-
-
-
-
-
-
-
 export type PlayableProtocol = Exclude<StreamProtocol, 'youtube'>;
-
-
-
-
-
-
-
 
 export interface Stream {
   url: string;
   protocol: PlayableProtocol;
-  
+
   headers?: Record<string, string>;
-  
-
-
 
   isLive: boolean;
 }
-
 
 export interface ContentItem {
   id: string;
   kind: ContentKind;
   title: string;
-  
+
   subtitle?: string;
   imageUrl: string | null;
-  
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   backdropUrl: string | null;
-  
+
   badge?: string;
-  
-
-
 
   categoryId: string | null;
-  
-
-
-
-
-
-
-
 
   stream: Stream | null;
-  
-
-
-
 
   unavailableLabel?: string;
   description?: string;
-  
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   meta?: ContentMeta;
 }
 
-
 export interface ContentMeta {
   year?: number;
-  
+
   duration?: string;
-  
+
   genre?: string;
-  
+
   rating?: string;
-  
+
   quality?: string;
 }
-
-
-
-
-
-
-
-
 
 export function metaParts(meta: ContentMeta | undefined): string[] {
   if (!meta) {
@@ -165,43 +77,11 @@ export function metaParts(meta: ContentMeta | undefined): string[] {
 
 export type Category = Pick<CategoryRow, 'id' | 'slug' | 'name' | 'kind'>;
 
-
-
-
-
-
-
-
-
-
-
-
 interface StreamColumns {
   stream_url: string | null;
   stream_protocol: StreamProtocol;
   stream_headers?: Record<string, string> | null;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 function toStream(row: StreamColumns, isLive: boolean): Stream | null {
   if (row.stream_url === null || row.stream_protocol === 'youtube') {
@@ -215,14 +95,6 @@ function toStream(row: StreamColumns, isLive: boolean): Stream | null {
     isLive,
   };
 }
-
-
-
-
-
-
-
-
 
 function unavailableLabelFor(row: StreamColumns): string | undefined {
   if (row.stream_url === null) {
@@ -240,19 +112,12 @@ export function channelToContentItem(row: ChannelRow): ContentItem {
     subtitle:
       row.channel_number !== null ? `Channel ${row.channel_number}` : undefined,
     imageUrl: row.logo_url,
-    
-    
-    
-    
+
     backdropUrl: null,
     badge: 'LIVE',
     categoryId: row.category_id,
     description: row.description ?? undefined,
-    
-    
-    
-    
-    
+
     stream: toStream(row, true),
     unavailableLabel: unavailableLabelFor(row),
   };
@@ -290,20 +155,15 @@ export function sportsEventToContentItem(row: SportsEventRow): ContentItem {
     title: row.title,
     subtitle: eventSubtitle(row),
     imageUrl: row.poster_url,
-    
-    
-    
+
     backdropUrl: row.poster_url,
     badge: isLive ? 'LIVE' : undefined,
     categoryId: row.category_id,
     description: row.description ?? undefined,
     meta: { genre: row.competition ?? undefined },
-    
-    
-    
+
     stream: toStream(row, isLive),
-    
-    
+
     unavailableLabel: unavailableLabelFor(row),
   };
 }
@@ -332,8 +192,7 @@ export function seriesToContentItem(row: SeriesRow): ContentItem {
           ? formatEpisodeCount(row.episode_count)
           : undefined,
     },
-    
-    
+
     stream: null,
   };
 }
@@ -345,15 +204,11 @@ export function episodeToContentItem(row: EpisodeRow): ContentItem {
     title: row.title,
     subtitle: formatDuration(row.duration_seconds) ?? undefined,
     imageUrl: row.thumbnail_url,
-    
-    
+
     backdropUrl: row.thumbnail_url,
-    
-    
+
     badge: `E${row.episode_number}`,
-    
-    
-    
+
     categoryId: null,
     description: row.description ?? undefined,
     meta: { duration: formatDuration(row.duration_seconds) ?? undefined },
@@ -362,26 +217,10 @@ export function episodeToContentItem(row: EpisodeRow): ContentItem {
   };
 }
 
-
-
-
-
-
-
-
-
 export interface Season {
   season: number;
   episodes: ContentItem[];
 }
-
-
-
-
-
-
-
-
 
 export function groupEpisodesBySeason(rows: EpisodeRow[]): Season[] {
   const bySeason = new Map<number, EpisodeRow[]>();
@@ -405,11 +244,6 @@ export function groupEpisodesBySeason(rows: EpisodeRow[]): Season[] {
         .map(episodeToContentItem),
     }));
 }
-
-
-
-
-
 
 function formatEpisodeCount(count: number): string {
   return `${count} ${count === 1 ? 'episode' : 'episodes'}`;

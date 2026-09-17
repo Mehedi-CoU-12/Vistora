@@ -1,23 +1,14 @@
-import {SUPABASE_ANON_KEY, SUPABASE_URL} from '@env';
-
-
-
-
-
-
-
-
-
-
-
-
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from '@env';
 
 const url = SUPABASE_URL?.trim() ?? '';
 const anonKey = SUPABASE_ANON_KEY?.trim() ?? '';
 
-
 function isUnset(value: string): boolean {
-  return value === '' || value.startsWith('your-') || value.includes('your-project-ref');
+  return (
+    value === '' ||
+    value.startsWith('your-') ||
+    value.includes('your-project-ref')
+  );
 }
 
 function validate(): string | null {
@@ -28,7 +19,9 @@ function validate(): string | null {
 
   if (missing.length > 0) {
     return (
-      `${missing.join(' and ')} ${missing.length === 1 ? 'is' : 'are'} not set.\n\n` +
+      `${missing.join(' and ')} ${
+        missing.length === 1 ? 'is' : 'are'
+      } not set.\n\n` +
       '1.  cp .env.example .env\n' +
       '2.  Paste your values from the Supabase dashboard\n' +
       '    (Project Settings → API)\n' +
@@ -38,9 +31,6 @@ function validate(): string | null {
     );
   }
 
-  
-  
-  
   if (!/^https?:\/\/[^\s/]+/.test(url)) {
     return (
       `SUPABASE_URL is not a valid URL:\n${url}\n\n` +
@@ -50,7 +40,6 @@ function validate(): string | null {
 
   return null;
 }
-
 
 export const configError: string | null = validate();
 

@@ -1,60 +1,19 @@
 import type { ContentItem } from '../types/content';
 import { createStore, useStore } from './store';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export interface WatchEntry {
   item: ContentItem;
-  
+
   startedAt: number;
-  
-
-
-
 
   progress?: number;
 }
-
 
 const MAX_ENTRIES = 12;
 
 const store = createStore<readonly WatchEntry[]>([]);
 
-
-
-
-
-
-
-
 export function recordPlayback(item: ContentItem): void {
-  
   if (item.stream?.isLive || item.kind === 'channel') {
     return;
   }

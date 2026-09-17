@@ -2,18 +2,18 @@
 
 Migrations apply in filename order, then a seed:
 
-| File | Contents |
-|---|---|
-| `migrations/0001_initial_schema.sql` | enums, tables, indexes, triggers, RLS policies, grants |
-| `migrations/0002_add_anime_kind.sql` | adds `'anime'` to `category_kind` |
-| `migrations/0003_search_indexes.sql` | `pg_trgm` GIN indexes (optional — see its header) |
-| `migrations/0004_add_youtube_protocol.sql` | adds `'youtube'` to `stream_protocol` |
-| `migrations/0005_series_and_episodes.sql` | `series` + `episodes`, their RLS and the episode-count trigger |
-| `seed.sql` | sample content for development (idempotent) |
-| `cleanup_sample_data.sql` | removes everything `seed.sql` inserts, once you have real content |
+| File                                       | Contents                                                          |
+| ------------------------------------------ | ----------------------------------------------------------------- |
+| `migrations/0001_initial_schema.sql`       | enums, tables, indexes, triggers, RLS policies, grants            |
+| `migrations/0002_add_anime_kind.sql`       | adds `'anime'` to `category_kind`                                 |
+| `migrations/0003_search_indexes.sql`       | `pg_trgm` GIN indexes (optional — see its header)                 |
+| `migrations/0004_add_youtube_protocol.sql` | adds `'youtube'` to `stream_protocol`                             |
+| `migrations/0005_series_and_episodes.sql`  | `series` + `episodes`, their RLS and the episode-count trigger    |
+| `seed.sql`                                 | sample content for development (idempotent)                       |
+| `cleanup_sample_data.sql`                  | removes everything `seed.sql` inserts, once you have real content |
 
 `0002` and `0004` are alone in their files on purpose: PostgreSQL will not let a
-new enum value be *used* in the transaction that adds it, so anything that
+new enum value be _used_ in the transaction that adds it, so anything that
 inserts a row carrying one has to come after a commit.
 
 ## Applying
@@ -39,11 +39,11 @@ single transaction, so a migration that fails records nothing and changes
 nothing. Migration files must therefore not contain their own `begin;` /
 `commit;` — the workflow owns the transaction.
 
-| Input | What it does |
-|---|---|
-| `dry_run` | Lists what would be applied and stops |
-| `sample_seed` | Also applies `seed.sql` afterwards |
-| `baseline` | Records migrations up to and including this one as applied *without running them* |
+| Input         | What it does                                                                      |
+| ------------- | --------------------------------------------------------------------------------- |
+| `dry_run`     | Lists what would be applied and stops                                             |
+| `sample_seed` | Also applies `seed.sql` afterwards                                                |
+| `baseline`    | Records migrations up to and including this one as applied _without running them_ |
 
 `baseline` is for a project set up before the workflow existed: it has the
 tables but no ledger, so every migration looks pending and `0001` would fail on
@@ -77,7 +77,7 @@ understanding: `seed.sql` and the importers share category slugs on purpose
 `import-archive.mjs` writes `action` and `animation`) so re-running an importer
 does not reshuffle a rail you have arranged by hand. Those foreign keys are
 `on delete set null`, so deleting a category because seed.sql happens to mention
-it would quietly move every real channel and film in it to *uncategorised*.
+it would quietly move every real channel and film in it to _uncategorised_.
 There is an opt-in sweep at the bottom of the file for categories that genuinely
 end up empty.
 
@@ -92,13 +92,13 @@ writing a SQL file of idempotent upserts keyed on `slug` — review it, then app
 it. Re-running refreshes existing rows rather than duplicating them, which
 matters because stream URLs rot.
 
-| Script | Source | Fills |
-|---|---|---|
-| `npm run import:iptv` | [iptv-org](https://iptv-org.github.io/api/) — an index of public stream URLs | `channels` |
-| `npm run import:movies` | [archive.org](https://archive.org) — public-domain films | `movies` (`kind = 'movie'`) |
-| `npm run import:cartoons` | archive.org — public-domain cartoons | `movies` (`kind = 'cartoon'`) |
-| `npm run import:anime` | official YouTube channels + [AniList](https://anilist.co) metadata | `series` + `episodes` |
-| `npm run import:anime-pd` | archive.org — public-domain anime *films*; see the warning below | `movies` (`kind = 'anime'`) |
+| Script                    | Source                                                                       | Fills                         |
+| ------------------------- | ---------------------------------------------------------------------------- | ----------------------------- |
+| `npm run import:iptv`     | [iptv-org](https://iptv-org.github.io/api/) — an index of public stream URLs | `channels`                    |
+| `npm run import:movies`   | [archive.org](https://archive.org) — public-domain films                     | `movies` (`kind = 'movie'`)   |
+| `npm run import:cartoons` | archive.org — public-domain cartoons                                         | `movies` (`kind = 'cartoon'`) |
+| `npm run import:anime`    | official YouTube channels + [AniList](https://anilist.co) metadata           | `series` + `episodes`         |
+| `npm run import:anime-pd` | archive.org — public-domain anime _films_; see the warning below             | `movies` (`kind = 'anime'`)   |
 
 ### `import:anime` — series with episodes
 
@@ -107,7 +107,7 @@ licensee publishes a stream URL, so the only legal source of full episodes is
 the licensors' own YouTube channels: **Muse Asia** and **Ani-One Asia** between
 them cover most of what is currently airing for South and Southeast Asia.
 
-The importer walks those channels' *playlists* (a playlist is the channel
+The importer walks those channels' _playlists_ (a playlist is the channel
 telling you where one series ends and the next begins; the uploads feed is
 everything interleaved), reads each as a series, and pulls a 2:3 poster from
 AniList — YouTube gives a playlist only the 16:9 thumbnail of its first video,
@@ -137,7 +137,7 @@ explicit licence metadata these scripts require.
 npm run import:anime-pd -- --subjects=anime,manga --license=cc
 ```
 
-It writes *films*, which have no episodes. The Anime tab loads `series` and
+It writes _films_, which have no episodes. The Anime tab loads `series` and
 `movies` together and interleaves them alphabetically, so whatever this finds
 appears beside the series rather than instead of them.
 
@@ -165,7 +165,7 @@ inserts a category with `kind = 'anime'`, an enum value `0002` adds). Turn it
 off only to reseed without touching the schema.
 
 Both workflows need one repository secret, `SEED_DATABASE_URL`. Take it from **Project
-Settings → Database → Connection string → Session pooler**, *not* the direct
+Settings → Database → Connection string → Session pooler**, _not_ the direct
 connection: Supabase serves direct connections over IPv6 only and GitHub-hosted
 runners have no IPv6 route, so a direct string fails with a network error that
 looks like bad credentials. That string bypasses RLS, which is why it belongs in
@@ -174,7 +174,7 @@ Actions secrets and never in `.env`.
 ## Scraping a site
 
 The importers above each target one catalogue API. `npm run scrape` targets a
-*website*, and is split so that changing which website means writing one small
+_website_, and is split so that changing which website means writing one small
 module rather than editing a script or a workflow.
 
 ```bash
@@ -250,7 +250,7 @@ categories ─┬─< channels
 is a row in `movies` whose category has `kind = 'cartoon'`, and an anime film is
 the same row with `kind = 'anime'`. That is why `fetchMovies({categoryKind})`
 filters through `categories!inner(kind)` rather than a column on `movies` — and
-why adding the Anime *tab* needed one enum value and no new table.
+why adding the Anime _tab_ needed one enum value and no new table.
 
 `series` is the one place that trick does not stretch to, and the reason is a
 constraint rather than a preference. `movies.stream_url` is `not null`, because
@@ -261,7 +261,7 @@ constraint that is true of it — and "tapping this opens a player" becomes
 something the schema states rather than something the app checks.
 
 `series.episode_count` is denormalised and maintained by a trigger that
-*recounts* rather than incrementing. An increment has to get insert, delete, an
+_recounts_ rather than incrementing. An increment has to get insert, delete, an
 episode moving between series and every rolled-back transaction individually
 right, and when it is wrong the only symptom is a number on a card that is
 quietly off by one forever.
@@ -270,27 +270,27 @@ quietly off by one forever.
 
 Adopting these consistently is what makes adding a content type mechanical:
 
-* `uuid` primary key, `gen_random_uuid()` default — no extension needed,
+- `uuid` primary key, `gen_random_uuid()` default — no extension needed,
   `gen_random_uuid()` is core PostgreSQL since v13
-* `slug` — unique, constrained by the `public.slug` domain to
+- `slug` — unique, constrained by the `public.slug` domain to
   `^[a-z0-9]+(?:-[a-z0-9]+)*$`, safe in URLs and deep links
-* `stream_url` — the same name on every playable table, constrained by the
+- `stream_url` — the same name on every playable table, constrained by the
   `public.http_url` domain to an absolute HTTP(S) URL
-* `stream_protocol` — stored, not sniffed from the file extension (HLS URLs do
+- `stream_protocol` — stored, not sniffed from the file extension (HLS URLs do
   not reliably end in `.m3u8`)
-* `is_active`, `sort_order`
-* `created_at`, `updated_at`, with a trigger keeping `updated_at` honest no
+- `is_active`, `sort_order`
+- `created_at`, `updated_at`, with a trigger keeping `updated_at` honest no
   matter who writes the row
 
 ## Notable constraints
 
-| Constraint | Why |
-|---|---|
-| `sports_events_live_requires_stream` | An event marked `live` must have a `stream_url`. This is what prevents "select match → black screen". |
-| `sports_events_ends_after_starts` | Catches transposed timestamps. |
-| `channels_channel_number_key` | Partial unique index: numbers must be unique *when present*, and most channels have none. |
+| Constraint                                  | Why                                                                                                                                                                                                  |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sports_events_live_requires_stream`        | An event marked `live` must have a `stream_url`. This is what prevents "select match → black screen".                                                                                                |
+| `sports_events_ends_after_starts`           | Catches transposed timestamps.                                                                                                                                                                       |
+| `channels_channel_number_key`               | Partial unique index: numbers must be unique _when present_, and most channels have none.                                                                                                            |
 | `movies.release_year between 1888 and 2100` | A fixed upper bound, not `extract(year from now())`. A CHECK that depends on the current date is re-evaluated on dump/restore, so a row that was legal when inserted can refuse to load years later. |
-| `sport_slug ... on delete restrict` | Deleting a sport that still has fixtures is almost certainly a mistake, so the delete fails loudly. |
+| `sport_slug ... on delete restrict`         | Deleting a sport that still has fixtures is almost certainly a mistake, so the delete fails loudly.                                                                                                  |
 
 ## Row Level Security
 
@@ -323,7 +323,7 @@ Server-side only, with the service role — never from the TV app:
 
 ```ts
 await admin.auth.admin.updateUserById(userId, {
-  app_metadata: {role: 'admin'},
+  app_metadata: { role: 'admin' },
 });
 ```
 

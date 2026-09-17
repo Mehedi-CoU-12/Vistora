@@ -14,7 +14,10 @@ import type {
   SportsEventRow,
 } from '../types/database';
 
-const timestamps = {created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z'};
+const timestamps = {
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
+};
 
 const channel: ChannelRow = {
   id: 'c1',
@@ -78,7 +81,7 @@ describe('channelToContentItem', () => {
     expect(item.badge).toBe('LIVE');
     expect(item.subtitle).toBe('Channel 101');
     expect(item.categoryId).toBe('cat-news');
-    
+
     expect(item.stream).toEqual({
       url: 'https://cdn.example.com/live.m3u8',
       protocol: 'hls',
@@ -88,7 +91,9 @@ describe('channelToContentItem', () => {
   });
 
   it('omits the subtitle when there is no channel number', () => {
-    expect(channelToContentItem({...channel, channel_number: null}).subtitle).toBeUndefined();
+    expect(
+      channelToContentItem({ ...channel, channel_number: null }).subtitle,
+    ).toBeUndefined();
   });
 });
 
@@ -102,17 +107,20 @@ describe('movieToContentItem', () => {
 
   it('drops missing metadata rather than rendering an empty separator', () => {
     expect(
-      movieToContentItem({...movie, release_year: null, duration_seconds: null}).subtitle,
+      movieToContentItem({
+        ...movie,
+        release_year: null,
+        duration_seconds: null,
+      }).subtitle,
     ).toBeUndefined();
   });
 
   it('formats a sub-hour duration without an hours part', () => {
-    expect(movieToContentItem({...movie, duration_seconds: 1500}).subtitle).toBe('2011 · 25m');
+    expect(
+      movieToContentItem({ ...movie, duration_seconds: 1500 }).subtitle,
+    ).toBe('2011 · 25m');
   });
 
-  
-  
-  
   it('refuses a youtube row, because a trailer page is not the film', () => {
     const item = movieToContentItem({
       ...movie,
@@ -121,16 +129,12 @@ describe('movieToContentItem', () => {
     });
 
     expect(item.stream).toBeNull();
-    
-    
+
     expect(item.unavailableLabel).toBe('Unavailable');
   });
 });
 
 describe('sportsEventToContentItem', () => {
-  
-  
-  
   it('returns a null stream for a fixture with no URL yet', () => {
     const item = sportsEventToContentItem(event);
 
@@ -155,16 +159,11 @@ describe('sportsEventToContentItem', () => {
   });
 
   it('labels a finished event rather than showing a kickoff time', () => {
-    expect(sportsEventToContentItem({...event, status: 'finished'}).subtitle).toBe(
-      'Cup · Full time',
-    );
+    expect(
+      sportsEventToContentItem({ ...event, status: 'finished' }).subtitle,
+    ).toBe('Cup · Full time');
   });
 });
-
-
-
-
-
 
 const series: SeriesRow = {
   id: 's1',
@@ -204,17 +203,19 @@ const episode: EpisodeRow = {
 
 describe('seriesToContentItem', () => {
   it('summarises a series as year and episode count', () => {
-    expect(seriesToContentItem(series).subtitle).toBe('2021 \u00b7 24 episodes');
+    expect(seriesToContentItem(series).subtitle).toBe(
+      '2021 \u00b7 24 episodes',
+    );
   });
 
   it('says "1 episode" for a single-episode series', () => {
-    expect(
-      seriesToContentItem({...series, episode_count: 1}).subtitle,
-    ).toBe('2021 \u00b7 1 episode');
+    expect(seriesToContentItem({ ...series, episode_count: 1 }).subtitle).toBe(
+      '2021 \u00b7 1 episode',
+    );
   });
 
   it('omits the count entirely when there are no episodes yet', () => {
-    expect(seriesToContentItem({...series, episode_count: 0}).subtitle).toBe(
+    expect(seriesToContentItem({ ...series, episode_count: 0 }).subtitle).toBe(
       '2021',
     );
   });
@@ -224,11 +225,10 @@ describe('seriesToContentItem', () => {
   });
 
   it('carries NO unavailableLabel, unlike an unplayable fixture', () => {
-    
-    
-    
     expect(seriesToContentItem(series).unavailableLabel).toBeUndefined();
-    expect(sportsEventToContentItem(event).unavailableLabel).toBe('Not started');
+    expect(sportsEventToContentItem(event).unavailableLabel).toBe(
+      'Not started',
+    );
   });
 });
 
@@ -277,8 +277,6 @@ describe('groupEpisodesBySeason', () => {
   });
 
   it('orders seasons and the episodes inside them, whatever order they arrive in', () => {
-    
-    
     const grouped = groupEpisodesBySeason([
       make(2, 2),
       make(1, 3),
@@ -293,9 +291,6 @@ describe('groupEpisodesBySeason', () => {
   });
 
   it('handles a gap in the numbering without renumbering', () => {
-    
-    
-    
     const grouped = groupEpisodesBySeason([make(1, 1), make(1, 4)]);
     expect(grouped[0].episodes.map(e => e.badge)).toEqual(['E1', 'E4']);
   });

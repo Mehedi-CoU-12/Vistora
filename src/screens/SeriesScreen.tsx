@@ -17,45 +17,6 @@ import { colors, makeStyles, radius, spacing, useMetrics } from '../theme';
 import type { ContentItem } from '../types/content';
 import type { RootStackParamList } from '../types/navigation';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export function SeriesScreen() {
   const { params } = useRoute<RouteProp<RootStackParamList, 'Series'>>();
   const styles = useStyles();
@@ -92,9 +53,6 @@ export function SeriesScreen() {
       <EpisodeRow
         episode={item}
         onPress={playItem}
-        
-        
-        
         hasTVPreferredFocus={
           index === 0 && section.season === sections[0]?.season
         }
@@ -110,12 +68,6 @@ export function SeriesScreen() {
       ) : null,
     [hasSeasonHeaders, styles.seasonHeader],
   );
-
-  
-
-
-
-
 
   const header = (
     <AppHeader title={data?.title ?? params.title} subtitle={data?.subtitle} />
@@ -139,12 +91,6 @@ export function SeriesScreen() {
     );
   }
 
-  
-  
-  
-  
-  
-  
   if (!data) {
     return (
       <ScreenContainer>
@@ -177,12 +123,7 @@ export function SeriesScreen() {
           }
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
-          
-          
           removeClippedSubviews={false}
-          
-          
-          
           stickySectionHeadersEnabled={false}
         />
       </TVFocusGuideView>
@@ -191,16 +132,6 @@ export function SeriesScreen() {
 }
 
 const keyExtractor = (item: ContentItem) => item.id;
-
-
-
-
-
-
-
-
-
-
 
 function SeriesHero({ series }: { series: SeriesDetail }) {
   const styles = useStyles();
@@ -219,8 +150,7 @@ function SeriesHero({ series }: { series: SeriesDetail }) {
           source={{ uri: artwork }}
           style={[
             styles.heroImage,
-            
-            
+
             {
               width: Math.min(contentWidth, 420),
               height: Math.round(Math.min(contentWidth, 420) * (9 / 16)),
@@ -238,14 +168,6 @@ function SeriesHero({ series }: { series: SeriesDetail }) {
     </View>
   );
 }
-
-
-
-
-
-
-
-
 
 function EpisodeRow({
   episode,
@@ -266,8 +188,6 @@ function EpisodeRow({
     <Focusable
       onPress={() => onPress(episode)}
       hasTVPreferredFocus={hasTVPreferredFocus}
-      
-      
       scaleOnFocus={false}
       style={styles.episode}
       accessibilityLabel={[episode.badge, episode.title, episode.subtitle]
@@ -286,8 +206,6 @@ function EpisodeRow({
                 resizeMode="cover"
               />
             ) : (
-              
-              
               <View style={styles.thumbPlaceholder}>
                 <Text style={styles.thumbPlaceholderText}>
                   {episode.badge ?? '—'}
@@ -363,7 +281,7 @@ const useStyles = makeStyles(m => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    
+
     minHeight: m.minTouchTarget,
   },
   thumb: {

@@ -20,43 +20,6 @@ import type {
 import { AppError, toAppError } from './errors';
 import { ilikeFilter } from './searchQuery';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 async function selectRows<Row>(
   run: () => PromiseLike<{
     data: Row[] | null;
@@ -81,8 +44,6 @@ async function selectRows<Row>(
 }
 
 function supabaseMessage(message: string): string {
-  
-  
   if (/jwt|api key/i.test(message)) {
     return "The server rejected this app's credentials. Check SUPABASE_ANON_KEY in .env.";
   }
@@ -92,19 +53,8 @@ function supabaseMessage(message: string): string {
   return message;
 }
 
-
-
-
-
 const CHANNEL_COLUMNS =
   'id, slug, name, description, logo_url, stream_url, stream_protocol, stream_headers, category_id, channel_number, sort_order, is_active, created_at, updated_at';
-
-
-
-
-
-
-
 
 const CHANNEL_SEARCH_COLUMNS = ['name', 'description'] as const;
 
@@ -115,15 +65,9 @@ export async function fetchChannels(
     const active = supabase
       .from('channels')
       .select(CHANNEL_COLUMNS)
-      
-      
+
       .eq('is_active', true);
 
-    
-    
-    
-    
-    
     const matched = options.search
       ? active.or(ilikeFilter(CHANNEL_SEARCH_COLUMNS, options.search))
       : active;
@@ -153,33 +97,14 @@ export async function fetchChannelsByCategory(
   return rows.map(channelToContentItem);
 }
 
-
-
-
-
 const MOVIE_COLUMNS =
   'id, slug, title, description, poster_url, backdrop_url, stream_url, stream_protocol, release_year, duration_seconds, content_rating, category_id, sort_order, is_active, created_at, updated_at';
 
 const MOVIE_SEARCH_COLUMNS = ['title', 'description'] as const;
 
-
-
-
-
-
-
-
-
-
-
 export async function fetchMovies(
   options: {
     categoryKind?: MovieCategoryKind;
-    
-
-
-
-
 
     categoryId?: string;
     limit?: number;
@@ -189,9 +114,6 @@ export async function fetchMovies(
   const { categoryKind, categoryId, limit, search } = options;
 
   const rows = await selectRows<MovieRow>(() => {
-    
-    
-    
     const base = categoryKind
       ? supabase
           .from('movies')
@@ -199,8 +121,6 @@ export async function fetchMovies(
           .eq('categories.kind', categoryKind)
       : supabase.from('movies').select(MOVIE_COLUMNS);
 
-    
-    
     const query = categoryId ? base.eq('category_id', categoryId) : base;
 
     const matched = search
@@ -218,37 +138,18 @@ export async function fetchMovies(
   return rows.map(movieToContentItem);
 }
 
-
-
-
-
 const SERIES_COLUMNS =
   'id, slug, title, description, poster_url, backdrop_url, release_year, content_rating, source, source_id, episode_count, category_id, sort_order, is_active, created_at, updated_at';
-
-
-
-
-
-
-
-
-
-
-
 
 const SERIES_SEARCH_COLUMNS = ['title', 'description'] as const;
 
 const EPISODE_COLUMNS =
   'id, series_id, slug, title, description, thumbnail_url, stream_url, stream_protocol, stream_headers, season, episode_number, duration_seconds, air_date, is_active, created_at, updated_at';
 
-
-
-
-
 export async function fetchSeries(
   options: {
     categoryKind?: MovieCategoryKind;
-    
+
     categoryId?: string;
     limit?: number;
     search?: string;
@@ -281,29 +182,18 @@ export async function fetchSeries(
   return rows.map(seriesToContentItem);
 }
 
-
 export interface SeriesDetail {
   id: string;
   title: string;
   description?: string;
   posterUrl: string | null;
   backdropUrl: string | null;
-  
+
   subtitle?: string;
   seasons: Season[];
-  
+
   episodeCount: number;
 }
-
-
-
-
-
-
-
-
-
-
 
 export async function fetchSeriesDetail(
   seriesId: string,
@@ -330,11 +220,6 @@ export async function fetchSeriesDetail(
 
   const row = seriesRows[0];
 
-  
-  
-  
-  
-  
   if (!row) {
     throw new AppError(
       'notFound',
@@ -356,25 +241,6 @@ export async function fetchSeriesDetail(
   };
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export async function fetchAnime(
   options: { limit?: number; search?: string } = {},
 ): Promise<ContentItem[]> {
@@ -390,19 +256,8 @@ export async function fetchAnime(
   return options.limit ? merged.slice(0, options.limit) : merged;
 }
 
-
-
-
-
 const EVENT_COLUMNS =
   'id, slug, title, sport_slug, competition, home_team, away_team, description, poster_url, stream_url, stream_protocol, starts_at, ends_at, status, category_id, is_active, created_at, updated_at';
-
-
-
-
-
-
-
 
 const EVENT_SEARCH_COLUMNS = [
   'title',
@@ -411,18 +266,10 @@ const EVENT_SEARCH_COLUMNS = [
   'away_team',
 ] as const;
 
-
 export async function fetchSportsEvents(
   options: { limit?: number; search?: string } = {},
 ): Promise<ContentItem[]> {
   const rows = await selectRows<SportsEventRow>(() => {
-    
-    
-    
-    
-    
-    
-    
     const upcoming = supabase
       .from('sports_events')
       .select(EVENT_COLUMNS)
@@ -440,10 +287,6 @@ export async function fetchSportsEvents(
 
   return rows.map(sportsEventToContentItem);
 }
-
-
-
-
 
 export async function fetchCategories(
   kind?: CategoryRow['kind'],
@@ -466,30 +309,6 @@ export async function fetchCategories(
   }));
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export async function fetchRelated(
   item: ContentItem,
   limit = 20,
@@ -500,9 +319,6 @@ export async function fetchRelated(
 
   const neighbours = await relatedByKind(item, item.categoryId, limit);
 
-  
-  
-  
   return neighbours.filter(other => other.id !== item.id).slice(0, limit);
 }
 
@@ -521,9 +337,6 @@ function relatedByKind(
     case 'series':
       return fetchSeries({ categoryId, limit: limit + 1 });
 
-    
-    
-    
     case 'episode':
     case 'sports_event':
       return Promise.resolve([]);

@@ -17,15 +17,11 @@ describe('clampSeekTarget', () => {
     expect(clampSeekTarget(-30, 0, 100)).toBe(0);
   });
 
-  
-  
   it('stops just short of the end', () => {
     expect(clampSeekTarget(100, 0, 100)).toBeLessThan(100);
     expect(clampSeekTarget(1e6, 0, 100)).toBeLessThan(100);
   });
 
-  
-  
   it('respects a window that does not start at zero', () => {
     expect(clampSeekTarget(10, 60, 180)).toBe(60);
     expect(clampSeekTarget(120, 60, 180)).toBe(120);
@@ -61,10 +57,6 @@ describe('timeForTrackX', () => {
     expect(timeForTrackX(5000, track, timeline)).toBeLessThan(600);
   });
 
-  
-  
-  
-  
   it('answers null rather than the start when it cannot know', () => {
     expect(timeForTrackX(500, { pageX: 100, width: 0 }, timeline)).toBeNull();
     expect(timeForTrackX(500, track, { start: 0, end: 0 })).toBeNull();
@@ -72,18 +64,14 @@ describe('timeForTrackX', () => {
     expect(timeForTrackX(NaN, track, timeline)).toBeNull();
   });
 
-  
   it('maps within a window that starts late', () => {
-    expect(
-      timeForTrackX(500, track, { start: 300, end: 900 }),
-    ).toBeCloseTo(600);
+    expect(timeForTrackX(500, track, { start: 300, end: 900 })).toBeCloseTo(
+      600,
+    );
   });
 });
 
 describe('hasSeekLanded', () => {
-  
-  
-  
   it('accepts a position near the target', () => {
     expect(hasSeekLanded(60, 60)).toBe(true);
     expect(hasSeekLanded(59.4, 60)).toBe(true);
@@ -100,8 +88,6 @@ describe('hasSeekLanded', () => {
     expect(hasSeekLanded(57, 60, 1)).toBe(false);
   });
 
-  
-  
   it('gives up on values it cannot compare', () => {
     expect(hasSeekLanded(NaN, 60)).toBe(true);
     expect(hasSeekLanded(60, Infinity)).toBe(true);
@@ -120,8 +106,6 @@ describe('scaling modes', () => {
     expect(nextScalingMode('stretch')).toBe('fit');
   });
 
-  
-  
   it('is reversible in both directions', () => {
     for (const mode of SCALING_MODES) {
       expect(stepScalingMode(stepScalingMode(mode, 1), -1)).toBe(mode);
@@ -153,35 +137,30 @@ describe('formatSeekDelta', () => {
 
 describe('describeTracks', () => {
   it('prefers the title the stream gives', () => {
-    expect(describeTracks([{index: 0, title: 'Commentary', language: 'en'}])).toEqual([
-      {index: 0, label: 'Commentary'},
-    ]);
+    expect(
+      describeTracks([{ index: 0, title: 'Commentary', language: 'en' }]),
+    ).toEqual([{ index: 0, label: 'Commentary' }]);
   });
 
   it('falls back to the language code, then to a 1-based ordinal', () => {
     expect(
-      describeTracks([
-        {index: 0, language: 'en'},
-        {index: 1},
-      ]),
+      describeTracks([{ index: 0, language: 'en' }, { index: 1 }]),
     ).toEqual([
-      {index: 0, label: 'EN'},
-      {index: 1, label: 'Track 2'},
+      { index: 0, label: 'EN' },
+      { index: 1, label: 'Track 2' },
     ]);
   });
 
-  
-  
   it('labels by position but selects by index', () => {
-    expect(describeTracks([{index: 3}, {index: 7}])).toEqual([
-      {index: 3, label: 'Track 1'},
-      {index: 7, label: 'Track 2'},
+    expect(describeTracks([{ index: 3 }, { index: 7 }])).toEqual([
+      { index: 3, label: 'Track 1' },
+      { index: 7, label: 'Track 2' },
     ]);
   });
 
   it('ignores whitespace-only metadata', () => {
-    expect(describeTracks([{index: 0, title: '   ', language: '  '}])).toEqual([
-      {index: 0, label: 'Track 1'},
-    ]);
+    expect(
+      describeTracks([{ index: 0, title: '   ', language: '  ' }]),
+    ).toEqual([{ index: 0, label: 'Track 1' }]);
   });
 });

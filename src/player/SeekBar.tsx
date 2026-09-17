@@ -13,59 +13,23 @@ import { clamp01, timeForTrackX } from './playbackOptions';
 import { resolvePlayerChrome } from './playerLayout';
 
 interface SeekBarProps {
-  
   position: number;
-  
-
-
-
 
   start: number;
   end: number;
-  
+
   buffered: number;
   disabled?: boolean;
-  
+
   onScrubPreview: (time: number | null) => void;
-  
+
   onSeek: (time: number) => void;
-  
+
   onPress?: () => void;
-  
+
   onFocusChange?: (focused: boolean) => void;
   hasTVPreferredFocus?: boolean;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 export function SeekBar({
   position,
@@ -86,46 +50,16 @@ export function SeekBar({
   const [focused, setFocused] = useState(false);
   const [dragging, setDragging] = useState(false);
 
-  
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   const trackRef = useRef<View>(null);
   const geometry = useRef({ pageX: 0, width: 0 });
 
   const measureTrack = useCallback(() => {
-    
-    
-    
     trackRef.current?.measure((_x, _y, width, _height, pageX) => {
-      
-      
       if (width > 0) {
         geometry.current = { pageX, width };
       }
     });
   }, []);
-
-  
-
-
 
   const windowRef = useRef({ start, end });
   windowRef.current = { start, end };
@@ -133,21 +67,12 @@ export function SeekBar({
   const callbacksRef = useRef({ onScrubPreview, onSeek, disabled });
   callbacksRef.current = { onScrubPreview, onSeek, disabled };
 
-  
-
-
-
-
-
-
-
   const timeAtWindowX = useCallback(
     (windowX: number): number | null =>
       timeForTrackX(windowX, geometry.current, windowRef.current),
     [],
   );
 
-  
   const lastWindowX = useRef(0);
 
   const preview = useCallback(
@@ -165,15 +90,10 @@ export function SeekBar({
       PanResponder.create({
         onStartShouldSetPanResponder: () => !callbacksRef.current.disabled,
         onMoveShouldSetPanResponder: () => !callbacksRef.current.disabled,
-        
-        
-        
+
         onPanResponderTerminationRequest: () => false,
 
         onPanResponderGrant: (event: GestureResponderEvent) => {
-          
-          
-          
           measureTrack();
           setDragging(true);
           lastWindowX.current = event.nativeEvent.pageX;
@@ -184,17 +104,13 @@ export function SeekBar({
           _event: GestureResponderEvent,
           gesture: PanResponderGestureState,
         ) => {
-          
-          
           lastWindowX.current = gesture.moveX;
           preview(gesture.moveX);
         },
 
         onPanResponderRelease: () => {
           setDragging(false);
-          
-          
-          
+
           const target = timeAtWindowX(lastWindowX.current);
           callbacksRef.current.onScrubPreview(null);
           if (target !== null) {
@@ -229,10 +145,6 @@ export function SeekBar({
 
   const thumbSize = active ? chrome.seekThumb : chrome.seekThumb * 0.75;
 
-  
-
-
-
   const a11y = {
     accessibilityRole: 'adjustable' as const,
     accessibilityLabel: 'Seek bar',
@@ -246,8 +158,6 @@ export function SeekBar({
       ref={trackRef}
       style={styles.trackArea}
       onLayout={measureTrack}
-      
-      
       pointerEvents="none"
     >
       <View
@@ -275,9 +185,7 @@ export function SeekBar({
               width: thumbSize,
               height: thumbSize,
               left: `${played * 100}%`,
-              
-              
-              
+
               marginLeft: -thumbSize / 2,
             },
           ]}
@@ -285,21 +193,6 @@ export function SeekBar({
       ) : null}
     </View>
   );
-
-  
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   if (metrics.isTV) {
     return (
@@ -332,8 +225,7 @@ export function SeekBar({
 const useStyles = makeStyles(() => ({
   row: {
     justifyContent: 'center',
-    
-    
+
     borderWidth: 0,
   },
   trackArea: {

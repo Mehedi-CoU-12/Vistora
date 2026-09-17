@@ -5,46 +5,7 @@ import { RootNavigator } from './src/navigation/RootNavigator';
 import { installStreamSources } from './src/services/sources';
 import { MetricsProvider } from './src/theme';
 
-
-
-
-
-
-
-
-
-
 installStreamSources();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 export default function App() {
   return (

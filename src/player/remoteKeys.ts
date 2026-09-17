@@ -1,58 +1,7 @@
 import type { NativeSyntheticEvent } from 'react-native';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export interface RemoteKeyEvent
   extends NativeSyntheticEvent<{ code: string; key: string }> {}
-
-
-
-
-
-
-
 
 declare module 'react-native' {
   interface ViewProps {
@@ -63,11 +12,9 @@ declare module 'react-native' {
   }
 }
 
-
 export interface RemoteKeyHandlers {
   onKeyDown: (event: RemoteKeyEvent) => void;
 }
-
 
 export type RemoteAction =
   | 'up'
@@ -85,7 +32,6 @@ export type RemoteAction =
   | 'stop'
   | 'other';
 
-
 export function actionForKeyCode(code: string): RemoteAction {
   switch (code) {
     case 'ArrowUp':
@@ -99,8 +45,7 @@ export function actionForKeyCode(code: string): RemoteAction {
     case 'Enter':
     case 'Space':
       return 'select';
-    
-    
+
     case 'MediaPlayPause':
       return 'playPause';
     case 'MediaPlay':
@@ -115,7 +60,6 @@ export function actionForKeyCode(code: string): RemoteAction {
       return 'other';
   }
 }
-
 
 export function actionForHardwareEvent(eventType: string): RemoteAction {
   switch (eventType) {

@@ -11,55 +11,6 @@ interface TabBarProps {
   onSelect: (id: TabId) => void;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export function TabBar({ tabs, activeId, onSelect }: TabBarProps) {
   const { navPlacement } = useMetrics();
 
@@ -74,10 +25,6 @@ function Rail({ tabs, activeId, onSelect }: TabBarProps) {
   const styles = useStyles();
 
   return (
-    
-    
-    
-    
     <TVFocusGuideView autoFocus style={styles.rail}>
       <ScrollView
         horizontal
@@ -101,9 +48,6 @@ function BottomBar({ tabs, activeId, onSelect }: TabBarProps) {
   const styles = useStyles();
 
   return (
-    
-    
-    
     <View style={styles.bar} accessibilityRole="tablist">
       {tabs.map(tab => (
         <TabPill
@@ -122,17 +66,9 @@ interface TabPillProps {
   tab: TabDef;
   selected: boolean;
   onSelect: (id: TabId) => void;
-  
+
   stretch?: boolean;
 }
-
-
-
-
-
-
-
-
 
 function TabPill({ tab, selected, onSelect, stretch = false }: TabPillProps) {
   const styles = useStyles();
@@ -140,9 +76,6 @@ function TabPill({ tab, selected, onSelect, stretch = false }: TabPillProps) {
   return (
     <Focusable
       onPress={() => onSelect(tab.id)}
-      
-      
-      
       scaleOnFocus={false}
       accessibilityRole="tab"
       selected={selected}
@@ -175,17 +108,12 @@ function TabPill({ tab, selected, onSelect, stretch = false }: TabPillProps) {
 
 const useStyles = makeStyles(m => ({
   rail: {
-    
-    
-    
     flex: 1,
   },
   railContent: {
     alignItems: 'center',
     gap: spacing.xs,
-    
-    
-    
+
     flexGrow: 1,
     justifyContent: 'flex-end',
   },
@@ -196,9 +124,7 @@ const useStyles = makeStyles(m => ({
     paddingTop: spacing.sm,
     paddingBottom: spacing.sm,
     gap: spacing.xs,
-    
-    
-    
+
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.background,
@@ -213,9 +139,7 @@ const useStyles = makeStyles(m => ({
   },
   pillStretch: {
     flex: 1,
-    
-    
-    
+
     flexBasis: 0,
     minWidth: 0,
     paddingHorizontal: spacing.xs,
@@ -225,8 +149,7 @@ const useStyles = makeStyles(m => ({
   },
   indicator: {
     position: 'absolute',
-    
-    
+
     left: spacing.md,
     right: spacing.md,
     bottom: spacing.xs,
@@ -240,10 +163,6 @@ const useStyles = makeStyles(m => ({
     textAlign: 'center',
   },
   labelSelected: {
-    
-    
-    
-    
     color: colors.textPrimary,
   },
   labelActive: {

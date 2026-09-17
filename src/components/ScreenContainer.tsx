@@ -4,28 +4,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, makeStyles, useMetrics } from '../theme';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export function ScreenContainer({ children }: { children: React.ReactNode }) {
   const { isTV } = useMetrics();
   const insets = useSafeAreaInsets();
@@ -46,9 +24,7 @@ export function ScreenContainer({ children }: { children: React.ReactNode }) {
 
   return (
     <View style={[styles.root, inset]}>
-      {
-
-}
+      {}
       <StatusBar hidden={isTV} barStyle="light-content" />
       {children}
     </View>

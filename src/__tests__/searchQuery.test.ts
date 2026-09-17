@@ -61,16 +61,11 @@ describe('ilikeFilter', () => {
     expect(ilikeFilter(['title'], 'news')).toBe('title.ilike."%news%"');
   });
 
-  
-
-
-
-
   it('keeps a comma inside the value rather than letting it split the filter', () => {
     const filter = ilikeFilter(['title'], 'Crouching Tiger, Hidden Dragon');
 
     expect(filter).toBe('title.ilike."%Crouching Tiger, Hidden Dragon%"');
-    
+
     expect(filter.split('.ilike.')).toHaveLength(2);
   });
 
@@ -87,8 +82,6 @@ describe('ilikeFilter', () => {
   });
 
   it('quotes a term that is itself a PostgREST operator name', () => {
-    
-    
     expect(ilikeFilter(['title'], 'not.eq')).toBe('title.ilike."%not.eq%"');
   });
 

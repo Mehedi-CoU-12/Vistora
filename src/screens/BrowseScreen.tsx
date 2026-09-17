@@ -31,139 +31,19 @@ import { CatalogScreen } from './CatalogScreen';
 import { HomeScreen } from './HomeScreen';
 import { SearchScreen } from './SearchScreen';
 
-
 const INITIAL_TAB: TabId = 'home';
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 export function BrowseScreen() {
   const { navPlacement, isTouch, typography } = useMetrics();
   const styles = useStyles();
 
-  
-
-
-
-
-
-
-
-
-
   const searchIconSize = Math.round(typography.body.fontSize * 1.2);
 
   const [activeId, setActiveId] = useState<TabId>(INITIAL_TAB);
 
-  
-
-
-
-
-
-
-
-
-
-
-
-
-
   const [visited, setVisited] = useState<readonly TabId[]>([INITIAL_TAB]);
 
-  
-
-
-
-
-
-
-
-
   const [searching, setSearching] = useState(false);
-
-  
-
-
-
-
-
-
 
   const [chromeHeight, setChromeHeight] = useState(0);
 
@@ -171,22 +51,11 @@ export function BrowseScreen() {
     setChromeHeight(event.nativeEvent.layout.height);
   }, []);
 
-  
-
-
-
-
-
-
-
-
   const opaque = useRef(new Animated.Value(0)).current;
   const scrolled = useRef(false);
 
   const reportScroll = useCallback(
     (offsetY: number) => {
-      
-      
       const next = offsetY > 8;
       if (next === scrolled.current) {
         return;
@@ -205,8 +74,7 @@ export function BrowseScreen() {
   const selectTab = useCallback((id: TabId) => {
     setActiveId(id);
     setVisited(seen => (seen.includes(id) ? seen : [...seen, id]));
-    
-    
+
     setSearching(false);
   }, []);
 
@@ -222,9 +90,6 @@ export function BrowseScreen() {
     const subscription = BackHandler.addEventListener(
       'hardwareBackPress',
       () => {
-        
-        
-        
         if (searching) {
           setSearching(false);
         } else {
@@ -239,16 +104,6 @@ export function BrowseScreen() {
 
   const topNav = navPlacement === 'top';
 
-  
-
-
-
-
-
-
-
-
-
   const mounted = isTouch
     ? TABS.filter(tab => visited.includes(tab.id))
     : TABS.filter(tab => tab.id === activeId && !searching);
@@ -258,10 +113,6 @@ export function BrowseScreen() {
       <ChromeProvider inset={chromeHeight} reportScroll={reportScroll}>
         <View style={styles.body}>
           {mounted.map(tab => (
-            
-            
-            
-            
             <View
               key={tab.id}
               style={[
@@ -281,35 +132,22 @@ export function BrowseScreen() {
         </View>
       </ChromeProvider>
 
-      {
-
-}
+      {}
       <View style={styles.topBar} onLayout={measureChrome}>
-        {
-
-
-}
+        {}
         <Gradient
           colors={[backgroundAlpha(0.98), backgroundAlpha(0)]}
           direction="down"
           style={styles.topBarFade}
         />
 
-        {
-
-
-
-
-}
+        {}
         <Animated.View
           style={[styles.topBarSolid, { opacity: opaque }]}
           pointerEvents="none"
         />
 
-        {
-
-
-}
+        {}
         <Text style={styles.brand} numberOfLines={1}>
           VISTORA<Text style={styles.brandAccent}>.</Text>
         </Text>
@@ -318,17 +156,9 @@ export function BrowseScreen() {
           <TabBar tabs={TABS} activeId={activeId} onSelect={selectTab} />
         ) : null}
 
-        {
-
-
-
-}
+        {}
         <View style={styles.searchSlot}>
-          {
-
-
-
-}
+          {}
           <TextButton
             accessibilityLabel="Search"
             onPress={toggleSearch}
@@ -378,9 +208,7 @@ const useStyles = makeStyles(m => ({
     top: 0,
     left: 0,
     right: 0,
-    
-    
-    
+
     bottom: '-50%',
   },
   topBarSolid: {
@@ -390,10 +218,6 @@ const useStyles = makeStyles(m => ({
     right: 0,
     bottom: 0,
     backgroundColor: colors.background,
-    
-    
-    
-    
   },
   brand: {
     ...m.typography.display,

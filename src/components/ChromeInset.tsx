@@ -1,62 +1,5 @@
 import React, { createContext, useContext, useMemo } from 'react';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 interface ChromeValue {
   inset: number;
   reportScroll: (offsetY: number) => void;
@@ -78,8 +21,6 @@ export function ChromeProvider({
   reportScroll: (offsetY: number) => void;
   children: React.ReactNode;
 }) {
-  
-  
   const value = useMemo(() => ({ inset, reportScroll }), [inset, reportScroll]);
 
   return (
@@ -87,25 +28,9 @@ export function ChromeProvider({
   );
 }
 
-
-
-
-
-
-
-
 export function useChromeInset(): number {
   return useContext(ChromeContext).inset;
 }
-
-
-
-
-
-
-
-
-
 
 export function useReportScroll(): (offsetY: number) => void {
   return useContext(ChromeContext).reportScroll;

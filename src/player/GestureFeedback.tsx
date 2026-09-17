@@ -13,16 +13,6 @@ import {
 } from './playbackOptions';
 import { resolvePlayerChrome } from './playerLayout';
 
-
-
-
-
-
-
-
-
-
-
 export type PlayerFeedback =
   | { kind: 'skip'; deltaSeconds: number; target: number }
   | { kind: 'scrub'; deltaSeconds: number; target: number }
@@ -30,7 +20,6 @@ export type PlayerFeedback =
   | { kind: 'rate'; rate: number }
   | { kind: 'scaling'; mode: ScalingMode }
   | { kind: 'locked' };
-
 
 const FADE_MS = 140;
 
@@ -41,13 +30,6 @@ export function GestureFeedback({
 }) {
   const styles = useStyles();
   const opacity = useRef(new Animated.Value(0)).current;
-
-  
-
-
-
-
-
 
   const [shown, setShown] = useState<PlayerFeedback | null>(feedback);
 
@@ -148,9 +130,6 @@ const useStyles = makeStyles(metrics => {
 
   return {
     layer: {
-      
-      
-      
       position: 'absolute',
       top: 0,
       left: 0,

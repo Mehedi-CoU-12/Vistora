@@ -1,56 +1,12 @@
 import type { PlayableProtocol } from '../types/content';
 
-
-
-
-
-
-
-
-
-
-
-
-
 export const SEEK_STEP_SECONDS = 10;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 export const SEEK_CHAIN_MS = 700;
 
-
 export const PLAYBACK_RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const;
 
-
 export const HOLD_TO_SPEED_RATE = 2;
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 export type ScalingMode = 'fit' | 'fill' | 'stretch';
 
@@ -68,7 +24,6 @@ export const SCALING_DESCRIPTION: Record<ScalingMode, string> = {
   stretch: 'Fills the screen, distorts the frame',
 };
 
-
 export function resizeModeFor(
   mode: ScalingMode,
 ): 'contain' | 'cover' | 'stretch' {
@@ -82,35 +37,23 @@ export function resizeModeFor(
   }
 }
 
-
-
-
-
-
-
-
-
 export function stepScalingMode(mode: ScalingMode, step: 1 | -1): ScalingMode {
   const count = SCALING_MODES.length;
   const index = SCALING_MODES.indexOf(mode);
   return SCALING_MODES[(index + step + count) % count];
 }
 
-
 export function nextScalingMode(mode: ScalingMode): ScalingMode {
   return stepScalingMode(mode, 1);
 }
-
 
 export function formatRate(rate: number): string {
   return `${Number(rate.toFixed(2))}x`;
 }
 
-
 export function formatPercent(fraction: number): string {
   return `${Math.round(clamp01(fraction) * 100)}%`;
 }
-
 
 export function formatSeekDelta(seconds: number): string {
   const rounded = Math.round(seconds);
@@ -137,13 +80,6 @@ export function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
-
-
-
-
-
-
-
 export function clampSeekTarget(
   target: number,
   start: number,
@@ -155,18 +91,6 @@ export function clampSeekTarget(
   return clamp(target, start, Math.max(start, end - 0.25));
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
 export function hasSeekLanded(
   reportedTime: number,
   pendingTarget: number,
@@ -177,20 +101,6 @@ export function hasSeekLanded(
   }
   return Math.abs(reportedTime - pendingTarget) <= toleranceSeconds;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 export function timeForTrackX(
   windowX: number,
@@ -215,18 +125,6 @@ export function timeForTrackX(
   );
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
 export interface TrackChoice {
   index: number;
   label: string;
@@ -248,9 +146,6 @@ export function describeTracks(tracks: readonly RawTrack[]): TrackChoice[] {
 function trackLabel(track: RawTrack, position: number): string {
   const title = track.title?.trim();
   if (title) {
-    
-    
-    
     return title;
   }
 
@@ -262,46 +157,7 @@ function trackLabel(track: RawTrack, position: number): string {
   return `Track ${position + 1}`;
 }
 
-
-
-
-
-
-
-
-
 export type TrackSelection = 'auto' | 'off' | number;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 export const MEDIA3_EXTENSION: Record<PlayableProtocol, string | undefined> = {
   hls: 'm3u8',

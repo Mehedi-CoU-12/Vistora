@@ -1,12 +1,5 @@
 import { createTtlCache } from '../services/streamCache';
 
-
-
-
-
-
-
-
 function clock(start = 1_000) {
   let current = start;
   return {
@@ -28,8 +21,6 @@ describe('createTtlCache', () => {
     expect(cache.get('a')).toBe('value');
   });
 
-  
-  
   it('drops a value once its TTL has passed', () => {
     const time = clock();
     const cache = createTtlCache<string>({ now: time.now });
@@ -78,9 +69,6 @@ describe('createTtlCache', () => {
     expect(cache.get('c')).toBe('three');
   });
 
-  
-  
-  
   it('treats a rewrite as a fresh insertion for eviction order', () => {
     const cache = createTtlCache<string>({ maxEntries: 2 });
 
@@ -105,8 +93,6 @@ describe('createTtlCache', () => {
     expect(cache.get('a')).toBe('two');
   });
 
-  
-  
   it('counts only entries that are still live', () => {
     const time = clock();
     const cache = createTtlCache<string>({ now: time.now });

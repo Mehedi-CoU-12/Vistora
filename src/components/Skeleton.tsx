@@ -12,34 +12,6 @@ import {
   type CardVariant,
 } from '../theme';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 const pulse = new Animated.Value(0);
 
 let mounted = 0;
@@ -53,9 +25,7 @@ function startPulse(): () => void {
       Animated.sequence([
         Animated.timing(pulse, {
           toValue: 1,
-          
-          
-          
+
           duration: duration.hero * 3,
           useNativeDriver: true,
         }),
@@ -74,8 +44,7 @@ function startPulse(): () => void {
     if (mounted === 0) {
       loop?.stop();
       loop = null;
-      
-      
+
       pulse.setValue(0);
     }
   };
@@ -85,9 +54,7 @@ function useSkeletonPulse(): Animated.AnimatedInterpolation<number> {
   const opacity = useRef(
     pulse.interpolate({
       inputRange: [0, 1],
-      
-      
-      
+
       outputRange: [0.45, 0.9],
     }),
   ).current;
@@ -97,14 +64,12 @@ function useSkeletonPulse(): Animated.AnimatedInterpolation<number> {
   return opacity;
 }
 
-
 export function SkeletonBlock({ style }: { style?: StyleProp<ViewStyle> }) {
   const opacity = useSkeletonPulse();
   const styles = useStyles();
 
   return <Animated.View style={[styles.block, style, { opacity }]} />;
 }
-
 
 export function SkeletonCard({
   variant,
@@ -124,24 +89,17 @@ export function SkeletonCard({
   return (
     <View style={[styles.card, { width: size.width }]}>
       <SkeletonBlock style={[styles.artwork, size]} />
-      {
-
-}
+      {}
       <SkeletonBlock style={styles.titleLine} />
       <SkeletonBlock style={styles.subtitleLine} />
     </View>
   );
 }
 
-
 export function SkeletonRow({ variant }: { variant: CardVariant }) {
   const { cardSize, contentWidth } = useMetrics();
   const styles = useStyles();
 
-  
-  
-  
-  
   const count = Math.ceil(contentWidth / cardSize[variant].width) + 1;
 
   return (
@@ -155,7 +113,6 @@ export function SkeletonRow({ variant }: { variant: CardVariant }) {
     </View>
   );
 }
-
 
 export function SkeletonHero() {
   const { hero } = useMetrics();
@@ -182,13 +139,6 @@ export function SkeletonHero() {
   );
 }
 
-
-
-
-
-
-
-
 export function SkeletonScreen({
   rows = 3,
   variant = 'poster',
@@ -214,8 +164,7 @@ const useStyles = makeStyles(m => ({
   block: {
     backgroundColor: colors.surface,
     borderRadius: radius.sm,
-    
-    
+
     overflow: 'hidden',
   },
   screen: {
@@ -230,8 +179,7 @@ const useStyles = makeStyles(m => ({
   titleLine: {
     height: m.typography.body.fontSize,
     marginTop: spacing.sm,
-    
-    
+
     width: '75%',
   },
   subtitleLine: {
@@ -252,8 +200,7 @@ const useStyles = makeStyles(m => ({
     flexDirection: 'row',
     paddingHorizontal: m.gutter.horizontal - spacing.xs,
     paddingVertical: spacing.sm,
-    
-    
+
     overflow: 'hidden',
   },
   hero: {

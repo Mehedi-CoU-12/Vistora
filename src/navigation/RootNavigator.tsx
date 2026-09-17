@@ -17,43 +17,6 @@ import type { RootStackParamList } from '../types/navigation';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 const navigationTheme: Theme = {
   ...DarkTheme,
   colors: {
@@ -74,8 +37,7 @@ export function RootNavigator() {
           initialRouteName="Browse"
           screenOptions={{
             headerShown: false,
-            
-            
+
             animation: 'fade',
             contentStyle: { backgroundColor: colors.background },
           }}
@@ -87,17 +49,13 @@ export function RootNavigator() {
             name="Player"
             component={PlayerScreen}
             options={{
-              
-              
               contentStyle: { backgroundColor: '#000' },
             }}
           />
         </Stack.Navigator>
       </NavigationContainer>
 
-      {
-
-}
+      {}
       <ResolvingOverlay />
     </View>
   );

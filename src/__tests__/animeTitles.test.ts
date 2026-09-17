@@ -6,20 +6,6 @@ import {
   parseSeasonNumber,
 } from '../../scripts/animeTitles.mjs';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 describe('parseEpisodeNumber', () => {
   it.each([
     ['Show Name | Episode 7 | English Sub', 7],
@@ -38,8 +24,6 @@ describe('parseEpisodeNumber', () => {
   });
 
   it('returns null when the title names no episode, rather than guessing', () => {
-    
-    
     expect(parseEpisodeNumber('Show Name')).toBeNull();
     expect(parseEpisodeNumber('')).toBeNull();
     expect(parseEpisodeNumber(null)).toBeNull();
@@ -52,20 +36,16 @@ describe('parseEpisodeNumber', () => {
   });
 
   it('does not mistake a season number for an episode number', () => {
-    
-    
     expect(parseEpisodeNumber('Show Name - Season 2')).toBeNull();
   });
 
   it('does not find "ep" inside an ordinary word', () => {
     expect(parseEpisodeNumber('Sleepy Princess')).toBeNull();
-    
+
     expect(parseEpisodeNumber('Sleepy Princess 5')).toBe(5);
   });
 
   it('trusts an explicit "Episode N" even when N looks implausible', () => {
-    
-    
     expect(parseEpisodeNumber('Show Name Episode 1080')).toBe(1080);
   });
 });
@@ -85,8 +65,6 @@ describe('parseSeasonNumber', () => {
   });
 
   it('ignores an absurd season number rather than storing it', () => {
-    
-    
     expect(parseSeasonNumber('Show Name Season 0')).toBe(1);
   });
 });
@@ -98,10 +76,7 @@ describe('isNonEpisodeTitle', () => {
     'Show Name Opening Theme',
     'Show Name Season 2 Teaser',
     'Show Name Recap',
-    
-    
-    
-    
+
     'Trailers and PVs',
     'Show Name Openings',
   ])('rejects %j', title => {
@@ -109,7 +84,9 @@ describe('isNonEpisodeTitle', () => {
   });
 
   it('keeps an ordinary episode', () => {
-    expect(isNonEpisodeTitle('Show Name | Episode 7 | English Sub')).toBe(false);
+    expect(isNonEpisodeTitle('Show Name | Episode 7 | English Sub')).toBe(
+      false,
+    );
   });
 });
 
@@ -141,8 +118,6 @@ describe('parseIsoDuration', () => {
   });
 
   it('returns null for anything it cannot read, including a zero duration', () => {
-    
-    
     expect(parseIsoDuration('PT0S')).toBeNull();
     expect(parseIsoDuration('not a duration')).toBeNull();
     expect(parseIsoDuration(undefined)).toBeNull();

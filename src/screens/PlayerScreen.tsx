@@ -12,50 +12,6 @@ import { VideoPlayer, type VideoPlayerHandle } from '../player/VideoPlayer';
 import { useMetrics } from '../theme';
 import type { RootStackParamList } from '../types/navigation';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export function PlayerScreen() {
   const navigation = useNavigation();
   const { params } = useRoute<RouteProp<RootStackParamList, 'Player'>>();
@@ -67,19 +23,6 @@ export function PlayerScreen() {
   usePreventRemove(canDismiss, () => {
     playerRef.current?.dismissTop();
   });
-
-  
-
-
-
-
-
-
-
-
-
-
-
 
   useFocusEffect(
     useCallback(() => {
@@ -93,8 +36,6 @@ export function PlayerScreen() {
   );
 
   const handleExit = useCallback(() => {
-    
-    
     if (navigation.canGoBack()) {
       navigation.goBack();
     }

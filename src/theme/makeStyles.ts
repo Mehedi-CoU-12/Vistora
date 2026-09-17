@@ -1,40 +1,14 @@
-import {StyleSheet, type ImageStyle, type TextStyle, type ViewStyle} from 'react-native';
+import {
+  StyleSheet,
+  type ImageStyle,
+  type TextStyle,
+  type ViewStyle,
+} from 'react-native';
 
-import {useMetrics} from './MetricsProvider';
-import type {Metrics} from './metrics';
+import { useMetrics } from './MetricsProvider';
+import type { Metrics } from './metrics';
 
-
-
-
-
-
-
-type NamedStyles<T> = {[P in keyof T]: ViewStyle | TextStyle | ImageStyle};
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+type NamedStyles<T> = { [P in keyof T]: ViewStyle | TextStyle | ImageStyle };
 
 export function makeStyles<T extends NamedStyles<T> | NamedStyles<any>>(
   factory: (metrics: Metrics) => T & NamedStyles<any>,

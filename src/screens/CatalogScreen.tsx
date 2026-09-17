@@ -40,82 +40,12 @@ import type { Category, ContentItem } from '../types/content';
 interface CatalogData {
   items: ContentItem[];
   categories: Category[];
-  
+
   rails: Rail[];
   featured: ContentItem | null;
 }
 
-
-
-
-
-
-
-
-
 const SESSION_SEED = Math.floor(Math.random() * 100_000);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 export function CatalogScreen({ tab }: { tab: CatalogTab }) {
   const metrics = useMetrics();
@@ -125,38 +55,13 @@ export function CatalogScreen({ tab }: { tab: CatalogTab }) {
   const spec = tab.catalog;
   const columns = metrics.gridColumns[spec.cardVariant];
 
-  
-
-
-
-
   const plural = spec.countNoun[1];
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
     null,
   );
 
-  
-
-
-
-
-
-
-
-
-
-
-
-
-
   const [contentMayClaimFocus, setContentMayClaimFocus] = useState(true);
-
-  
-
-
-
-
 
   const [gridWidth, setGridWidth] = useState(0);
 
@@ -176,9 +81,6 @@ export function CatalogScreen({ tab }: { tab: CatalogTab }) {
         fetchCategories(spec.categoryKind),
       ]);
 
-      
-      
-      
       const items = withGenre(loaded, categories);
 
       return {
@@ -195,9 +97,6 @@ export function CatalogScreen({ tab }: { tab: CatalogTab }) {
       };
     }, [spec, tab.id, tab.title]);
 
-  
-  
-  
   const visibleItems = useMemo(() => {
     if (!data) {
       return [];
@@ -211,16 +110,7 @@ export function CatalogScreen({ tab }: { tab: CatalogTab }) {
   const openItem = useOpenItem();
   const playItem = usePlayItem();
 
-  
   const chromeInset = useChromeInset();
-
-  
-
-
-
-
-
-
 
   const showRails =
     selectedCategoryId === null && (data?.rails.length ?? 0) > 1;
@@ -243,12 +133,6 @@ export function CatalogScreen({ tab }: { tab: CatalogTab }) {
     [cardWidth, contentMayClaimFocus, openItem, spec.cardVariant],
   );
 
-  
-
-
-
-
-
   const columnWrapperStyle = useMemo(
     () => [
       styles.gridRow,
@@ -260,10 +144,6 @@ export function CatalogScreen({ tab }: { tab: CatalogTab }) {
     [cardWidth, spec.cardVariant, styles.gridRow],
   );
 
-  
-
-
-
   const refreshControl = isTouch ? (
     <RefreshControl
       refreshing={isLoading && data !== null}
@@ -274,15 +154,6 @@ export function CatalogScreen({ tab }: { tab: CatalogTab }) {
     />
   ) : undefined;
 
-  
-
-
-
-
-
-
-
-
   const header = (
     <AppHeader
       title={tab.title}
@@ -291,17 +162,6 @@ export function CatalogScreen({ tab }: { tab: CatalogTab }) {
       }
     />
   );
-
-  
-
-
-
-
-
-
-
-
-
 
   if (isLoading && data === null) {
     return (
@@ -327,8 +187,6 @@ export function CatalogScreen({ tab }: { tab: CatalogTab }) {
         <EmptyState
           title={`No ${plural}`}
           message={spec.emptyMessage}
-          
-          
           action={{ label: 'Reload', onPress: reload }}
         />
       </View>
@@ -337,13 +195,10 @@ export function CatalogScreen({ tab }: { tab: CatalogTab }) {
 
   return (
     <View style={[styles.screen, { paddingTop: chromeInset }]}>
-      {
-}
+      {}
       {showRails ? null : header}
 
-      {
-
-}
+      {}
       <View style={usesSidebar ? styles.splitRow : styles.splitColumn}>
         <CategoryPicker
           categories={data.categories}
@@ -378,13 +233,6 @@ export function CatalogScreen({ tab }: { tab: CatalogTab }) {
             />
           ) : cardWidth <= 0 ? null : (
             <FlatList
-              
-              
-              
-              
-              
-              
-              
               key={`${selectedCategoryId ?? 'all'}-${columns}`}
               data={visibleItems}
               renderItem={renderItem}
@@ -395,9 +243,6 @@ export function CatalogScreen({ tab }: { tab: CatalogTab }) {
               showsVerticalScrollIndicator={false}
               initialNumToRender={columns * 3}
               refreshControl={refreshControl}
-              
-              
-              
               removeClippedSubviews={false}
             />
           )}
@@ -410,9 +255,6 @@ export function CatalogScreen({ tab }: { tab: CatalogTab }) {
 const keyExtractor = (item: ContentItem) => item.id;
 
 const useStyles = makeStyles(m => {
-  
-  
-  
   const padding = gridPadding(m);
 
   return {
@@ -438,8 +280,7 @@ const useStyles = makeStyles(m => {
     gridRow: {
       gap: COLUMN_GAP,
       marginBottom: spacing.md,
-      
-      
+
       justifyContent: 'flex-start' as const,
     },
   };

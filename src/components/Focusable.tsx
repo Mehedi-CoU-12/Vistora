@@ -11,73 +11,24 @@ import { colors, makeStyles, radius, useMetrics } from '../theme';
 
 interface FocusableProps {
   onPress?: () => void;
-  
+
   onFocus?: () => void;
-  
-
-
-
 
   hasTVPreferredFocus?: boolean;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
-  
+
   scaleOnFocus?: boolean;
-  
+
   showFocusRing?: boolean;
   accessibilityLabel?: string;
-  
+
   accessibilityRole?: AccessibilityRole;
-  
-
-
-
-
-
 
   selected?: boolean;
-  
-
-
-
 
   children: React.ReactNode | ((active: boolean) => React.ReactNode);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 export function Focusable({
   onPress,
@@ -95,10 +46,6 @@ export function Focusable({
   const { focusScale, isTV, pressScale } = useMetrics();
   const styles = useStyles();
 
-  
-  
-  
-  
   const [focused, setFocused] = useState(false);
   const [pressed, setPressed] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
@@ -110,8 +57,7 @@ export function Focusable({
       Animated.timing(scale, {
         toValue: value,
         duration: 120,
-        
-        
+
         useNativeDriver: true,
       }).start();
     },
@@ -178,8 +124,6 @@ export function Focusable({
 
 const useStyles = makeStyles(() => ({
   base: {
-    
-    
     borderWidth: 2,
     borderColor: 'transparent',
     borderRadius: radius.md,

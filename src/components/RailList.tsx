@@ -16,74 +16,22 @@ import { HeroBanner } from './HeroBanner';
 
 interface RailListProps {
   rails: readonly Rail[];
-  
+
   featured?: ContentItem | null;
   heroEyebrow?: string;
   onPlay: (item: ContentItem) => void;
   onSelectItem: (item: ContentItem) => void;
-  
+
   onSeeAll?: (rail: Rail) => void;
   progress?: ReadonlyMap<string, number>;
-  
+
   onRefresh?: () => void;
   refreshing?: boolean;
-  
-
-
-
-
-
-
-
-
-
-
 
   chromeOverlap?: number;
-  
-
-
-
-
-
-
-
-
 
   heroClaimsFocus?: boolean;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 export function RailList({
   rails,
@@ -101,14 +49,6 @@ export function RailList({
   const { isTV, isTouch } = useMetrics();
   const styles = useStyles();
 
-  
-
-
-
-
-
-
-
   const reportScroll = useReportScroll();
 
   const handleScroll = useCallback(
@@ -117,26 +57,6 @@ export function RailList({
     },
     [reportScroll],
   );
-
-  
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   const snapProps = isTV
     ? ({
@@ -151,10 +71,6 @@ export function RailList({
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       onScroll={chromeOverlap > 0 ? handleScroll : undefined}
-      
-      
-      
-      
       scrollEventThrottle={16}
       refreshControl={
         isTouch && onRefresh ? (
@@ -180,11 +96,7 @@ export function RailList({
         />
       ) : null}
 
-      {
-
-
-
-}
+      {}
       <TVFocusGuideView autoFocus>
         {rails.map(rail => (
           <ContentRow
@@ -209,9 +121,6 @@ const useStyles = makeStyles(m => ({
     flex: 1,
   },
   content: {
-    
-    
-    
     paddingBottom: m.gutter.vertical + spacing.xl,
   },
 }));

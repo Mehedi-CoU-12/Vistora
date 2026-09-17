@@ -3,98 +3,28 @@ import { View, type ViewStyle } from 'react-native';
 
 import { makeStyles } from '../theme';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export type IconName =
-  
   | 'back'
   | 'play'
   | 'pause'
   | 'rewind'
   | 'forward'
-  
   | 'close'
-  
   | 'settings'
-  
   | 'lock'
   | 'unlock'
-  
   | 'aspect'
-  
   | 'pip'
-  
   | 'live'
-  
   | 'tick'
-  
   | 'plus'
-  
   | 'info';
 
 interface PlayerIconProps {
   name: IconName;
-  
+
   size: number;
-  
+
   color: string;
 }
 
@@ -104,9 +34,6 @@ export function PlayerIcon({ name, size, color }: PlayerIconProps) {
   return (
     <View
       style={[styles.box, { width: size, height: size }]}
-      
-      
-      
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
@@ -118,24 +45,9 @@ export function PlayerIcon({ name, size, color }: PlayerIconProps) {
 function Shape({ name, size, color }: PlayerIconProps) {
   const styles = useStyles();
 
-  
   const stroke = Math.max(1, Math.round(size / 8));
 
   switch (name) {
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
     case 'back':
       return (
         <View
@@ -152,15 +64,6 @@ function Shape({ name, size, color }: PlayerIconProps) {
         />
       );
 
-    
-
-
-
-
-
-
-
-
     case 'play':
       return <Triangle direction="right" size={size} color={color} />;
 
@@ -172,7 +75,6 @@ function Shape({ name, size, color }: PlayerIconProps) {
         </View>
       );
 
-    
     case 'rewind':
     case 'forward': {
       const direction = name === 'rewind' ? 'left' : 'right';
@@ -191,7 +93,6 @@ function Shape({ name, size, color }: PlayerIconProps) {
       );
     }
 
-    
     case 'close':
       return (
         <>
@@ -219,23 +120,6 @@ function Shape({ name, size, color }: PlayerIconProps) {
           />
         </>
       );
-
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     case 'settings': {
       const ring = size * 0.62;
@@ -275,14 +159,6 @@ function Shape({ name, size, color }: PlayerIconProps) {
       );
     }
 
-    
-
-
-
-
-
-
-
     case 'lock':
     case 'unlock': {
       const bodyWidth = size * 0.74;
@@ -293,9 +169,6 @@ function Shape({ name, size, color }: PlayerIconProps) {
       return (
         <View style={[styles.lock, { width: size, height: size }]}>
           <View
-            
-            
-            
             style={[
               {
                 width: shackle,
@@ -304,12 +177,9 @@ function Shape({ name, size, color }: PlayerIconProps) {
                 borderTopLeftRadius: shackle / 2,
                 borderTopRightRadius: shackle / 2,
                 borderColor: color,
-                
-                
+
                 marginBottom: -stroke,
-                
-                
-                
+
                 ...(open ? { marginLeft: shackle * 0.55 } : null),
               },
               styles.shackle,
@@ -328,14 +198,6 @@ function Shape({ name, size, color }: PlayerIconProps) {
         </View>
       );
     }
-
-    
-
-
-
-
-
-
 
     case 'aspect': {
       const arm = size * 0.3;
@@ -357,7 +219,6 @@ function Shape({ name, size, color }: PlayerIconProps) {
       );
     }
 
-    
     case 'pip': {
       const frameWidth = size * 0.92;
       const frameHeight = size * 0.72;
@@ -399,30 +260,6 @@ function Shape({ name, size, color }: PlayerIconProps) {
         />
       );
 
-    
-
-
-
-
-
-
-
-
-
-
-
-
-    
-
-
-
-
-
-
-
-
-
-
     case 'plus':
       return (
         <View style={styles.lock}>
@@ -450,15 +287,6 @@ function Shape({ name, size, color }: PlayerIconProps) {
           />
         </View>
       );
-
-    
-
-
-
-
-
-
-
 
     case 'info':
       return (
@@ -505,10 +333,7 @@ function Shape({ name, size, color }: PlayerIconProps) {
               borderBottomWidth: stroke,
               borderLeftWidth: stroke,
               borderColor: color,
-              
-              
-              
-              
+
               marginBottom: size * 0.28,
             },
           ]}
@@ -517,19 +342,7 @@ function Shape({ name, size, color }: PlayerIconProps) {
   }
 }
 
-
 const GEAR_ANGLES = ['0deg', '60deg', '120deg', '180deg', '240deg', '300deg'];
-
-
-
-
-
-
-
-
-
-
-
 
 const CORNERS: {
   key: string;
@@ -576,10 +389,6 @@ const CORNERS: {
   },
 ];
 
-
-
-
-
 function Bar({ size, color }: { size: number; color: string }) {
   return (
     <View
@@ -592,13 +401,6 @@ function Bar({ size, color }: { size: number; color: string }) {
     />
   );
 }
-
-
-
-
-
-
-
 
 function Triangle({
   direction,
@@ -632,19 +434,11 @@ function Triangle({
   );
 }
 
-
-
-
-
-
-
-
 const useStyles = makeStyles(() => ({
   box: {
     alignItems: 'center',
     justifyContent: 'center',
-    
-    
+
     flexShrink: 0,
   },
   row: {
@@ -657,9 +451,7 @@ const useStyles = makeStyles(() => ({
   triangle: {
     width: 0,
     height: 0,
-    
-    
-    
+
     borderTopColor: 'transparent',
     borderBottomColor: 'transparent',
   },
@@ -685,12 +477,6 @@ const useStyles = makeStyles(() => ({
   shackleOpen: {
     borderRightWidth: 0,
   },
-  
-
-
-
-
-
 
   overlap: {
     marginLeft: -1,

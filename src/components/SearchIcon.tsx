@@ -3,100 +3,28 @@ import { View } from 'react-native';
 
 import { makeStyles } from '../theme';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export function SearchIcon({
   size = 16,
   color,
 }: {
   size?: number;
-  
+
   color: string;
 }) {
   const styles = useStyles();
 
-  
-  
   const stroke = Math.max(1, Math.round(size / 8));
   const lens = Math.round(size * 0.7);
   const handle = Math.round(size * 0.45);
 
-  
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   const radius = lens / 2;
-  const diagonal = Math.SQRT1_2; 
+  const diagonal = Math.SQRT1_2;
   const handleMidpoint =
     radius + (radius - stroke / 2) * diagonal + (handle / 2) * diagonal;
 
   return (
     <View
       style={[styles.root, { width: size, height: size }]}
-      
-      
-      
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
@@ -117,9 +45,6 @@ export function SearchIcon({
         style={[
           styles.handle,
           {
-            
-            
-            
             left: handleMidpoint - stroke / 2,
             top: handleMidpoint - handle / 2,
             width: stroke,
@@ -133,16 +58,7 @@ export function SearchIcon({
   );
 }
 
-
-
-
-
-
-
-
 const useStyles = makeStyles(() => ({
-  
-  
   root: {
     flexShrink: 0,
   },

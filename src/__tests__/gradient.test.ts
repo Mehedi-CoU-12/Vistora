@@ -1,14 +1,5 @@
 import { linearGradient } from '../components/Gradient';
 
-
-
-
-
-
-
-
-
-
 interface Stop {
   r: number;
   g: number;
@@ -16,7 +7,6 @@ interface Stop {
   a: number;
   position: number;
 }
-
 
 function stopsOf(declaration: string): Stop[] {
   const inner = declaration.match(/^linear-gradient\((.*)\)$/)?.[1];
@@ -66,11 +56,6 @@ describe('linearGradient', () => {
     );
   });
 
-  
-
-
-
-
   it('runs from the first colour to the last', () => {
     for (const easing of ['linear', 'ease'] as const) {
       const stops = stopsOf(linearGradient([CLEAR, PAGE], 'down', easing));
@@ -106,31 +91,16 @@ describe('linearGradient', () => {
     }
   });
 
-  
-
-
-
-
-
-
   it('holds its hue when only the alpha changes', () => {
     for (const stop of stopsOf(linearGradient([CLEAR, PAGE], 'down', 'ease'))) {
       expect([stop.r, stop.g, stop.b]).toEqual([11, 13, 20]);
     }
   });
 
-  
-
-
-
-
-
   it('eases by staying clearer than linear at the same position', () => {
     const eased = stopsOf(linearGradient([CLEAR, PAGE], 'down', 'ease'));
 
     for (const stop of eased) {
-      
-      
       expect(stop.a).toBeLessThanOrEqual(stop.position / 100 + 1e-9);
     }
 
@@ -160,10 +130,6 @@ describe('linearGradient', () => {
       stopsOf(linearGradient(['#01A', '#3BF'], 'right', 'linear'))[1],
     ).toMatchObject({ r: 51, g: 187, b: 255 });
   });
-
-  
-
-
 
   it('degrades an unparseable colour to transparent instead of throwing', () => {
     expect(() =>

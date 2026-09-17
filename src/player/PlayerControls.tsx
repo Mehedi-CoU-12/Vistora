@@ -23,21 +23,14 @@ import { Scrim } from './Scrim';
 import { SeekBar } from './SeekBar';
 
 interface PlayerControlsProps {
-  
-
-
-
-
-
-
   keyHandlers?: RemoteKeyHandlers;
   title: string;
   subtitle?: string;
   isPaused: boolean;
   isLive: boolean;
-  
+
   canSeek: boolean;
-  
+
   position: number;
   start: number;
   end: number;
@@ -45,7 +38,7 @@ interface PlayerControlsProps {
   rate: number;
   scaling: ScalingMode;
   locked: boolean;
-  
+
   behindLive: boolean;
   edges: EdgeInsets;
   onTogglePlay: () => void;
@@ -57,88 +50,10 @@ interface PlayerControlsProps {
   onCycleScaling: () => void;
   onToggleLock: () => void;
   onGoLive: () => void;
-  
+
   onPictureInPicture?: () => void;
   onExit: () => void;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 export function PlayerControls(props: PlayerControlsProps) {
   const { locked, edges, onToggleLock, keyHandlers } = props;
@@ -150,15 +65,9 @@ export function PlayerControls(props: PlayerControlsProps) {
       locked: true,
     });
 
-    
-    
-    
-    
-    
     return (
       <View style={styles.root} pointerEvents="box-none" {...keyHandlers}>
-        {
-}
+        {}
         <Scrim edge="bottom" geometry={scrim.bottom} />
 
         <View
@@ -215,16 +124,6 @@ function UnlockedControls({
   const elapsed = formatTime(position - start);
   const total = formatTime(end - start);
 
-  
-
-
-
-
-
-
-
-
-
   const leftLabel = isLive
     ? behindLive
       ? `-${formatTime(end - position)}`
@@ -234,20 +133,7 @@ function UnlockedControls({
 
   const centred = chrome.transportPlacement === 'centre';
 
-  
-
-
-
-
-
-
-
-
   const transport = (
-    
-    
-    
-    
     <View style={styles.transport} pointerEvents="box-none">
       <ControlButton
         icon="rewind"
@@ -261,7 +147,6 @@ function UnlockedControls({
         variant="play"
         accessibilityLabel={isPaused ? 'Play' : 'Pause'}
         onPress={onTogglePlay}
-        
         hasTVPreferredFocus
       />
       <ControlButton
@@ -274,14 +159,6 @@ function UnlockedControls({
     </View>
   );
 
-  
-
-
-
-
-
-
-
   const goLive = behindLive ? (
     <ControlButton
       icon="live"
@@ -293,10 +170,7 @@ function UnlockedControls({
 
   return (
     <View style={styles.root} pointerEvents="box-none" {...keyHandlers}>
-      {
-
-
-}
+      {}
       <Scrim edge="top" geometry={scrim.top} />
       <Scrim edge="bottom" geometry={scrim.bottom} />
 
@@ -322,11 +196,7 @@ function UnlockedControls({
         <View style={styles.cluster}>
           {isLive ? <LivePill behind={behindLive} /> : null}
 
-          {
-
-
-
-}
+          {}
           {rate !== 1 ? (
             <ControlButton
               label={formatRate(rate)}
@@ -339,10 +209,6 @@ function UnlockedControls({
             <ControlButton
               icon="aspect"
               variant="icon"
-              
-              
-              
-              
               accessibilityLabel={`Picture size: ${SCALING_LABEL[scaling]}. Change it`}
               onPress={onCycleScaling}
             />
@@ -375,41 +241,20 @@ function UnlockedControls({
         </View>
       </View>
 
-      {
-
-
-
-
-
-
-
-
-
-}
+      {}
       {centred ? (
         <View style={styles.centreTransport} pointerEvents="box-none">
           {transport}
         </View>
       ) : null}
 
-      {
-
-
-
-
-
-
-
-}
+      {}
       <TVFocusGuideView
         autoFocus
         pointerEvents="box-none"
         style={[styles.bottom, bottomPadding(edges)]}
       >
         {isLive && !canSeek ? (
-          
-          
-          
           <Text style={styles.hint}>
             Live broadcast · this stream has no rewind window
           </Text>
@@ -435,9 +280,7 @@ function UnlockedControls({
           </View>
         )}
 
-        {
-
-}
+        {}
         {centred ? (
           goLive ? (
             <View style={styles.goLiveRow} pointerEvents="box-none">
@@ -473,9 +316,6 @@ function LivePill({ behind }: { behind: boolean }) {
       <PlayerIcon
         name="live"
         size={chrome.glyphSize}
-        
-        
-        
         color={behind ? colors.textMuted : colors.textPrimary}
       />
       <Text style={[styles.liveLabel, behind && styles.liveLabelBehind]}>
@@ -484,20 +324,6 @@ function LivePill({ behind }: { behind: boolean }) {
     </View>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 function topPadding(edges: EdgeInsets) {
   return {
@@ -518,22 +344,6 @@ function bottomPadding(edges: EdgeInsets) {
 const useStyles = makeStyles(metrics => {
   const chrome = resolvePlayerChrome(metrics);
 
-  
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   const shadow = chrome.showsScrims
     ? null
     : {
@@ -553,17 +363,13 @@ const useStyles = makeStyles(metrics => {
     },
     top: {
       flexDirection: 'row',
-      
-      
-      
+
       alignItems: 'flex-start',
       gap: chrome.gap,
     },
     titleBlock: {
       flex: 1,
-      
-      
-      
+
       gap: TITLE_GAP,
       paddingTop: TITLE_OFFSET,
     },
@@ -579,10 +385,7 @@ const useStyles = makeStyles(metrics => {
     },
     cluster: {
       flexDirection: 'row',
-      
-      
-      
-      
+
       alignItems: 'stretch',
       gap: chrome.gap,
     },
@@ -600,7 +403,7 @@ const useStyles = makeStyles(metrics => {
     time: {
       ...metrics.typography.caption,
       color: colors.textSecondary,
-      
+
       fontVariant: ['tabular-nums'],
       ...shadow,
     },
@@ -610,13 +413,6 @@ const useStyles = makeStyles(metrics => {
       justifyContent: 'space-between',
       gap: chrome.gap,
     },
-    
-
-
-
-
-
-
 
     centreTransport: {
       position: 'absolute',
@@ -627,7 +423,7 @@ const useStyles = makeStyles(metrics => {
       alignItems: 'center',
       justifyContent: 'center',
     },
-    
+
     goLiveRow: {
       flexDirection: 'row',
       justifyContent: 'flex-end',
@@ -635,12 +431,7 @@ const useStyles = makeStyles(metrics => {
     transport: {
       flexDirection: 'row',
       alignItems: 'center',
-      
-      
-      
-      
-      
-      
+
       gap: chrome.transportPlacement === 'centre' ? spacing.xl : chrome.gap,
     },
     lockRow: {
@@ -658,15 +449,12 @@ const useStyles = makeStyles(metrics => {
       alignItems: 'center',
       gap: spacing.xs,
       paddingHorizontal: spacing.sm,
-      
-      
+
       height: chrome.iconButton,
       borderRadius: radius.pill,
       backgroundColor: colors.live,
     },
     livePillBehind: {
-      
-      
       backgroundColor: colors.controlSurface,
     },
     liveLabel: {

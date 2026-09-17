@@ -1,48 +1,6 @@
 import type { ContentItem } from '../../types/content';
 import type { StreamCandidate, StreamSource } from '../streamResolver';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export const storedStreamSource: StreamSource = {
   id: 'stored',
 
@@ -57,29 +15,11 @@ export const storedStreamSource: StreamSource = {
       {
         stream: item.stream,
         label: 'Library URL',
-        
-
-
-
-
 
         quality: item.meta?.quality,
       },
     ];
   },
-
-  
-
-
-
-
-
-
-
-
-
-
-
 
   ttlMs: 60 * 60 * 1000,
 };

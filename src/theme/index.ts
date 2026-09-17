@@ -1,7 +1,7 @@
-export {backgroundAlpha, colors, shadeAlpha} from './colors';
-export {COLUMN_GAP, computeCardWidth, gridPadding} from './grid';
-export {makeStyles} from './makeStyles';
-export {MetricsProvider, useMetrics} from './MetricsProvider';
+export { backgroundAlpha, colors, shadeAlpha } from './colors';
+export { COLUMN_GAP, computeCardWidth, gridPadding } from './grid';
+export { makeStyles } from './makeStyles';
+export { MetricsProvider, useMetrics } from './MetricsProvider';
 export {
   resolveMetrics,
   type CardSize,
@@ -11,7 +11,7 @@ export {
   type NavPlacement,
   type Orientation,
 } from './metrics';
-export {baseTypography, type Typography, type TypeStyle} from './typography';
+export { baseTypography, type Typography, type TypeStyle } from './typography';
 export {
   cardAspect,
   cardChrome,

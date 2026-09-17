@@ -24,14 +24,6 @@ export function EmptyState({
 }: {
   title?: string;
   message?: string;
-  
-
-
-
-
-
-
-
 
   action?: { label: string; onPress: () => void };
 }) {
@@ -43,12 +35,7 @@ export function EmptyState({
       {message ? <Text style={styles.message}>{message}</Text> : null}
       {action ? (
         <View style={styles.action}>
-          {
-
-
-
-
-}
+          {}
           <TextButton
             label={action.label}
             onPress={action.onPress}
@@ -69,8 +56,6 @@ export function ErrorState({
 }) {
   const styles = useStyles();
 
-  
-  
   const isSetupProblem = error.kind === 'config';
 
   return (
@@ -108,9 +93,7 @@ const useStyles = makeStyles(m => ({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    
-    
-    
+
     paddingHorizontal: m.gutter.horizontal + spacing.sm,
     gap: spacing.md,
   },
@@ -129,8 +112,6 @@ const useStyles = makeStyles(m => ({
     marginTop: spacing.sm,
   },
   mono: {
-    
-    
     fontFamily: 'monospace',
     textAlign: 'left',
     color: colors.textPrimary,

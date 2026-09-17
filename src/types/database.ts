@@ -1,16 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
 export type CategoryKind =
   | 'live_tv'
   | 'movie'
@@ -19,32 +6,10 @@ export type CategoryKind =
   | 'anime'
   | 'other';
 
-
-
-
-
-
-
-
-
 export type MovieCategoryKind = Extract<
   CategoryKind,
   'movie' | 'cartoon' | 'anime'
 >;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 export type StreamProtocol = 'hls' | 'dash' | 'mp4' | 'youtube' | 'other';
 
@@ -74,7 +39,7 @@ export interface ChannelRow {
   logo_url: string | null;
   stream_url: string;
   stream_protocol: StreamProtocol;
-  
+
   stream_headers: Record<string, string> | null;
   category_id: string | null;
   channel_number: number | null;
@@ -103,12 +68,6 @@ export interface MovieRow {
   updated_at: string;
 }
 
-
-
-
-
-
-
 export interface SeriesRow {
   id: string;
   slug: string;
@@ -118,10 +77,10 @@ export interface SeriesRow {
   backdrop_url: string | null;
   release_year: number | null;
   content_rating: string | null;
-  
+
   source: string | null;
   source_id: string | null;
-  
+
   episode_count: number;
   category_id: string | null;
   sort_order: number;
@@ -136,7 +95,7 @@ export interface EpisodeRow {
   slug: string;
   title: string;
   description: string | null;
-  
+
   thumbnail_url: string | null;
   stream_url: string;
   stream_protocol: StreamProtocol;
@@ -167,7 +126,7 @@ export interface SportsEventRow {
   away_team: string | null;
   description: string | null;
   poster_url: string | null;
-  
+
   stream_url: string | null;
   stream_protocol: StreamProtocol;
   starts_at: string;
@@ -178,11 +137,6 @@ export interface SportsEventRow {
   created_at: string;
   updated_at: string;
 }
-
-
-
-
-
 
 export interface Database {
   public: {

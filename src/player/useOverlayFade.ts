@@ -1,56 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated } from 'react-native';
 
-
 const FADE_IN_MS = 140;
-
-
-
-
-
-
-
-
-
 
 const FADE_OUT_MS = 260;
 
 export interface OverlayFade {
-  
   mounted: boolean;
   opacity: Animated.Value;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 export function useOverlayFade(
   visible: boolean,
@@ -81,10 +39,6 @@ export function useOverlayFade(
       duration: FADE_OUT_MS,
       useNativeDriver: true,
     }).start(({ finished }) => {
-      
-      
-      
-      
       if (finished) {
         setMounted(false);
       }

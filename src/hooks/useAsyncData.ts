@@ -6,20 +6,9 @@ export interface AsyncState<T> {
   data: T | null;
   isLoading: boolean;
   error: AppError | null;
-  
+
   reload: () => void;
 }
-
-
-
-
-
-
-
-
-
-
-
 
 export function useAsyncData<T>(
   load: () => Promise<T>,
@@ -29,11 +18,9 @@ export function useAsyncData<T>(
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<AppError | null>(null);
 
-  
   const loadRef = useRef(load);
   loadRef.current = load;
 
-  
   const [reloadToken, setReloadToken] = useState(0);
 
   const reload = useCallback(() => {
@@ -41,8 +28,6 @@ export function useAsyncData<T>(
   }, []);
 
   useEffect(() => {
-    
-    
     let active = true;
 
     setIsLoading(true);
@@ -66,7 +51,6 @@ export function useAsyncData<T>(
     return () => {
       active = false;
     };
-    
   }, [reloadToken, ...deps]);
 
   return { data, isLoading, error, reload };

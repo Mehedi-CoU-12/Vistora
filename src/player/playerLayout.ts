@@ -2,35 +2,34 @@ import type { Metrics } from '../theme';
 import { spacing } from '../theme';
 
 export interface PlayerChrome {
-  
   showsKeyHints: boolean;
   compact: boolean;
   showsOptionShortcuts: boolean;
   transportPlacement: 'bottom' | 'centre';
   showsScrims: boolean;
-  
+
   buttonHeight: number;
   buttonPaddingH: number;
-  
+
   glyphSize: number;
   iconButton: number;
   iconGlyph: number;
   titleBlock: number;
   playButton: number;
   playGlyph: number;
-  
+
   skipButton: number;
   skipGlyph: number;
-  
+
   seekTrack: number;
   seekTrackActive: number;
   seekThumb: number;
-  
+
   seekRowHeight: number;
-  
+
   panelMode: 'side' | 'sheet';
   panelWidth: number;
-  
+
   hudWidth: number;
   gap: number;
 }
@@ -59,9 +58,7 @@ export function resolvePlayerChrome(metrics: Metrics): PlayerChrome {
       buttonHeight: 40,
       buttonPaddingH: spacing.lg,
       glyphSize: 15,
-      
-      
-      
+
       iconButton: 48,
       iconGlyph: 22,
       titleBlock,
@@ -94,8 +91,7 @@ export function resolvePlayerChrome(metrics: Metrics): PlayerChrome {
     iconButton: metrics.minTouchTarget,
     iconGlyph: tablet ? 22 : 20,
     titleBlock,
-    
-    
+
     playButton: tablet ? 68 : 60,
     playGlyph: tablet ? 28 : 25,
     skipButton: metrics.minTouchTarget,
@@ -103,8 +99,7 @@ export function resolvePlayerChrome(metrics: Metrics): PlayerChrome {
     seekTrack: 4,
     seekTrackActive: 7,
     seekThumb: 16,
-    
-    
+
     seekRowHeight: metrics.minTouchTarget,
     panelMode: compact ? 'sheet' : 'side',
     panelWidth: tablet ? 380 : 320,
@@ -136,7 +131,6 @@ export function resolveOverlayEdges(
 
 const SCRIM_RAMP = spacing.xxl;
 
-
 const HINT_LINE = spacing.lg;
 
 export interface ScrimEdge {
@@ -158,8 +152,6 @@ export function resolveScrimHeights(
     return { top: { height: 0, hold: 0 }, bottom: { height: 0, hold: 0 } };
   }
 
-  
-  
   const topContent = edges.top + Math.max(chrome.iconButton, chrome.titleBlock);
 
   const bottomContent = locked

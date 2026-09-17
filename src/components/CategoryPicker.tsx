@@ -7,46 +7,16 @@ import { Focusable } from './Focusable';
 
 export interface CategoryPickerProps {
   categories: Category[];
-  
+
   selectedCategoryId: string | null;
   onSelect: (categoryId: string | null) => void;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 export function CategoryPicker(props: CategoryPickerProps) {
   const { usesSidebar } = useMetrics();
 
   return usesSidebar ? <Sidebar {...props} /> : <Rail {...props} />;
 }
-
 
 function Sidebar({
   categories,
@@ -56,10 +26,6 @@ function Sidebar({
   const styles = useStyles();
 
   return (
-    
-    
-    
-    
     <TVFocusGuideView autoFocus style={styles.sidebar}>
       <Text style={styles.sidebarHeading}>CATEGORIES</Text>
 
@@ -85,14 +51,6 @@ function Sidebar({
     </TVFocusGuideView>
   );
 }
-
-
-
-
-
-
-
-
 
 function Rail({
   categories,
@@ -140,8 +98,6 @@ function SidebarRow({ label, selected, onPress }: CategoryItemProps) {
       onPress={onPress}
       style={styles.sidebarRow}
       scaleOnFocus={false}
-      
-      
       accessibilityRole="radio"
       selected={selected}
       accessibilityLabel={label}
@@ -182,9 +138,7 @@ function Chip({ label, selected, onPress }: CategoryItemProps) {
       selected={selected}
       accessibilityLabel={label}
     >
-      {
-
-}
+      {}
       <Text
         style={[styles.chipLabel, selected && styles.chipLabelSelected]}
         numberOfLines={1}
@@ -209,9 +163,7 @@ const useStyles = makeStyles(m => ({
   },
   sidebarContent: {
     gap: spacing.xs,
-    
-    
-    
+
     paddingBottom: m.gutter.vertical,
   },
   sidebarRow: {
@@ -247,8 +199,6 @@ const useStyles = makeStyles(m => ({
     color: colors.accent,
   },
   rail: {
-    
-    
     flexGrow: 0,
     marginBottom: spacing.sm,
   },

@@ -7,85 +7,20 @@ import {
   type PanResponderGestureState,
 } from 'react-native';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export type TapZone = 'left' | 'centre' | 'right';
 export type DragAxis = 'seek' | 'volume' | 'brightness';
 
-
-
-
-
-
-
 export const GESTURE_SLOP_PX = 12;
-
 
 export const DOUBLE_TAP_MS = 320;
 
-
 export const HOLD_MS = 450;
-
-
-
-
-
-
-
-
-
-
-
 
 export const SWIPE_SEEK_WINDOW_SECONDS = 120;
 
-
-
-
-
-
 const VERTICAL_TRAVEL_FRACTION = 0.6;
 
-
 const SIDE_ZONE_FRACTION = 0.35;
-
 
 const PINCH_RATIO_STEP = 1.25;
 
@@ -102,14 +37,6 @@ export function tapZoneFor(x: number, width: number): TapZone {
   return 'centre';
 }
 
-
-
-
-
-
-
-
-
 export function dragAxisFor(
   dx: number,
   dy: number,
@@ -122,7 +49,6 @@ export function dragAxisFor(
   return startX < width / 2 ? 'brightness' : 'volume';
 }
 
-
 export function swipeSeekSeconds(
   dx: number,
   width: number,
@@ -134,22 +60,12 @@ export function swipeSeekSeconds(
   return (dx / width) * windowSeconds;
 }
 
-
 export function verticalDragFraction(dy: number, height: number): number {
   if (height <= 0) {
     return 0;
   }
   return -dy / (height * VERTICAL_TRAVEL_FRACTION);
 }
-
-
-
-
-
-
-
-
-
 
 export interface PlayerGestureHandlers {
   onTap: () => void;
@@ -177,12 +93,6 @@ export function usePlayerGestures(
   handlers: PlayerGestureHandlers,
   { enabled }: { enabled: boolean },
 ) {
-  
-
-
-
-
-
   const handlersRef = useRef(handlers);
   handlersRef.current = handlers;
 
@@ -232,8 +142,6 @@ export function usePlayerGestures(
       );
 
       if (s.pinchBase === null) {
-        
-        
         abandonDrag(false);
         s.pinchBase = separation;
         return;
@@ -250,13 +158,9 @@ export function usePlayerGestures(
     };
 
     return PanResponder.create({
-      
-      
-      
       onStartShouldSetPanResponder: () => enabledRef.current,
       onMoveShouldSetPanResponder: () => enabledRef.current,
-      
-      
+
       onPanResponderTerminationRequest: () => false,
 
       onPanResponderGrant: (event: GestureResponderEvent) => {
@@ -285,14 +189,10 @@ export function usePlayerGestures(
           return;
         }
 
-        
-        
-        
         if (s.pinchBase !== null) {
           return;
         }
 
-        
         if (s.holding) {
           return;
         }
@@ -335,9 +235,6 @@ export function usePlayerGestures(
           return;
         }
 
-        
-        
-        
         const now = Date.now();
         const chained = now - s.lastTapAt <= DOUBLE_TAP_MS;
         s.lastTapAt = now;
@@ -365,12 +262,6 @@ export function usePlayerGestures(
       }
     };
   }, []);
-
-  
-
-
-
-
 
   const onLayout = (event: LayoutChangeEvent) => {
     state.current.width = event.nativeEvent.layout.width;

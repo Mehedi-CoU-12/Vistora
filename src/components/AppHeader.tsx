@@ -3,26 +3,6 @@ import { Text, View } from 'react-native';
 
 import { colors, makeStyles, spacing } from '../theme';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export function AppHeader({
   title,
   subtitle,
@@ -66,9 +46,7 @@ const useStyles = makeStyles(m => ({
   },
   titles: {
     flexDirection: 'row',
-    
-    
-    
+
     alignItems: 'baseline',
     flexShrink: 1,
   },

@@ -1,19 +1,7 @@
 import type { ContentItem } from '../types/content';
 import { createStore, useStore } from './store';
 
-
-
-
-
-
-
-
-
-
-
-
 const store = createStore<readonly ContentItem[]>([]);
-
 
 export function toggleMyList(item: ContentItem): boolean {
   const current = store.get();
@@ -27,14 +15,6 @@ export function toggleMyList(item: ContentItem): boolean {
   store.set([item, ...current]);
   return true;
 }
-
-
-
-
-
-
-
-
 
 export function useIsInMyList(id: string): boolean {
   return useStore(store).some(entry => entry.id === id);

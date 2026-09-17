@@ -5,40 +5,9 @@ import { colors, makeStyles, radius, spacing } from '../theme';
 import { Focusable } from './Focusable';
 import { Gradient } from './Gradient';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 export type ButtonVariant = 'pill' | 'primary' | 'secondary';
 
-
-
-
-
-
-
-
-
 const PRIMARY_SWEEP = [colors.brandViolet, colors.brandCyan] as const;
-
-
-
-
-
-
-
-
-
-
 
 const tint = {
   rest: colors.textSecondary,
@@ -51,9 +20,6 @@ function contentTint(
   selected: boolean,
   active: boolean,
 ): string {
-  
-  
-  
   if (variant === 'primary') {
     return colors.textOnAccent;
   }
@@ -63,57 +29,21 @@ function contentTint(
   return active ? tint.active : selected ? tint.selected : tint.rest;
 }
 
-
-
-
-
-
-
-
-
-
-
 type TextButtonProps = {
   onPress: () => void;
   hasTVPreferredFocus?: boolean;
-  
-
-
-
-
-
-
-
-
-
 
   selected?: boolean;
-  
+
   variant?: ButtonVariant;
-  
-
-
-
-
 
   stretch?: boolean;
-  
-
-
-
-
-
-
 
   children?: (color: string) => React.ReactNode;
 } & (
   | { label: string; accessibilityLabel?: string }
   | { label?: undefined; accessibilityLabel: string }
 );
-
-
-
-
 
 export function TextButton({
   label,
@@ -136,8 +66,7 @@ export function TextButton({
         styles.button,
         variant === 'primary' && styles.buttonPrimary,
         variant === 'secondary' && styles.buttonSecondary,
-        
-        
+
         children && label === undefined && styles.buttonIconOnly,
         selected && variant === 'pill' && styles.buttonSelected,
         stretch && styles.buttonStretch,
@@ -146,12 +75,7 @@ export function TextButton({
     >
       {active => (
         <>
-          {
-
-
-
-
-}
+          {}
           {variant === 'primary' ? (
             <Gradient
               colors={PRIMARY_SWEEP}
@@ -192,37 +116,25 @@ const useStyles = makeStyles(m => ({
     paddingVertical: spacing.sm,
     borderRadius: radius.pill,
     backgroundColor: colors.surface,
-    
+
     minHeight: m.minTouchTarget,
     justifyContent: 'center',
   },
   buttonIconOnly: {
     paddingHorizontal: spacing.md,
-    
-    
-    
-    
+
     minWidth: m.minTouchTarget || 40,
     alignItems: 'center',
   },
   buttonSelected: {
     backgroundColor: colors.accentMuted,
   },
-  
-
-
-
 
   buttonPrimary: {
     backgroundColor: 'transparent',
     overflow: 'hidden',
     paddingHorizontal: spacing.xl,
   },
-  
-
-
-
-
 
   buttonSecondary: {
     backgroundColor: colors.surfaceOverArt,

@@ -20,136 +20,48 @@ import { useContinueWatching } from '../state/continueWatching';
 import { useMyList } from '../state/myList';
 import type { ContentItem } from '../types/content';
 
-
 const RAILS_PER_KIND = 2;
-
-
-
-
-
-
-
-
-
-
-
-
 
 const MAX_RAILS = 6;
 
-
-
-
-
-
-
-
-
-
-
 const SESSION_SEED = Math.floor(Math.random() * 100_000);
-
 
 interface HomeData {
   featured: ContentItem | null;
   rails: Rail[];
 }
 
+export function HomeScreen({ onSeeAll }: { onSeeAll: (id: TabId) => void }) {
+  const { data, isLoading, error, reload } =
+    useAsyncData<HomeData>(async () => {
+      const kinds = await Promise.all(
+        catalogTabs().map(async tab => {
+          const [items, categories] = await Promise.all([
+            tab.catalog.load(),
+            fetchCategories(tab.catalog.categoryKind),
+          ]);
 
+          return { tab, items: withGenre(items, categories), categories };
+        }),
+      );
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-export function HomeScreen({
-  onSeeAll,
-}: {
-  
-  onSeeAll: (id: TabId) => void;
-}) {
-  const { data, isLoading, error, reload } = useAsyncData<HomeData>(async () => {
-    const kinds = await Promise.all(
-      catalogTabs().map(async tab => {
-        const [items, categories] = await Promise.all([
-          tab.catalog.load(),
-          fetchCategories(tab.catalog.categoryKind),
-        ]);
-
-        
-        
-        
-        return { tab, items: withGenre(items, categories), categories };
-      }),
-    );
-
-    return {
-      featured: pickFeatured(
-        
-        
-        
-        
-        kinds.flatMap(kind => kind.items),
-        SESSION_SEED,
-      ),
-      rails: interleave(
-        kinds.map(kind =>
-          homeRails(kind.tab, kind.items, kind.categories, RAILS_PER_KIND),
+      return {
+        featured: pickFeatured(
+          kinds.flatMap(kind => kind.items),
+          SESSION_SEED,
         ),
-      ).slice(0, MAX_RAILS),
-    };
-  }, []);
+        rails: interleave(
+          kinds.map(kind =>
+            homeRails(kind.tab, kind.items, kind.categories, RAILS_PER_KIND),
+          ),
+        ).slice(0, MAX_RAILS),
+      };
+    }, []);
 
   const openItem = useOpenItem();
   const playItem = usePlayItem();
 
-  
-
-
-
-
-
   const chromeOverlap = useChromeInset();
-
-  
-
-
-
-
 
   const continueWatching = useContinueWatching();
   const myList = useMyList();
@@ -162,10 +74,7 @@ export function HomeScreen({
         id: 'session:continue',
         title: 'Continue Watching',
         items: continueWatching.map(entry => entry.item),
-        
-        
-        
-        
+
         cardVariant: 'poster',
       });
     }
@@ -182,7 +91,6 @@ export function HomeScreen({
     return rails;
   }, [continueWatching, myList]);
 
-  
   const progress = useMemo(
     () =>
       new Map(
@@ -193,9 +101,6 @@ export function HomeScreen({
     [continueWatching],
   );
 
-  
-  
-  
   if (isLoading && data === null) {
     return <SkeletonScreen rows={3} />;
   }

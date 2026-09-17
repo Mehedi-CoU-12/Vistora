@@ -9,96 +9,20 @@ import {
   type RemoteKeyHandlers,
 } from './remoteKeys';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export interface RemoteActions {
-  
   onWake: () => void;
   onTogglePlay: () => void;
   onPlay: () => void;
   onPause: () => void;
-  
-
-
-
 
   onSkip: (direction: -1 | 1) => void;
-  
+
   onMenu: () => void;
-  
+
   onStop: () => void;
-  
-
-
-
-
-
-
 
   shouldSeekWithArrows: () => boolean;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 export function useRemoteControl(
   actions: RemoteActions,
@@ -110,17 +34,8 @@ export function useRemoteControl(
   const enabledRef = useRef(enabled);
   enabledRef.current = enabled;
 
-  
-
-
-
-
-
-
-
   const w3cAlive = useRef(false);
 
-  
   const trustedKeyAction = useRef<number | null>(null);
 
   const dispatch = useCallback((action: RemoteAction) => {
@@ -146,8 +61,6 @@ export function useRemoteControl(
         a.onPause();
         break;
 
-      
-      
       case 'rewind':
         a.onWake();
         a.onSkip(-1);
@@ -182,7 +95,6 @@ export function useRemoteControl(
         break;
 
       default:
-        
         a.onWake();
     }
   }, []);
@@ -196,9 +108,6 @@ export function useRemoteControl(
 
         const keyAction = event.eventKeyAction;
 
-        
-        
-        
         if (typeof keyAction === 'number' && keyAction >= 0) {
           if (trustedKeyAction.current === null) {
             trustedKeyAction.current = keyAction;
@@ -212,11 +121,6 @@ export function useRemoteControl(
       [dispatch],
     ),
   );
-
-  
-
-
-
 
   const keyHandlers = useMemo<RemoteKeyHandlers>(
     () => ({

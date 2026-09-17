@@ -7,73 +7,20 @@ import type { CardVariant } from '../theme';
 import type { ContentItem } from '../types/content';
 import type { CategoryKind } from '../types/database';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export interface CatalogLoadOptions {
-  
-
-
-
-
   limit?: number;
-  
-
-
-
-
-
-
 
   search?: string;
 }
 
-
 export interface CatalogSpec {
-  
   categoryKind: CategoryKind;
   cardVariant: CardVariant;
-  
-
-
-
-
-
-
 
   load: (options?: CatalogLoadOptions) => Promise<ContentItem[]>;
-  
+
   countNoun: readonly [singular: string, plural: string];
-  
+
   emptyMessage: string;
 }
 
@@ -81,17 +28,13 @@ export type TabId = 'home' | 'live-tv' | 'movies' | 'anime' | 'cartoons';
 
 export interface TabDef {
   id: TabId;
-  
-
-
 
   label: string;
-  
+
   title: string;
-  
+
   catalog: CatalogSpec | null;
 }
-
 
 export type CatalogTab = TabDef & { catalog: CatalogSpec };
 
@@ -103,8 +46,7 @@ export const TABS: readonly TabDef[] = [
     title: 'Live TV',
     catalog: {
       categoryKind: 'live_tv',
-      
-      
+
       cardVariant: 'landscape',
       load: options => fetchChannels(options),
       countNoun: ['channel', 'channels'],
@@ -132,15 +74,9 @@ export const TABS: readonly TabDef[] = [
     catalog: {
       categoryKind: 'anime',
       cardVariant: 'poster',
-      
-      
-      
-      
+
       load: options => fetchAnime(options),
-      
-      
-      
-      
+
       countNoun: ['title', 'titles'],
       emptyMessage:
         'No anime yet. Apply the migrations in supabase/migrations/, then run `npm run import:anime` and apply the seed file it writes.',
@@ -151,16 +87,6 @@ export const TABS: readonly TabDef[] = [
     label: 'Cartoons',
     title: 'Cartoons',
     catalog: {
-      
-
-
-
-
-
-
-
-
-
       categoryKind: 'cartoon',
       cardVariant: 'poster',
       load: options => fetchMovies({ ...options, categoryKind: 'cartoon' }),
@@ -171,16 +97,13 @@ export const TABS: readonly TabDef[] = [
   },
 ];
 
-
 export function isCatalogTab(tab: TabDef): tab is CatalogTab {
   return tab.catalog !== null;
 }
 
-
 export function catalogTabs(): CatalogTab[] {
   return TABS.filter(isCatalogTab);
 }
-
 
 export function formatCount(
   count: number,
@@ -188,17 +111,6 @@ export function formatCount(
 ): string {
   return `${count} ${count === 1 ? singular : plural}`;
 }
-
-
-
-
-
-
-
-
-
-
-
 
 export function catalogTitleList(): string {
   const titles = catalogTabs().map(tab => tab.title);

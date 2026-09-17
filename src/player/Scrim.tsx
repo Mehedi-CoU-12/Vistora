@@ -4,45 +4,6 @@ import { View } from 'react-native';
 import { makeStyles } from '../theme';
 import type { ScrimEdge } from './playerLayout';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 const RAMP: { alpha: number; at: number }[] = [
   { alpha: 0.78, at: 0 },
   { alpha: 0.44, at: 0.3 },
@@ -50,16 +11,7 @@ const RAMP: { alpha: number; at: number }[] = [
   { alpha: 0, at: 1 },
 ];
 
-
 const HELD_ALPHA = 0.88;
-
-
-
-
-
-
-
-
 
 const SCRIM_RGB = '4, 6, 12';
 
@@ -79,11 +31,6 @@ export function Scrim({
 
   const tail = 1 - hold;
 
-  
-
-
-
-
   const stops = [
     { alpha: HELD_ALPHA, at: 0 },
     { alpha: HELD_ALPHA, at: hold },
@@ -92,9 +39,6 @@ export function Scrim({
 
   return (
     <View
-      
-      
-      
       pointerEvents="none"
       style={[
         styles.layer,
@@ -104,9 +48,7 @@ export function Scrim({
           backgroundImage: [
             {
               type: 'linear-gradient' as const,
-              
-              
-              
+
               direction: edge === 'top' ? 'to bottom' : 'to top',
               colorStops: stops.map(stop => ({
                 color: `rgba(${SCRIM_RGB}, ${stop.alpha})`,

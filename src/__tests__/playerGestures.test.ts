@@ -13,9 +13,6 @@ describe('tapZoneFor', () => {
     expect(tapZoneFor(380, 400)).toBe('right');
   });
 
-  
-  
-  
   it('is centre when the width is not known yet', () => {
     expect(tapZoneFor(0, 0)).toBe('centre');
   });
@@ -32,12 +29,7 @@ describe('dragAxisFor', () => {
     expect(dragAxisFor(0, -40, 350, 400)).toBe('volume');
   });
 
-  
-  
-  
   it('decides from the starting half, not the current position', () => {
-    
-    
     expect(dragAxisFor(150, -260, 50, 400)).toBe('brightness');
     expect(dragAxisFor(-150, -260, 350, 400)).toBe('volume');
   });
@@ -55,7 +47,6 @@ describe('swipeSeekSeconds', () => {
 });
 
 describe('verticalDragFraction', () => {
-  
   it('treats upward travel as an increase', () => {
     expect(verticalDragFraction(-60, 200)).toBeGreaterThan(0);
     expect(verticalDragFraction(60, 200)).toBeLessThan(0);

@@ -4,40 +4,6 @@ import { ActivityIndicator, Text, View } from 'react-native';
 import { useResolutionState } from '../state/playbackResolution';
 import { colors, makeStyles, spacing } from '../theme';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export function ResolvingOverlay() {
   const { isResolving, title } = useResolutionState();
   const styles = useStyles();
@@ -50,9 +16,7 @@ export function ResolvingOverlay() {
     <View style={styles.root} accessibilityRole="progressbar">
       <ActivityIndicator size="large" color={colors.accent} />
 
-      {
-
-}
+      {}
       <Text style={styles.label} numberOfLines={2}>
         {title ? `Starting ${title}…` : 'Finding a stream…'}
       </Text>
@@ -62,9 +26,6 @@ export function ResolvingOverlay() {
 
 const useStyles = makeStyles(m => ({
   root: {
-    
-    
-    
     position: 'absolute',
     top: 0,
     left: 0,
@@ -74,8 +35,7 @@ const useStyles = makeStyles(m => ({
     justifyContent: 'center',
     gap: spacing.md,
     paddingHorizontal: m.gutter.horizontal,
-    
-    
+
     backgroundColor: colors.scrim,
   },
   label: {

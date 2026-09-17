@@ -23,48 +23,11 @@ interface ContentCardProps {
   onFocus?: (item: ContentItem) => void;
   hasTVPreferredFocus?: boolean;
   width?: number;
-  
-
-
-
-
-
 
   progress?: number;
-  
-
-
 
   showTitle?: boolean;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 export function ContentCard({
   item,
@@ -79,29 +42,14 @@ export function ContentCard({
   const { cardSize } = useMetrics();
   const styles = useStyles();
 
-  
-  
   const size =
     width === undefined
       ? cardSize[variant]
       : { width, height: Math.floor(width * cardAspect[variant]) };
 
-  
-
-
-
-
   const isMark = item.kind === 'channel' || variant === 'square';
 
   const meta = item.subtitle;
-
-  
-
-
-
-
-
-
 
   const needsScrim =
     !isMark && (progress !== undefined || item.unavailableLabel !== undefined);
@@ -123,9 +71,7 @@ export function ContentCard({
               styles.artwork,
               size,
               isMark && styles.artworkMark,
-              
-              
-              
+
               active && styles.artworkActive,
             ]}
           >
@@ -136,8 +82,6 @@ export function ContentCard({
                 resizeMode={isMark ? 'contain' : 'cover'}
               />
             ) : (
-              
-              
               <View style={styles.placeholder}>
                 <Text style={styles.placeholderText} numberOfLines={3}>
                   {item.title}
@@ -145,19 +89,7 @@ export function ContentCard({
               </View>
             )}
 
-            {
-
-
-
-
-
-
-
-
-
-
-
-}
+            {}
             {needsScrim ? (
               <Gradient
                 colors={[backgroundAlpha(0), backgroundAlpha(0.7)]}
@@ -174,20 +106,14 @@ export function ContentCard({
               </View>
             ) : null}
 
-            {
-
-
-
-}
+            {}
             {item.unavailableLabel ? (
               <View style={styles.badgeSlotBottom}>
                 <Badge label={item.unavailableLabel} />
               </View>
             ) : null}
 
-            {
-
-}
+            {}
             {progress === undefined ? null : (
               <View style={styles.progressTrack}>
                 <View
@@ -233,19 +159,11 @@ const useStyles = makeStyles(m => ({
     overflow: 'hidden',
     backgroundColor: colors.surface,
   },
-  
+
   artworkMark: {
     backgroundColor: colors.surfaceElevated,
     padding: spacing.md,
   },
-  
-
-
-
-
-
-
-
 
   artworkActive: {
     shadowColor: colors.accent,
@@ -258,9 +176,6 @@ const useStyles = makeStyles(m => ({
     width: '100%',
     height: '100%',
   },
-  
-
-
 
   mark: {
     width: '100%',
@@ -283,9 +198,7 @@ const useStyles = makeStyles(m => ({
     left: 0,
     right: 0,
     bottom: 0,
-    
-    
-    
+
     height: '30%',
   },
   badgeSlot: {

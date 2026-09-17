@@ -2,154 +2,33 @@ import type { ContentItem, Stream } from '../types/content';
 import { AppError, toAppError } from './errors';
 import { createTtlCache } from './streamCache';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export interface StreamCandidate {
   stream: Stream;
-  
-
-
-
-
-
 
   label: string;
-  
-
-
-
-
 
   quality?: string;
 }
 
-
-
-
-
-
-
-
 export interface Playback {
-  
   itemId: string;
-  
+
   candidates: StreamCandidate[];
 }
 
 export interface StreamSource {
-  
   id: string;
-  
-
-
-
-
-
-
-
 
   canResolve: (item: ContentItem) => boolean;
-  
-
-
-
-
-
-
 
   resolve: (item: ContentItem) => Promise<StreamCandidate[]>;
-  
-
-
-
-
-
 
   ttlMs?: number;
 }
 
-
-
-
-
-
-
-
-
-
 export const DEFAULT_TTL_MS = 5 * 60 * 1000;
 
-
-
-
-
-
-
-
-
 const sources: StreamSource[] = [];
-
-
-
-
-
-
-
-
 
 export function registerSource(source: StreamSource): void {
   const existing = sources.findIndex(other => other.id === source.id);
@@ -162,11 +41,9 @@ export function registerSource(source: StreamSource): void {
   sources.push(source);
 }
 
-
 export function registeredSources(): readonly StreamSource[] {
   return sources;
 }
-
 
 export function resetSources(): void {
   sources.length = 0;
@@ -175,78 +52,17 @@ export function resetSources(): void {
 
 const cache = createTtlCache<Playback>();
 
-
-
-
-
-
-
-
 function cacheKey(item: ContentItem): string {
   return `${item.kind}:${item.id}`;
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 export function canResolveAny(item: ContentItem): boolean {
   return sources.some(source => source.canResolve(item));
 }
 
-
-
-
-
-
-
-
-
 export function invalidateResolution(item: ContentItem): void {
   cache.delete(cacheKey(item));
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 export async function resolveStream(item: ContentItem): Promise<Playback> {
   const key = cacheKey(item);
@@ -269,10 +85,6 @@ export async function resolveStream(item: ContentItem): Promise<Playback> {
     const source = applicable[index];
 
     if (result.status === 'rejected') {
-      
-      
-      
-      
       console.warn(
         `[streamResolver] source "${source.id}" failed for ${key}:`,
         toAppError(result.reason).message,
@@ -304,39 +116,14 @@ export async function resolveStream(item: ContentItem): Promise<Playback> {
   return playback;
 }
 
-
-
-
-
-
-
-
-
-
 function shortestTtl(contributing: readonly StreamSource[]): number {
   const shortest = contributing.reduce(
     (best, source) => Math.min(best, source.ttlMs ?? DEFAULT_TTL_MS),
     Infinity,
   );
 
-  
-  
-  
-  
   return Number.isFinite(shortest) ? shortest : DEFAULT_TTL_MS;
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 function dedupeByUrl(
   candidates: readonly StreamCandidate[],
@@ -352,20 +139,6 @@ function dedupeByUrl(
   });
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export function rankCandidates(
   candidates: readonly StreamCandidate[],
 ): StreamCandidate[] {
@@ -373,14 +146,6 @@ export function rankCandidates(
     (a, b) => qualityRank(b.quality) - qualityRank(a.quality),
   );
 }
-
-
-
-
-
-
-
-
 
 export function qualityRank(quality: string | undefined): number {
   if (quality === undefined) {
@@ -402,7 +167,6 @@ export function qualityRank(quality: string | undefined): number {
     return 480;
   }
 
-  
   const digits = /^(\d{3,4})/.exec(text);
 
   return digits ? Number(digits[1]) : 0;

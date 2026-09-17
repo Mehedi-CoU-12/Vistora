@@ -18,54 +18,15 @@ interface ContentRowProps {
   items: ContentItem[];
   cardVariant: CardVariant;
   onSelectItem: (item: ContentItem) => void;
-  
+
   isFirstRow?: boolean;
-  
-
-
 
   onSeeAll?: () => void;
-  
-
-
-
-
-
-
-
 
   progress?: ReadonlyMap<string, number>;
-  
+
   showCardTitles?: boolean;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 export function ContentRow({
   title,
@@ -80,16 +41,6 @@ export function ContentRow({
   const { isTV, isTouch } = useMetrics();
   const styles = useStyles();
 
-  
-
-
-
-
-
-
-
-
-
   const seeAll = isTouch ? onSeeAll : undefined;
 
   const renderItem = useCallback(
@@ -100,8 +51,6 @@ export function ContentRow({
         onPress={onSelectItem}
         progress={progress?.get(item.id)}
         showTitle={showCardTitles}
-        
-        
         hasTVPreferredFocus={isFirstRow && index === 0}
       />
     ),
@@ -113,27 +62,11 @@ export function ContentRow({
   }
 
   return (
-    
-    
-    
-    
-    
-    
-    
-    
-    
     <View style={styles.section} scrollSnapAlign="start">
       <View style={styles.headingRow}>
-        {
-
-
-
-}
+        {}
         <View style={styles.headingGroup}>
-          {
-
-
-}
+          {}
           <View style={styles.headingMark} />
 
           <Text style={styles.heading} numberOfLines={1}>
@@ -167,14 +100,8 @@ export function ContentRow({
           keyExtractor={keyExtractor}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
-          
-          
-          
-          
           initialNumToRender={isTV ? 8 : 6}
           windowSize={5}
-          
-          
           removeClippedSubviews={false}
         />
       </TVFocusGuideView>
@@ -200,15 +127,12 @@ const useStyles = makeStyles(m => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    
-    
+
     flexShrink: 1,
   },
   headingMark: {
     width: 3,
-    
-    
-    
+
     height: Math.round(m.typography.sectionTitle.fontSize * 0.8),
     borderRadius: radius.pill,
     backgroundColor: colors.accent,
@@ -224,9 +148,7 @@ const useStyles = makeStyles(m => ({
     paddingVertical: spacing.xs,
     borderRadius: radius.pill,
     flexShrink: 0,
-    
-    
-    
+
     minHeight: m.minTouchTarget,
     justifyContent: 'center',
   },
@@ -238,10 +160,6 @@ const useStyles = makeStyles(m => ({
     color: colors.textPrimary,
   },
   listContent: {
-    
-    
-    
-    
     paddingHorizontal: m.gutter.horizontal - spacing.xs,
     paddingVertical: spacing.sm,
   },

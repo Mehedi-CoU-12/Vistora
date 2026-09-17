@@ -7,14 +7,6 @@ import {
 
 const noInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 
-
-
-
-
-
-
-
-
 const tvMetrics: Metrics = {
   ...resolveMetrics(960, 540),
   device: 'tv',
@@ -25,8 +17,6 @@ const tvMetrics: Metrics = {
 };
 
 describe('resolvePlayerChrome', () => {
-  
-  
   it('prints key hints on a TV and not on a phone', () => {
     expect(resolvePlayerChrome(tvMetrics).showsKeyHints).toBe(true);
     expect(resolvePlayerChrome(resolveMetrics(390, 844)).showsKeyHints).toBe(
@@ -34,10 +24,6 @@ describe('resolvePlayerChrome', () => {
     );
   });
 
-  
-  
-  
-  
   it('makes the play button the biggest control in the transport row', () => {
     for (const chrome of [
       resolvePlayerChrome(tvMetrics),
@@ -49,8 +35,6 @@ describe('resolvePlayerChrome', () => {
     }
   });
 
-  
-  
   it('sizes an icon button no smaller than a labelled one', () => {
     for (const chrome of [
       resolvePlayerChrome(tvMetrics),
@@ -61,8 +45,6 @@ describe('resolvePlayerChrome', () => {
     }
   });
 
-  
-  
   it('drops the option shortcuts only on a narrow screen', () => {
     expect(
       resolvePlayerChrome(resolveMetrics(390, 844)).showsOptionShortcuts,
@@ -73,8 +55,6 @@ describe('resolvePlayerChrome', () => {
     expect(resolvePlayerChrome(tvMetrics).showsOptionShortcuts).toBe(true);
   });
 
-  
-  
   it('never sizes a touch control below the minimum touch target', () => {
     for (const [width, height] of [
       [390, 844],
@@ -106,10 +86,6 @@ describe('resolvePlayerChrome', () => {
     expect(resolvePlayerChrome(tvMetrics).panelMode).toBe('side');
   });
 
-  
-  
-  
-  
   it('floats the transport in the middle of the picture on touch only', () => {
     expect(resolvePlayerChrome(tvMetrics).transportPlacement).toBe('bottom');
 
@@ -124,10 +100,6 @@ describe('resolvePlayerChrome', () => {
     }
   });
 
-  
-  
-  
-  
   it('draws the scrims on a TV and not on a phone', () => {
     expect(resolvePlayerChrome(tvMetrics).showsScrims).toBe(true);
 
@@ -157,9 +129,6 @@ describe('resolvePlayerChrome', () => {
 });
 
 describe('resolveScrimHeights', () => {
-  
-  
-  
   it('covers the controls at each edge', () => {
     const chrome = resolvePlayerChrome(tvMetrics);
     const edges = resolveOverlayEdges(tvMetrics, noInsets);
@@ -170,12 +139,6 @@ describe('resolveScrimHeights', () => {
       edges.bottom + chrome.seekRowHeight + chrome.playButton,
     );
   });
-
-  
-
-
-
-
 
   it('holds full strength across the whole title block, not just the buttons', () => {
     const chrome = resolvePlayerChrome(tvMetrics);
@@ -188,8 +151,6 @@ describe('resolveScrimHeights', () => {
     );
   });
 
-  
-  
   it('leaves a ramp at both edges', () => {
     const scrim = resolveScrimHeights(
       resolvePlayerChrome(tvMetrics),
@@ -202,13 +163,6 @@ describe('resolveScrimHeights', () => {
     }
   });
 
-  
-
-
-
-
-
-
   it('draws nothing where the chrome carries its own contrast', () => {
     for (const [width, height] of [
       [390, 844],
@@ -217,7 +171,12 @@ describe('resolveScrimHeights', () => {
       const metrics = resolveMetrics(width, height);
       const scrim = resolveScrimHeights(
         resolvePlayerChrome(metrics),
-        resolveOverlayEdges(metrics, { top: 36, right: 0, bottom: 24, left: 0 }),
+        resolveOverlayEdges(metrics, {
+          top: 36,
+          right: 0,
+          bottom: 24,
+          left: 0,
+        }),
       );
 
       expect(scrim.top.height).toBe(0);
@@ -225,9 +184,6 @@ describe('resolveScrimHeights', () => {
     }
   });
 
-  
-  
-  
   it('makes the bottom taller than the top', () => {
     const scrim = resolveScrimHeights(
       resolvePlayerChrome(tvMetrics),
@@ -237,13 +193,7 @@ describe('resolveScrimHeights', () => {
     expect(scrim.bottom.height).toBeGreaterThan(scrim.top.height);
   });
 
-  
-  
-  
   it('grows with the safe-area insets', () => {
-    
-    
-    
     const metrics = resolveMetrics(390, 844);
     const chrome = { ...resolvePlayerChrome(metrics), showsScrims: true };
 
@@ -260,9 +210,6 @@ describe('resolveScrimHeights', () => {
     expect(inset.bottom.height - bare.bottom.height).toBe(24);
   });
 
-  
-  
-  
   it('leaves room for the key hints a TV prints', () => {
     const edges = resolveOverlayEdges(tvMetrics, noInsets);
     const tv = resolvePlayerChrome(tvMetrics);
@@ -276,9 +223,6 @@ describe('resolveScrimHeights', () => {
     );
   });
 
-  
-  
-  
   it('shrinks to a single button when locked', () => {
     const edges = resolveOverlayEdges(tvMetrics, noInsets);
     const chrome = resolvePlayerChrome(tvMetrics);
@@ -295,8 +239,6 @@ describe('resolveScrimHeights', () => {
 });
 
 describe('resolveOverlayEdges', () => {
-  
-  
   it('uses the overscan allowance on a TV', () => {
     expect(resolveOverlayEdges(tvMetrics, noInsets)).toEqual({
       top: 27,
@@ -306,8 +248,6 @@ describe('resolveOverlayEdges', () => {
     });
   });
 
-  
-  
   it('adds the real insets per edge on a phone', () => {
     const metrics = resolveMetrics(844, 390);
     const edges = resolveOverlayEdges(metrics, {

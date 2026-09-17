@@ -3,16 +3,6 @@ import { Platform } from 'react-native';
 import { cardAspect } from '../theme/layout';
 import { resolveMetrics } from '../theme/metrics';
 
-
-
-
-
-
-
-
-
-
-
 function withPlatform<T>(isTV: boolean, run: () => T): T {
   const original = Object.getOwnPropertyDescriptor(Platform, 'isTV');
   Object.defineProperty(Platform, 'isTV', {
@@ -29,7 +19,6 @@ function withPlatform<T>(isTV: boolean, run: () => T): T {
 }
 
 const VARIANTS = ['poster', 'landscape', 'square'] as const;
-
 
 const TV = { width: 960, height: 540 };
 const PHONE_PORTRAIT = { width: 390, height: 844 };
@@ -48,12 +37,6 @@ describe('resolveMetrics on TV', () => {
     expect(m.isTouch).toBe(false);
   });
 
-  
-
-
-
-
-
   it('keeps the verified TV card sizes exactly', () => {
     const { cardSize } = tv();
     expect(cardSize.poster).toEqual({ width: 124, height: 186 });
@@ -69,11 +52,6 @@ describe('resolveMetrics on TV', () => {
     expect(m.usesSidebar).toBe(true);
   });
 
-  
-
-
-
-
   it('puts the tab bar at the top', () => {
     expect(tv().navPlacement).toBe('top');
   });
@@ -83,8 +61,7 @@ describe('resolveMetrics on TV', () => {
     expect(m.typography.display.fontSize).toBe(34);
     expect(m.typography.body.fontSize).toBe(15);
     expect(m.focusScale).toBeGreaterThan(1);
-    
-    
+
     expect(m.minTouchTarget).toBe(0);
   });
 });
@@ -108,8 +85,6 @@ describe('resolveMetrics on a phone', () => {
   });
 
   it('drops the overscan allowance a phone does not need', () => {
-    
-    
     expect(portrait().gutter.horizontal).toBeLessThan(24);
   });
 
@@ -124,23 +99,20 @@ describe('resolveMetrics on a phone', () => {
     const m = portrait();
     const tv = withPlatform(true, () => resolveMetrics(TV.width, TV.height));
 
-    
     expect(m.typography.display.fontSize).toBeLessThan(
       tv.typography.display.fontSize,
     );
     expect(m.typography.title.fontSize).toBeLessThan(
       tv.typography.title.fontSize,
     );
-    
+
     expect(m.typography.body.fontSize).toBe(tv.typography.body.fontSize);
     expect(m.typography.caption.fontSize).toBe(tv.typography.caption.fontSize);
   });
 
   it('swaps the category sidebar for a chip rail only when width runs out', () => {
-    
     expect(portrait().usesSidebar).toBe(false);
-    
-    
+
     expect(landscape().usesSidebar).toBe(true);
   });
 
@@ -152,31 +124,17 @@ describe('resolveMetrics on a phone', () => {
     expect(portrait().gridColumns.landscape).toBe(2);
   });
 
-  
-
-
-
   it('fits more posters across than channel tiles', () => {
     expect(portrait().gridColumns.poster).toBeGreaterThan(
       portrait().gridColumns.landscape,
     );
   });
 
-  
-
-
-
-
   it('takes more columns in landscape, where height is the scarce resource', () => {
     expect(landscape().gridColumns.poster).toBeGreaterThan(
       portrait().gridColumns.poster,
     );
   });
-
-  
-
-
-
 
   it('moves the tab bar to the bottom only in portrait', () => {
     expect(portrait().navPlacement).toBe('bottom');
@@ -185,13 +143,12 @@ describe('resolveMetrics on a phone', () => {
 
   it('sizes row cards fluidly, leaving part of one visible as a scroll cue', () => {
     const { cardSize, contentWidth } = portrait();
-    
-    
+
     expect(contentWidth / cardSize.poster.width).not.toBeCloseTo(
       Math.round(contentWidth / cardSize.poster.width),
       1,
     );
-    
+
     expect(cardSize.poster.width * 2).toBeLessThan(contentWidth);
   });
 });
@@ -233,11 +190,6 @@ describe('resolveMetrics invariants', () => {
     },
   );
 
-  
-
-
-
-
   it('keeps a tablet a tablet through a rotation', () => {
     const p = withPlatform(false, () =>
       resolveMetrics(TABLET_PORTRAIT.width, TABLET_PORTRAIT.height),
@@ -251,8 +203,6 @@ describe('resolveMetrics invariants', () => {
   });
 
   it('survives a window too small to lay anything out in', () => {
-    
-    
     const m = withPlatform(false, () => resolveMetrics(120, 200));
     expect(m.cardSize.poster.width).toBeGreaterThan(0);
     for (const variant of VARIANTS) {
@@ -260,12 +210,6 @@ describe('resolveMetrics invariants', () => {
     }
   });
 });
-
-
-
-
-
-
 
 describe('hero metrics', () => {
   const VIEWPORTS = [
@@ -285,8 +229,7 @@ describe('hero metrics', () => {
 
       expect(m.hero.height).toBeGreaterThan(0);
       expect(m.hero.height).toBeLessThanOrEqual(size.height);
-      
-      
+
       expect(m.hero.height).toBeLessThan(size.height * 0.9);
     },
   );
@@ -302,12 +245,6 @@ describe('hero metrics', () => {
       expect(m.hero.textMaxWidth).toBeLessThanOrEqual(m.contentWidth);
     },
   );
-
-  
-
-
-
-
 
   it('puts the copy down one side wherever there is width for it', () => {
     const tv = withPlatform(true, () => resolveMetrics(TV.width, TV.height));
@@ -327,10 +264,6 @@ describe('hero metrics', () => {
 
     expect(m.hero.align).toBe('center');
   });
-
-  
-
-
 
   it('drops the synopsis on a phone in landscape and nowhere else', () => {
     const landscape = withPlatform(false, () =>

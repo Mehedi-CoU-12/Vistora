@@ -3,38 +3,6 @@ import { useCallback } from 'react';
 
 import type { ContentItem } from '../types/content';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export function useOpenItem(): (item: ContentItem) => void {
   const navigation = useNavigation();
 

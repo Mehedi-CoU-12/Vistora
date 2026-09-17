@@ -1,25 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export const spacing = {
   xs: 4,
   sm: 8,
@@ -38,65 +16,22 @@ export const radius = {
 
 export type CardVariant = 'poster' | 'landscape' | 'square';
 
-
-
-
-
-
-
-
-
-
 export const cardAspect: Record<CardVariant, number> = {
-  
   poster: 3 / 2,
-  
+
   landscape: 9 / 16,
-  
+
   square: 1,
 };
 
-
-
-
-
-
-
-
-
-
 export const cardChrome = spacing.xs * 2 + 2 * 2;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export const duration = {
-  
   focus: 120,
-  
+
   quick: 160,
-  
+
   hero: 260,
 } as const;
-
-
-
-
-
-
-
-
-
 
 export const heroAspect = 9 / 16;

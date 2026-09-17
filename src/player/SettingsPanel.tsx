@@ -32,27 +32,12 @@ interface SettingsPanelProps {
   onToggleMute: () => void;
   loop: boolean;
   onToggleLoop: () => void;
-  
+
   onPictureInPicture?: () => void;
-  
+
   info: string[];
   edges: EdgeInsets;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 export function SettingsPanel({
   onClose,
@@ -80,9 +65,6 @@ export function SettingsPanel({
   const sheet = chrome.panelMode === 'sheet';
 
   return (
-    
-    
-    
     <TVFocusGuideView
       autoFocus
       style={[
@@ -210,17 +192,6 @@ function Section({
   );
 }
 
-
-
-
-
-
-
-
-
-
-
-
 function panelPadding(edges: EdgeInsets, sheet: boolean) {
   return sheet
     ? {
@@ -234,15 +205,6 @@ function panelPadding(edges: EdgeInsets, sheet: boolean) {
         paddingRight: edges.right,
       };
 }
-
-
-
-
-
-
-
-
-
 
 function TrackSection({
   title,
@@ -320,9 +282,6 @@ function TrackRow({
   return (
     <ControlButton
       icon={selected ? 'tick' : undefined}
-      
-      
-      
       reserveIcon
       label={label}
       accessibilityLabel={label}
@@ -345,18 +304,17 @@ const useStyles = makeStyles(metrics => {
       gap: spacing.sm,
       paddingTop: spacing.lg,
     },
-    
+
     sheet: {
       left: 0,
       right: 0,
       bottom: 0,
-      
-      
+
       maxHeight: '72%',
       borderTopLeftRadius: radius.lg,
       borderTopRightRadius: radius.lg,
     },
-    
+
     side: {
       top: 0,
       right: 0,
@@ -391,8 +349,7 @@ const useStyles = makeStyles(metrics => {
     },
     optionRow: {
       flexDirection: 'row',
-      
-      
+
       flexWrap: 'wrap',
       gap: chrome.gap,
     },

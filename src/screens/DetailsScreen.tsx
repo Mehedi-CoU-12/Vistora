@@ -14,50 +14,7 @@ import { makeStyles, spacing } from '../theme';
 import type { ContentItem } from '../types/content';
 import type { RootStackParamList } from '../types/navigation';
 
-
 const RELATED_LIMIT = 20;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 export function DetailsScreen() {
   const { params } = useRoute<RouteProp<RootStackParamList, 'Details'>>();
@@ -73,26 +30,10 @@ export function DetailsScreen() {
     [item.id],
   );
 
-  
-
-
-
-
-
-
-
-
   const relatedTitle =
     item.kind === 'channel'
       ? `More ${item.meta?.genre ?? 'channels'}`
       : 'More like this';
-
-  
-
-
-
-
-
 
   const relatedVariant = item.kind === 'channel' ? 'landscape' : 'poster';
 
@@ -106,15 +47,11 @@ export function DetailsScreen() {
         <HeroBanner
           item={item}
           onPlay={playItem}
-          
-          
           hasTVPreferredFocus
           eyebrow={item.meta?.genre}
         />
 
-        {
-
-}
+        {}
         <TVFocusGuideView>
           {isLoading && data === null ? (
             <SkeletonRow variant={relatedVariant} />

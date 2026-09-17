@@ -11,79 +11,21 @@ import { colors, makeStyles, radius, spacing, useMetrics } from '../theme';
 import { PlayerIcon, type IconName } from './PlayerIcon';
 import { resolvePlayerChrome, type PlayerChrome } from './playerLayout';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export type ControlVariant = 'pill' | 'icon' | 'skip' | 'play';
 
 interface ControlButtonProps {
-  
   icon?: IconName;
-  
-
-
-
-
-
 
   reserveIcon?: boolean;
-  
+
   label?: string;
   accessibilityLabel: string;
   onPress: () => void;
   variant?: ControlVariant;
-  
-
-
-
-
 
   selected?: boolean;
   disabled?: boolean;
-  
+
   hasTVPreferredFocus?: boolean;
   onFocusChange?: (focused: boolean) => void;
   style?: StyleProp<ViewStyle>;
@@ -120,14 +62,6 @@ export function ControlButton({
   const round = variant !== 'pill';
   const diameter = roundDiameter(variant, chrome);
 
-  
-
-
-
-
-
-
-
   const tint =
     focused || selected
       ? colors.accent
@@ -145,8 +79,6 @@ export function ControlButton({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled, selected }}
-      
-      
       hitSlop={metrics.isTouch ? spacing.sm : undefined}
       style={({ pressed }) => [
         styles.base,
@@ -183,12 +115,6 @@ export function ControlButton({
   );
 }
 
-
-
-
-
-
-
 function roundDiameter(variant: ControlVariant, chrome: PlayerChrome): number {
   switch (variant) {
     case 'play':
@@ -209,8 +135,6 @@ function iconSize(variant: ControlVariant, chrome: PlayerChrome): number {
     case 'icon':
       return chrome.iconGlyph;
     default:
-      
-      
       return chrome.glyphSize;
   }
 }
@@ -222,10 +146,7 @@ const useStyles = makeStyles(metrics => {
     base: {
       alignItems: 'center',
       justifyContent: 'center',
-      
-      
-      
-      
+
       borderWidth: 2,
       borderColor: colors.controlBorder,
       backgroundColor: colors.controlSurface,
@@ -259,8 +180,6 @@ const useStyles = makeStyles(metrics => {
       backgroundColor: colors.controlSurfaceActive,
     },
     pressed: {
-      
-      
       backgroundColor: colors.controlSurfaceActive,
       transform: [{ scale: metrics.pressScale }],
     },
