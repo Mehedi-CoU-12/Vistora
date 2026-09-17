@@ -8,22 +8,14 @@ on:
         description: List what would be applied, but do not touch the database
         type: boolean
         default: false
-      sample_seed:
-        description: Also apply supabase/seed.sql (sample content, idempotent)
-        type: boolean
-        default: false
       baseline:
         description: 'Record migrations up to and including this one as applied WITHOUT running them (e.g. 0002_add_anime_kind). Blank = normal run'
         type: string
         default: ''
 
-  # Called by seed-content.yml so a seed always lands on an up-to-date schema.
   workflow_call:
     inputs:
       dry_run:
-        type: boolean
-        default: false
-      sample_seed:
         type: boolean
         default: false
       baseline:
@@ -58,7 +50,6 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.SEED_DATABASE_URL }}
           DRY_RUN: ${{ inputs.dry_run }}
-          SAMPLE_SEED: ${{ inputs.sample_seed }}
           BASELINE: ${{ inputs.baseline }}
         run: |
           set -euo pipefail
@@ -187,19 +178,6 @@ jobs:
             echo "Database is up to date."
             echo >> "$GITHUB_STEP_SUMMARY"
             echo "Already up to date -- nothing to apply." >> "$GITHUB_STEP_SUMMARY"
-          fi
-
-          if [ "$SAMPLE_SEED" = "true" ]; then
-            if [ "$DRY_RUN" = "true" ]; then
-              echo >> "$GITHUB_STEP_SUMMARY"
-              echo "Would also apply \`supabase/seed.sql\`." >> "$GITHUB_STEP_SUMMARY"
-            else
-              echo "::group::psql -f supabase/seed.sql"
-              psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f supabase/seed.sql
-              echo "::endgroup::"
-              echo >> "$GITHUB_STEP_SUMMARY"
-              echo "Applied \`supabase/seed.sql\` (sample content)." >> "$GITHUB_STEP_SUMMARY"
-            fi
           fi
 
           if [ "$DRY_RUN" = "true" ]; then
