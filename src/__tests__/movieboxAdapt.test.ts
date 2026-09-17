@@ -1,3 +1,4 @@
+import type { MovieBoxSubject } from '../services/moviebox/adapt';
 import {
   cleanTitle,
   isDeprecationNoticeUrl,
@@ -6,8 +7,8 @@ import {
   resolveDashManifestFromPolicy,
   searchToSubjects,
   STREAM_REFERER,
-} from '../services/sources/moviebox/adapt';
-import { base64Encode, utf8Bytes } from '../services/sources/moviebox/crypto';
+} from '../services/moviebox/adapt';
+import { base64Encode, utf8Bytes } from '../services/moviebox/crypto';
 import { selectSubject } from '../services/sources/movieboxStream';
 
 const policyCookie = (resource: string): string => {
@@ -167,7 +168,7 @@ describe('searchToSubjects', () => {
       ],
     });
 
-    expect(subjects).toEqual([
+    expect(subjects).toMatchObject([
       { subjectId: '12345', title: 'Interstellar', subjectType: 1, releaseYear: 2014 },
       { subjectId: '67890', title: 'Breaking Bad', subjectType: 2, releaseYear: null },
     ]);
@@ -226,11 +227,21 @@ describe('matchKey', () => {
 });
 
 describe('selectSubject', () => {
-  const movie = (subjectId: string, title: string, releaseYear: number | null = null) => ({
+  const movie = (
+    subjectId: string,
+    title: string,
+    releaseYear: number | null = null,
+    subjectType = 1,
+  ): MovieBoxSubject => ({
     subjectId,
     title,
-    subjectType: 1,
+    subjectType,
     releaseYear,
+    imageUrl: null,
+    description: null,
+    genre: null,
+    rating: null,
+    durationSeconds: null,
   });
 
   it('prefers an exact title match over search rank', () => {
@@ -256,7 +267,7 @@ describe('selectSubject', () => {
 
   it('prefers the requested subject type', () => {
     const picked = selectSubject(
-      [movie('film', 'Fargo'), { subjectId: 'show', title: 'Fargo', subjectType: 2, releaseYear: null }],
+      [movie('film', 'Fargo'), movie('show', 'Fargo', null, 2)],
       'Fargo',
       2,
     );
