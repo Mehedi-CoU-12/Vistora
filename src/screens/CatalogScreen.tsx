@@ -11,20 +11,19 @@ import { AppHeader } from '../components/AppHeader';
 import { CategoryPicker } from '../components/CategoryPicker';
 import { useChromeInset } from '../components/ChromeInset';
 import { ContentCard } from '../components/ContentCard';
+import { GridFooter } from '../components/GridFooter';
 import { RailList } from '../components/RailList';
 import { SkeletonScreen } from '../components/Skeleton';
 import { EmptyState, ErrorState } from '../components/StateViews';
 import { useAsyncData } from '../hooks/useAsyncData';
 import { useOpenItem } from '../hooks/useOpenItem';
+import { usePaginatedData } from '../hooks/usePaginatedData';
 import { usePlayItem } from '../hooks/usePlayItem';
-import {
-  buildRails,
-  pickFeatured,
-  withGenre,
-  type Rail,
-} from '../navigation/rails';
-import { formatCount, type CatalogTab } from '../navigation/tabs';
+import { buildRails, pickFeatured, withGenre } from '../navigation/rails';
+import { formatPartialCount, type CatalogTab } from '../navigation/tabs';
 import { fetchCategories } from '../services/contentService';
+import { clearHomeCache } from '../services/moviebox/catalogue';
+import { deriveGenres, filterByCategory } from '../services/genres';
 import {
   cardAspect,
   colors,
@@ -35,17 +34,19 @@ import {
   spacing,
   useMetrics,
 } from '../theme';
-import type { Category, ContentItem } from '../types/content';
-
-interface CatalogData {
-  items: ContentItem[];
-  categories: Category[];
-
-  rails: Rail[];
-  featured: ContentItem | null;
-}
+import type { ContentItem } from '../types/content';
 
 const SESSION_SEED = Math.floor(Math.random() * 100_000);
+
+/**
+ * How far from the bottom of the grid a scroll starts the next page, as a
+ * fraction of the visible height.
+ */
+const END_REACHED_THRESHOLD = 1.2;
+
+const keyExtractor = (item: ContentItem) => item.id;
+
+const identify = (item: ContentItem) => item.id;
 
 export function CatalogScreen({ tab }: { tab: CatalogTab }) {
   const metrics = useMetrics();
@@ -69,51 +70,91 @@ export function CatalogScreen({ tab }: { tab: CatalogTab }) {
     setGridWidth(event.nativeEvent.layout.width);
   }, []);
 
+  /** Categories that live in our own table. Empty for the MovieBox tabs. */
+  const { data: storedCategories } = useAsyncData(
+    () => fetchCategories(spec.categoryKind),
+    [spec.categoryKind],
+  );
+
+  const loadPage = useCallback(
+    (cursor: Parameters<typeof spec.loadPage>[0], seen: ReadonlySet<string>) =>
+      spec.loadPage(cursor, seen),
+    [spec],
+  );
+
+  const {
+    items,
+    isLoading,
+    isLoadingMore,
+    error,
+    moreError,
+    hasMore,
+    loadMore,
+    reload,
+  } = usePaginatedData(loadPage, identify, [tab.id]);
+
+  const categories = useMemo(() => {
+    const stored = storedCategories ?? [];
+
+    // The MovieBox tabs have no rows in `categories`, so their chips come from
+    // the genres the loaded items actually carry.
+    return stored.length > 0 ? stored : deriveGenres(items, spec.categoryKind);
+  }, [items, spec.categoryKind, storedCategories]);
+
+  const withGenres = useMemo(
+    () => withGenre(items, storedCategories ?? []),
+    [items, storedCategories],
+  );
+
+  const visibleItems = useMemo(
+    () => filterByCategory(withGenres, selectedCategoryId),
+    [selectedCategoryId, withGenres],
+  );
+
+  const rails = useMemo(() => {
+    const stored = storedCategories ?? [];
+
+    // Rails only make sense for a source whose items carry a category id;
+    // the keyword-paged tabs are a flat grid.
+    if (stored.length === 0) {
+      return [];
+    }
+
+    return buildRails({
+      items: withGenres,
+      categories: stored,
+      cardVariant: spec.cardVariant,
+      fallbackTitle: tab.title,
+      idPrefix: tab.id,
+    });
+  }, [spec.cardVariant, storedCategories, tab.id, tab.title, withGenres]);
+
+  const featured = useMemo(
+    () => pickFeatured(withGenres, SESSION_SEED),
+    [withGenres],
+  );
+
   const selectCategory = useCallback((categoryId: string | null) => {
     setContentMayClaimFocus(false);
     setSelectedCategoryId(categoryId);
+
+    // No scroll reset needed: the grid is keyed by category, so picking one
+    // remounts the list at the top.
   }, []);
-
-  const { data, isLoading, error, reload } =
-    useAsyncData<CatalogData>(async () => {
-      const [loaded, categories] = await Promise.all([
-        spec.load(),
-        fetchCategories(spec.categoryKind),
-      ]);
-
-      const items = withGenre(loaded, categories);
-
-      return {
-        items,
-        categories,
-        rails: buildRails({
-          items,
-          categories,
-          cardVariant: spec.cardVariant,
-          fallbackTitle: tab.title,
-          idPrefix: tab.id,
-        }),
-        featured: pickFeatured(items, SESSION_SEED),
-      };
-    }, [spec, tab.id, tab.title]);
-
-  const visibleItems = useMemo(() => {
-    if (!data) {
-      return [];
-    }
-    if (!selectedCategoryId) {
-      return data.items;
-    }
-    return data.items.filter(item => item.categoryId === selectedCategoryId);
-  }, [data, selectedCategoryId]);
 
   const openItem = useOpenItem();
   const playItem = usePlayItem();
 
+  // The curated payload that seeds the first page is cached for the session,
+  // so a refresh has to drop it to be a real refresh.
+  const refresh = useCallback(() => {
+    clearHomeCache();
+    reload();
+  }, [reload]);
+
   const chromeInset = useChromeInset();
 
-  const showRails =
-    selectedCategoryId === null && (data?.rails.length ?? 0) > 1;
+  const showRails = selectedCategoryId === null && rails.length > 1;
 
   const cardWidth =
     gridWidth > 0
@@ -146,24 +187,53 @@ export function CatalogScreen({ tab }: { tab: CatalogTab }) {
 
   const refreshControl = isTouch ? (
     <RefreshControl
-      refreshing={isLoading && data !== null}
-      onRefresh={reload}
+      refreshing={isLoading && items.length > 0}
+      onRefresh={refresh}
       tintColor={colors.accent}
       colors={[colors.accent]}
       progressBackgroundColor={colors.surface}
     />
   ) : undefined;
 
+  /**
+   * Paging works off the unfiltered pool, so a narrow genre filter would hit
+   * the end of its own short list at once and pull page after page. While a
+   * filter is on, the footer button drives paging instead.
+   */
+  const handleEndReached = useCallback(() => {
+    if (selectedCategoryId === null) {
+      loadMore();
+    }
+  }, [loadMore, selectedCategoryId]);
+
+  const footer = (
+    <GridFooter
+      isLoadingMore={isLoadingMore}
+      hasMore={hasMore}
+      moreError={moreError}
+      onLoadMore={loadMore}
+      itemCount={visibleItems.length}
+      noun={plural}
+      filtered={selectedCategoryId !== null}
+    />
+  );
+
   const header = (
     <AppHeader
       title={tab.title}
       subtitle={
-        data ? formatCount(visibleItems.length, spec.countNoun) : undefined
+        items.length > 0
+          ? formatPartialCount(
+              visibleItems.length,
+              spec.countNoun,
+              hasMore && selectedCategoryId === null,
+            )
+          : undefined
       }
     />
   );
 
-  if (isLoading && data === null) {
+  if (isLoading && items.length === 0) {
     return (
       <View style={[styles.screen, { paddingTop: chromeInset }]}>
         <SkeletonScreen rows={2} variant={spec.cardVariant} />
@@ -171,23 +241,23 @@ export function CatalogScreen({ tab }: { tab: CatalogTab }) {
     );
   }
 
-  if (error && data === null) {
+  if (error && items.length === 0) {
     return (
       <View style={[styles.screen, { paddingTop: chromeInset }]}>
         {header}
-        <ErrorState error={error} onRetry={reload} />
+        <ErrorState error={error} onRetry={refresh} />
       </View>
     );
   }
 
-  if (!data || data.items.length === 0) {
+  if (items.length === 0) {
     return (
       <View style={[styles.screen, { paddingTop: chromeInset }]}>
         {header}
         <EmptyState
           title={`No ${plural}`}
           message={spec.emptyMessage}
-          action={{ label: 'Reload', onPress: reload }}
+          action={{ label: 'Reload', onPress: refresh }}
         />
       </View>
     );
@@ -201,7 +271,7 @@ export function CatalogScreen({ tab }: { tab: CatalogTab }) {
       {}
       <View style={usesSidebar ? styles.splitRow : styles.splitColumn}>
         <CategoryPicker
-          categories={data.categories}
+          categories={categories}
           selectedCategoryId={selectedCategoryId}
           onSelect={selectCategory}
         />
@@ -213,12 +283,12 @@ export function CatalogScreen({ tab }: { tab: CatalogTab }) {
         >
           {showRails ? (
             <RailList
-              rails={data.rails}
-              featured={data.featured}
+              rails={rails}
+              featured={featured}
               heroEyebrow={tab.title}
               onPlay={playItem}
               onSelectItem={openItem}
-              onRefresh={reload}
+              onRefresh={refresh}
               refreshing={isLoading}
               heroClaimsFocus={contentMayClaimFocus}
             />
@@ -242,8 +312,12 @@ export function CatalogScreen({ tab }: { tab: CatalogTab }) {
               columnWrapperStyle={columnWrapperStyle}
               showsVerticalScrollIndicator={false}
               initialNumToRender={columns * 3}
+              windowSize={7}
               refreshControl={refreshControl}
               removeClippedSubviews={false}
+              onEndReached={handleEndReached}
+              onEndReachedThreshold={END_REACHED_THRESHOLD}
+              ListFooterComponent={footer}
             />
           )}
         </TVFocusGuideView>
@@ -251,8 +325,6 @@ export function CatalogScreen({ tab }: { tab: CatalogTab }) {
     </View>
   );
 }
-
-const keyExtractor = (item: ContentItem) => item.id;
 
 const useStyles = makeStyles(m => {
   const padding = gridPadding(m);

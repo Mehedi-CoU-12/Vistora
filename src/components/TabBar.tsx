@@ -44,8 +44,16 @@ function Rail({ tabs, activeId, onSelect }: TabBarProps) {
   );
 }
 
+/**
+ * Past this many tabs the labels stop fitting a phone's width at body size,
+ * so the bar drops to the caption scale rather than ellipsising them.
+ */
+const COMPACT_FROM_TABS = 5;
+
 function BottomBar({ tabs, activeId, onSelect }: TabBarProps) {
   const styles = useStyles();
+
+  const compact = tabs.length >= COMPACT_FROM_TABS;
 
   return (
     <View style={styles.bar} accessibilityRole="tablist">
@@ -56,6 +64,7 @@ function BottomBar({ tabs, activeId, onSelect }: TabBarProps) {
           selected={tab.id === activeId}
           onSelect={onSelect}
           stretch
+          compact={compact}
         />
       ))}
     </View>
@@ -68,9 +77,18 @@ interface TabPillProps {
   onSelect: (id: TabId) => void;
 
   stretch?: boolean;
+
+  /** Smaller label, for a bar splitting its width many ways. */
+  compact?: boolean;
 }
 
-function TabPill({ tab, selected, onSelect, stretch = false }: TabPillProps) {
+function TabPill({
+  tab,
+  selected,
+  onSelect,
+  stretch = false,
+  compact = false,
+}: TabPillProps) {
   const styles = useStyles();
 
   return (
@@ -91,6 +109,7 @@ function TabPill({ tab, selected, onSelect, stretch = false }: TabPillProps) {
           <Text
             style={[
               styles.label,
+              compact && styles.labelCompact,
               selected && styles.labelSelected,
               active && styles.labelActive,
             ]}
@@ -150,8 +169,8 @@ const useStyles = makeStyles(m => ({
   indicator: {
     position: 'absolute',
 
-    left: spacing.md,
-    right: spacing.md,
+    left: spacing.sm,
+    right: spacing.sm,
     bottom: spacing.xs,
     height: 2,
     borderRadius: radius.pill,
@@ -161,6 +180,9 @@ const useStyles = makeStyles(m => ({
     ...m.typography.body,
     color: colors.textSecondary,
     textAlign: 'center',
+  },
+  labelCompact: {
+    ...m.typography.caption,
   },
   labelSelected: {
     color: colors.textPrimary,

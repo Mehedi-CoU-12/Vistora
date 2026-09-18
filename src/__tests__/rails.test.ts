@@ -265,8 +265,10 @@ describe('homeRails', () => {
       categoryKind: 'movie' as const,
       cardVariant: 'poster' as const,
       load: async () => [],
+      loadPage: async () => ({ items: [], cursor: null, done: true }),
       countNoun: ['film', 'films'] as const,
       emptyMessage: '',
+      searchable: true,
     },
   };
 

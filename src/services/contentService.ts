@@ -9,14 +9,25 @@ import {
 } from './moviebox/adapt';
 import {
   ANIME_KEYWORDS,
+  BROAD_KEYWORDS,
   CARTOON_KEYWORDS,
   fetchSeasons,
   fetchSubjectDetail,
   fetchTrending,
+  deriveKeywords,
+  loadCataloguePage,
   searchCatalogue,
   searchMany,
+  startCursor,
+  trendingCached,
+  type CatalogueCursor,
 } from './moviebox/catalogue';
-import type { Category, ContentItem, Season } from '../types/content';
+import type {
+  Category,
+  ContentItem,
+  ContentKind,
+  Season,
+} from '../types/content';
 import { channelToContentItem } from '../types/content';
 import type { CategoryRow, ChannelRow } from '../types/database';
 import { AppError, toAppError } from './errors';
@@ -99,22 +110,170 @@ export async function fetchChannelsByCategory(
   return rows.map(channelToContentItem);
 }
 
-
 function limited(items: ContentItem[], limit?: number): ContentItem[] {
   return limit === undefined ? items : items.slice(0, limit);
 }
 
-export async function fetchMovies(
-  options: { limit?: number; search?: string } = {},
+/** One page of a catalogue grid, plus where to resume. */
+export interface ContentPage {
+  items: ContentItem[];
+
+  cursor: CatalogueCursor | null;
+
+  /** True once the source has nothing further to give. */
+  done: boolean;
+}
+
+export const FULL_PAGE: Omit<ContentPage, 'items'> = {
+  cursor: null,
+  done: true,
+};
+
+interface FeedSpec {
+  keywords: readonly string[];
+
+  /**
+   * Restrict the feed to one kind. Omitted for anime and cartoons, whose
+   * keywords intentionally match both films and series.
+   */
+  kind?: ContentKind;
+
+  /** Seed the first page from the curated home payload where it helps. */
+  seedFromTrending?: boolean;
+}
+
+/**
+ * Pages a keyword feed. The first call optionally seeds from the home tab —
+ * a fixed payload that does not page — and hands off to keyword search from
+ * there, which is the only endpoint that does.
+ */
+/**
+ * The keyword list a feed pages through.
+ *
+ * For the movie and series feeds this is seeded from the titles the catalogue
+ * actually returned, which are known to match, with the static list appended
+ * as a backstop. The home payload is fixed for the session, so this list is
+ * stable — which matters, because a cursor addresses a keyword by index.
+ */
+async function feedKeywords(spec: FeedSpec): Promise<readonly string[]> {
+  if (!spec.seedFromTrending) {
+    return spec.keywords;
+  }
+
+  const curated = await trendingCached().catch(() => [] as ContentItem[]);
+
+  if (curated.length === 0) {
+    return spec.keywords;
+  }
+
+  const derived = deriveKeywords(curated);
+  const known = new Set(derived);
+
+  return [...derived, ...spec.keywords.filter(word => !known.has(word))];
+}
+
+async function loadFeedPage(
+  spec: FeedSpec,
+  cursor: CatalogueCursor | null,
+  seen: ReadonlySet<string>,
+): Promise<ContentPage> {
+  if (cursor === null && spec.seedFromTrending) {
+    const curated = await trendingCached().catch(() => [] as ContentItem[]);
+
+    const items = curated.filter(
+      item =>
+        !seen.has(item.id) &&
+        (spec.kind === undefined || item.kind === spec.kind),
+    );
+
+    if (items.length > 0) {
+      return { items, cursor: startCursor(), done: false };
+    }
+  }
+
+  try {
+    return await loadCataloguePage(await feedKeywords(spec), cursor, {
+      kind: spec.kind,
+      seen,
+    });
+  } catch (error) {
+    throw toAppError(error);
+  }
+}
+
+const MOVIE_FEED: FeedSpec = {
+  keywords: BROAD_KEYWORDS,
+  kind: 'movie',
+  seedFromTrending: true,
+};
+
+const SERIES_FEED: FeedSpec = {
+  keywords: BROAD_KEYWORDS,
+  kind: 'series',
+  seedFromTrending: true,
+};
+
+const ANIME_FEED: FeedSpec = { keywords: ANIME_KEYWORDS };
+
+const CARTOON_FEED: FeedSpec = { keywords: CARTOON_KEYWORDS };
+
+export function fetchMoviePage(
+  cursor: CatalogueCursor | null,
+  seen: ReadonlySet<string>,
+): Promise<ContentPage> {
+  return loadFeedPage(MOVIE_FEED, cursor, seen);
+}
+
+export function fetchSeriesPage(
+  cursor: CatalogueCursor | null,
+  seen: ReadonlySet<string>,
+): Promise<ContentPage> {
+  return loadFeedPage(SERIES_FEED, cursor, seen);
+}
+
+export function fetchAnimePage(
+  cursor: CatalogueCursor | null,
+  seen: ReadonlySet<string>,
+): Promise<ContentPage> {
+  return loadFeedPage(ANIME_FEED, cursor, seen);
+}
+
+export function fetchCartoonPage(
+  cursor: CatalogueCursor | null,
+  seen: ReadonlySet<string>,
+): Promise<ContentPage> {
+  return loadFeedPage(CARTOON_FEED, cursor, seen);
+}
+
+export async function fetchChannelPage(): Promise<ContentPage> {
+  // Channels come from our own table in one shot, so there is nothing to page.
+  return { items: await fetchChannels(), ...FULL_PAGE };
+}
+
+async function fetchOfKind(
+  kind: ContentKind,
+  options: { limit?: number; search?: string },
 ): Promise<ContentItem[]> {
   const { limit, search } = options;
 
   const items =
     search === undefined || search === ''
-      ? (await fetchTrending()).filter(item => item.kind === 'movie')
-      : await searchCatalogue(search);
+      ? (await fetchTrending()).filter(item => item.kind === kind)
+      : (await searchCatalogue(search)).filter(item => item.kind === kind);
 
   return limited(items, limit);
+}
+
+export function fetchMovies(
+  options: { limit?: number; search?: string } = {},
+): Promise<ContentItem[]> {
+  return fetchOfKind('movie', options);
+}
+
+export function fetchSeries(
+  options: { limit?: number; search?: string } = {},
+): Promise<ContentItem[]> {
+  return fetchOfKind('series', options);
 }
 
 export async function fetchAnime(

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 
 import { useChromeInset } from '../components/ChromeInset';
 import { RailList } from '../components/RailList';
@@ -16,14 +16,21 @@ import {
 } from '../navigation/rails';
 import { catalogTabs, type TabId } from '../navigation/tabs';
 import { fetchCategories } from '../services/contentService';
-import { fetchHomeRails } from '../services/moviebox/catalogue';
+import {
+  clearHomeCache,
+  homeRailsCached,
+} from '../services/moviebox/catalogue';
 import { useContinueWatching } from '../state/continueWatching';
 import { useMyList } from '../state/myList';
 import type { ContentItem } from '../types/content';
 
 const RAILS_PER_KIND = 2;
 
-const MAX_RAILS = 6;
+/**
+ * The home payload carries roughly sixteen usable groups; this is how many of
+ * them make the landing page before it stops being a landing page.
+ */
+const MAX_RAILS = 10;
 
 const SESSION_SEED = Math.floor(Math.random() * 100_000);
 
@@ -32,13 +39,20 @@ interface HomeData {
   rails: Rail[];
 }
 
+/** Which catalogue tab a curated rail mostly belongs to. */
+function dominantTab(items: readonly ContentItem[]): TabId {
+  const series = items.filter(item => item.kind === 'series').length;
+
+  return series > items.length - series ? 'series' : 'movies';
+}
+
 export function HomeScreen({ onSeeAll }: { onSeeAll: (id: TabId) => void }) {
   const { data, isLoading, error, reload } =
     useAsyncData<HomeData>(async () => {
       const liveTab = catalogTabs().find(tab => tab.id === 'live-tv');
 
       const [catalogueRails, live] = await Promise.all([
-        fetchHomeRails().catch(() => []),
+        homeRailsCached().catch(() => []),
         liveTab === undefined
           ? Promise.resolve(null)
           : Promise.all([
@@ -56,6 +70,10 @@ export function HomeScreen({ onSeeAll }: { onSeeAll: (id: TabId) => void }) {
         title: rail.title,
         items: rail.items,
         cardVariant: 'poster',
+
+        // Send "See all" to whichever paged tab matches the rail's contents,
+        // so a curated row is a way into the full catalogue.
+        seeAll: dominantTab(rail.items),
       }));
 
       const liveRails =
@@ -74,6 +92,13 @@ export function HomeScreen({ onSeeAll }: { onSeeAll: (id: TabId) => void }) {
 
   const openItem = useOpenItem();
   const playItem = usePlayItem();
+
+  // The home payload is cached for the session, so a pull-to-refresh has to
+  // drop it or it would re-render the same body.
+  const refresh = useCallback(() => {
+    clearHomeCache();
+    reload();
+  }, [reload]);
 
   const chromeOverlap = useChromeInset();
 
@@ -120,7 +145,7 @@ export function HomeScreen({ onSeeAll }: { onSeeAll: (id: TabId) => void }) {
   }
 
   if (error && data === null) {
-    return <ErrorState error={error} onRetry={reload} />;
+    return <ErrorState error={error} onRetry={refresh} />;
   }
 
   if (!data || (data.rails.length === 0 && sessionRails.length === 0)) {
@@ -147,7 +172,7 @@ export function HomeScreen({ onSeeAll }: { onSeeAll: (id: TabId) => void }) {
         }
       }}
       progress={progress}
-      onRefresh={reload}
+      onRefresh={refresh}
       refreshing={isLoading}
       chromeOverlap={chromeOverlap}
     />

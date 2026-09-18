@@ -4,6 +4,7 @@ export type CategoryKind =
   | 'sports'
   | 'cartoon'
   | 'anime'
+  | 'series'
   | 'other';
 
 export type StreamProtocol = 'hls' | 'dash' | 'mp4' | 'youtube' | 'other';

@@ -391,6 +391,45 @@ export function searchToSubjects(payload: unknown): MovieBoxSubject[] {
   return subjects;
 }
 
+export interface MovieBoxPager {
+  hasMore: boolean;
+
+  nextPage: number | null;
+
+  totalCount: number | null;
+}
+
+function readBoolean(source: Json | null, key: string): boolean | null {
+  if (source === null) {
+    return null;
+  }
+
+  const value = source[key];
+
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (value === 'true' || value === 'false') {
+    return value === 'true';
+  }
+
+  return null;
+}
+
+export function searchToPager(payload: unknown): MovieBoxPager | null {
+  const pager = asObject(asObject(payload)?.pager);
+
+  if (pager === null) {
+    return null;
+  }
+
+  return {
+    hasMore: readBoolean(pager, 'hasMore') ?? false,
+    nextPage: readNumber(pager, 'nextPage'),
+    totalCount: readNumber(pager, 'totalCount'),
+  };
+}
+
 export function subjectToContentItem(subject: MovieBoxSubject): ContentItem {
   return {
     id: subject.subjectId,
@@ -468,7 +507,10 @@ export function detailToSubject(
     return null;
   }
 
-  const merged = { ...data, subjectId: readString(data, 'subjectId') ?? subjectId };
+  const merged = {
+    ...data,
+    subjectId: readString(data, 'subjectId') ?? subjectId,
+  };
   return readSubject(merged);
 }
 
