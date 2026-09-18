@@ -575,6 +575,25 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       [fadeFeedback, seekTo],
     );
 
+    const handleSeekBarScrub = useCallback(
+      (target: number | null) => {
+        setScrubPreview(target);
+        if (target === null) {
+          fadeFeedback();
+          return;
+        }
+        showFeedback(
+          {
+            kind: 'scrub',
+            deltaSeconds: target - live.current.currentTime,
+            target,
+          },
+          { sticky: true },
+        );
+      },
+      [fadeFeedback, showFeedback],
+    );
+
     const handleHoldStart = useCallback(() => {
       if (live.current.locked) {
         return;
@@ -1065,7 +1084,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
               onTogglePlay={togglePlayback}
               onSkip={nudgeSeek}
               onSeek={seekTo}
-              onScrubPreview={setScrubPreview}
+              onScrubPreview={handleSeekBarScrub}
               onSeekBarFocusChange={setSeekBarFocused}
               onOpenSettings={openSettings}
               onCycleScaling={() => applyScaling(nextScalingMode(scaling))}
