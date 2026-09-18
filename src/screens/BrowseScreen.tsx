@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   Animated,
   BackHandler,
@@ -8,11 +9,13 @@ import {
 } from 'react-native';
 
 import { ChromeProvider } from '../components/ChromeInset';
+import { ExitHint } from '../components/ExitHint';
 import { Gradient } from '../components/Gradient';
 import { ScreenContainer } from '../components/ScreenContainer';
 import { SearchIcon } from '../components/SearchIcon';
 import { TabBar } from '../components/TabBar';
 import { TextButton } from '../components/TextButton';
+import { useDoubleBackExit } from '../hooks/useDoubleBackExit';
 import {
   isCatalogTab,
   TABS,
@@ -47,6 +50,8 @@ export function BrowseScreen() {
 
   const [chromeHeight, setChromeHeight] = useState(0);
 
+  const { armed: exitArmed, requestExit, cancelExit } = useDoubleBackExit();
+
   const measureChrome = useCallback((event: LayoutChangeEvent) => {
     setChromeHeight(event.nativeEvent.layout.height);
   }, []);
@@ -71,36 +76,48 @@ export function BrowseScreen() {
     [opaque],
   );
 
-  const selectTab = useCallback((id: TabId) => {
-    setActiveId(id);
-    setVisited(seen => (seen.includes(id) ? seen : [...seen, id]));
+  const selectTab = useCallback(
+    (id: TabId) => {
+      setActiveId(id);
+      setVisited(seen => (seen.includes(id) ? seen : [...seen, id]));
 
-    setSearching(false);
-  }, []);
+      setSearching(false);
+      cancelExit();
+    },
+    [cancelExit],
+  );
 
   const toggleSearch = useCallback(() => {
     setSearching(open => !open);
-  }, []);
+    cancelExit();
+  }, [cancelExit]);
 
-  useEffect(() => {
-    if (!searching && activeId === INITIAL_TAB) {
-      return undefined;
-    }
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener(
+        'hardwareBackPress',
+        () => {
+          if (searching) {
+            setSearching(false);
+            return true;
+          }
 
-    const subscription = BackHandler.addEventListener(
-      'hardwareBackPress',
-      () => {
-        if (searching) {
-          setSearching(false);
-        } else {
-          setActiveId(INITIAL_TAB);
-        }
-        return true;
-      },
-    );
+          if (activeId !== INITIAL_TAB) {
+            setActiveId(INITIAL_TAB);
+            return true;
+          }
 
-    return () => subscription.remove();
-  }, [activeId, searching]);
+          requestExit();
+          return true;
+        },
+      );
+
+      return () => {
+        subscription.remove();
+        cancelExit();
+      };
+    }, [activeId, cancelExit, requestExit, searching]),
+  );
 
   const topNav = navPlacement === 'top';
 
@@ -129,6 +146,8 @@ export function BrowseScreen() {
               <SearchScreen />
             </View>
           ) : null}
+
+          <ExitHint visible={exitArmed} />
         </View>
       </ChromeProvider>
 
