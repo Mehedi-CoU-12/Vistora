@@ -10,9 +10,9 @@ import { useAsyncData } from '../hooks/useAsyncData';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { useOpenItem } from '../hooks/useOpenItem';
 import {
-  catalogTabs,
   catalogTitleList,
   formatCount,
+  searchableTabs,
   type CatalogTab,
 } from '../navigation/tabs';
 import {
@@ -52,7 +52,7 @@ export function SearchScreen() {
     }
 
     const shelves = await Promise.all(
-      catalogTabs().map(async tab => ({
+      searchableTabs().map(async tab => ({
         tab,
         items: await tab.catalog.load({ search: term, limit: SHELF_LIMIT }),
       })),
