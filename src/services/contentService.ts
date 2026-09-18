@@ -259,7 +259,9 @@ async function fetchOfKind(
   const items =
     search === undefined || search === ''
       ? (await fetchTrending()).filter(item => item.kind === kind)
-      : (await searchCatalogue(search)).filter(item => item.kind === kind);
+      : (await searchCatalogue(search, limit)).filter(
+          item => item.kind === kind,
+        );
 
   return limited(items, limit);
 }
@@ -284,7 +286,7 @@ export async function fetchAnime(
   const items =
     search === undefined || search === ''
       ? await searchMany(ANIME_KEYWORDS)
-      : await searchCatalogue(search);
+      : await searchCatalogue(search, limit);
 
   return limited(items, limit);
 }
@@ -297,7 +299,7 @@ export async function fetchCartoons(
   const items =
     search === undefined || search === ''
       ? await searchMany(CARTOON_KEYWORDS)
-      : await searchCatalogue(search);
+      : await searchCatalogue(search, limit);
 
   return limited(items, limit);
 }
