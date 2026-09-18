@@ -279,17 +279,23 @@ Three things about this worth knowing before you change any of it:
 
 ---
 
-## Navigation: three routes, four tabs
+## Navigation: three routes, six tabs
 
 The stack has three routes — `Browse`, `Series` and `Player` — and everything
 browsable lives behind tabs inside `Browse`:
 
-| Tab     | Content                                          | Card      |
-| ------- | ------------------------------------------------ | --------- |
-| Home    | A shelf per kind, twelve items each              | mixed     |
-| Live TV | `channels`                                       | 16:9 tile |
-| Movies  | `movies` where the category is `kind = 'movie'`  | poster    |
-| Anime   | `series` **and** `movies` where `kind = 'anime'` | poster    |
+| Tab     | Label    | Content                                      | Card      |
+| ------- | -------- | -------------------------------------------- | --------- |
+| Home    | `Home`   | A shelf per kind, plus continue watching     | mixed     |
+| Live TV | `Live`   | `channels`                                   | 16:9 tile |
+| Movies  | `Movies` | MovieBox subjects of `kind = 'movie'`        | poster    |
+| Series  | `Series` | MovieBox subjects of `kind = 'series'`       | poster    |
+| Anime   | `Anime`  | A fixed set of searches (`ANIME_KEYWORDS`)   | poster    |
+| Cartoons| `Toons`  | A fixed set of searches (`CARTOON_KEYWORDS`) | poster    |
+
+The bar shows `label`, not `title`: six pills divide a 390dp phone between
+them, so the two longest names are shortened there and the bar drops to the
+caption scale from five tabs up. `title` is what the screen header says.
 
 `Series` is the only screen between browsing and playing, and it earns the
 depth: an episode list cannot be a tab (there is one per series) and should not
@@ -297,9 +303,13 @@ be a modal over the grid (it is where you spend time, not a glance). Back from
 an episode returns you to the list you chose it from.
 
 Sport is not a tab of its own: sports channels are Live TV categories, so they
-are browsed there rather than in a second place. `cartoon` remains a
-`category_kind` in the schema, but
-nothing browses it — the Anime tab covers what that tab was for.
+are browsed there rather than in a second place.
+
+**Series earns a tab because the data already separated it.** MovieBox tags
+every subject with a `subjectType`, and `subjectToContentItem` has always mapped
+type 2 to `kind: 'series'` — so series were being fetched and then discarded by
+the Movies tab's `kind === 'movie'` filter. A tab costs one entry in `TABS` and
+surfaces content the app was already paying to download.
 
 **The tabs are component state, not navigator routes.** Routes would push a
 screen per switch, so Back would walk you through your own browsing history one
@@ -332,9 +342,10 @@ Everything in the catalogue comes from the MovieBox API, except live TV.
 | --- | --- |
 | Home | MovieBox `tab-operating` rails, plus live TV rails from Supabase |
 | Live TV | Supabase `channels` table, filled by `npm run import:iptv` |
-| Movies | MovieBox trending, or MovieBox search when a query is typed |
-| Anime | A fixed set of MovieBox searches (`ANIME_KEYWORDS`) |
-| Cartoons | A fixed set of MovieBox searches (`CARTOON_KEYWORDS`) |
+| Movies | `tab-operating` for the first page, then paged keyword search |
+| Series | The same feed, kept to `kind = 'series'` |
+| Anime | Paged searches over `ANIME_KEYWORDS` |
+| Cartoons | Paged searches over `CARTOON_KEYWORDS` |
 
 MovieBox has no concept of a live channel, so live TV is the one thing it
 cannot serve. That is the only reason Supabase is still here: it holds the
@@ -344,19 +355,81 @@ Nothing is scraped into the database any more. There is no seed file and no
 scrape workflow; the catalogue is fetched at runtime. See
 [STREAM_SOURCES.md](STREAM_SOURCES.md) for how the MovieBox client works.
 
+---
+
+## Paging the catalogue
+
+**`tab-operating` does not page.** It takes a `page` query parameter and ignores
+it: pages 1, 2 and 3 return byte-identical bodies — eighteen groups holding
+about sixty-seven unique subjects, which is the whole curated set. Slicing that
+to a limit and then keeping one `kind` is what used to cap the Movies grid at
+around forty films, and no amount of asking for page 2 would have helped.
+
+**`search/v2` does page, and says so.** It answers with a pager —
+`{ hasMore, nextPage, page, perPage, totalCount }` — and caps `perPage` below
+what you ask for, so `hasMore` is the thing to trust rather than comparing the
+returned count to the page size. That makes keyword search the only endpoint
+here with real depth, and the grids are built on it.
+
+**A cursor is a keyword plus a page.** `loadCataloguePage` walks a keyword list,
+paging each keyword until its pager reports no more and then moving to the next,
+so `{ keywordIndex, page }` is the whole resume token. It collects until it has
+a target number of *fresh* items — the caller passes the ids already on screen —
+and stops at a fixed request budget, so one dud keyword cannot strand the feed
+and one call cannot run away.
+
+**The keywords are derived, not hand-written.** Search matches titles, not
+genres: the word "action" returns nothing at all. So the seeds are the words
+that appear in titles the catalogue actually returned, ranked by how many titles
+carry them, with a static list appended only as a backstop. Seeds taken from
+real titles are known to match something; a hand-written list is guesswork. The
+derivation is a pure function of the home payload, which is fixed for the
+session, so the list is stable — and it has to be, because a cursor addresses a
+keyword by index.
+
+**The home payload is fetched once.** `homeRailsCached` memoises it for the
+session, shared by the home rails, the first page of the Movies and Series grids
+and the keyword derivation; failures are not cached, and a pull-to-refresh calls
+`clearHomeCache` so it really refetches.
+
+**A television needs something to focus on.** `onEndReached` fires from a scroll,
+and a D-pad does not scroll — it moves focus, and a focus move past the last row
+has nothing to move to. So `GridFooter` always renders a real focusable button
+below the grid: on touch it is a backstop for the scroll trigger, on TV it is
+the only way down. The same footer carries the spinner, the retry after a failed
+page, and the end marker once the source is spent.
+
+**A genre filter pages by button only.** The chips filter the loaded pool rather
+than issuing a narrower query, so a rare genre would reach the end of its own
+short list immediately and pull page after page. With a filter on, the automatic
+trigger is withheld and the footer button drives it.
+
+**Depth cannot be asserted offline**, because it is a property of the live
+index. `src/__tests__/catalogueLive.test.ts` is skipped unless you ask for it:
+
+```bash
+VISTORA_LIVE=1 npx jest catalogueLive
+```
+
+It prints what the home payload holds, the derived keywords, the per-keyword
+yield and how many films six pages reach. Run it after changing the seeds, or if
+a grid looks thin.
+
+---
+
 ## Search
 
-A magnifier pill in the top bar searches every content kind at once — channels,
-films and anime — and shows the matches as a shelf per kind:
+A magnifier pill in the top bar searches every searchable content kind at once —
+channels, films and series — and shows the matches as a shelf per kind:
 
 ```
-VISTORA.        Home  Live TV  Movies  Anime               (Q)
+VISTORA.   Home Live Movies Series Anime Toons          (Q)
 
 (Q) iron|                                              [Clear]
 
 Live TV · 1 channel      [tile]
 Movies · 2 films         [poster] [poster]
-Anime · 1 title          [poster]
+Series · 1 series        [poster]
 ```
 
 **The magnifier is drawn, not typed or imported.** `player/PlayerIcon.tsx` sets
@@ -387,22 +460,25 @@ kinds this app browses", which is the property `HomeScreen` and `SearchScreen`
 both rely on when they derive their shelves from it — search is not a kind, it is
 a question asked of all of them. There is a measurable reason too: a phone in
 portrait puts the tab bar along the bottom, where the pills divide a 390dp screen
-between them — at six of them that is about 60dp each, which a label like
-"Cartoons" only just fits, and one more ellipsises them all. Every entry in
-`TABS` takes width from every other, so search would arrive by making navigation
-to everything else worse. As a mode it costs no navigation width at
-all, and closing it returns you to the tab you were on, still scrolled where you
-left it.
+between them — at six of them that is about 60dp each, which is why the bar
+shows short labels at the caption scale from five tabs up, and why a seventh
+would have to buy its width from the six. Every entry in `TABS` takes width from
+every other, so search would arrive by making navigation to everything else
+worse. As a mode it costs no navigation width at all, and closing it returns you
+to the tab you were on, still scrolled where you left it.
 
 **A shelf per kind, not one merged list.** A channel is a 16:9 tile and a film is
 a 2:3 poster, so a merged grid would have to pick one shape and stretch the
 other. Grouped by kind, each group keeps its own card shape and its own count, so
 "is this film in here?" is one glance rather than a scan of interleaved results.
 
-**The groups are derived, not listed.** `SearchScreen` maps over `catalogTabs()`
-and calls each spec's own loader with a `search` option, so it names no content
-kind anywhere in the file — adding one to `navigation/tabs.ts` makes it
-searchable with no edit there. That is the same derivation `HomeScreen` uses, and
+**The groups are derived, not listed.** `SearchScreen` maps over
+`searchableTabs()` and calls each spec's own loader with a `search` option, so it
+names no content kind anywhere in the file — adding one to `navigation/tabs.ts`
+makes it searchable with no edit there. `searchable` is a field on the spec
+because Anime and Cartoons search the same global index as Movies and Series:
+given a query they answer with the same titles, so shelving them separately
+repeats rows rather than adding any. That is the same derivation `HomeScreen` uses, and
 it matters more here: a kind missing from search looks exactly like a kind with
 nothing in it, so the bug would never be reported.
 
@@ -487,14 +563,19 @@ src/
   config/env.ts          the only file that reads @env
   lib/supabase.ts        the Supabase client; nothing else creates one
   services/              every database read, the app's error type, the
-                         search-term → PostgREST filter translation, and the
-                         hand-off for streams the app must not decode itself
+                         search-term → PostgREST filter translation, the genre
+                         chips derived from item metadata, and the hand-off for
+                         streams the app must not decode itself
+                         moviebox/  the API client, signing, and the paged
+                                    catalogue feed
   types/                 database rows, app models + mappers, route params
   hooks/                 useAsyncData (loading / error / retry), useDebouncedValue,
+                         usePaginatedData (the cursor-paged grids),
                          useOpenItem (what selecting a card does, in one place)
   theme/                 colours, type scale, and the responsive metrics system
   components/            Focusable, ContentCard, ContentRow, TabBar,
-                         CategoryPicker, SearchField, SearchIcon, state views
+                         CategoryPicker, SearchField, SearchIcon, GridFooter,
+                         state views
   player/                the player: overlay, gestures, remote, settings panel
                          — and it knows nothing about Supabase
   screens/               Browse (the tab host), Home, Catalog, Series, Search,
@@ -502,7 +583,8 @@ src/
   navigation/            native stack + tabs.ts, the list of content kinds
 supabase/
   migrations/            schema, RLS, indexes (0003 is optional: search indexes;
-                         0004 adds the 'youtube' protocol, 0005 series+episodes)
+                         0004 adds the 'youtube' protocol, 0005 series+episodes,
+                         0006 adds the 'series' category kind)
 scripts/
   import-anime.mjs            official YouTube channels → series + episodes
   animeTitles.mjs             episode-number parsing; the one silently-failing
