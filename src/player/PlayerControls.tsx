@@ -13,13 +13,11 @@ import {
 } from './playbackOptions';
 import {
   resolvePlayerChrome,
-  resolveScrimHeights,
   TITLE_GAP,
   TITLE_OFFSET,
   type EdgeInsets,
 } from './playerLayout';
 import type { RemoteKeyHandlers } from './remoteKeys';
-import { Scrim } from './Scrim';
 import { SeekBar } from './SeekBar';
 
 interface PlayerControlsProps {
@@ -62,18 +60,10 @@ interface PlayerControlsProps {
 export function PlayerControls(props: PlayerControlsProps) {
   const { locked, edges, onToggleLock, keyHandlers } = props;
   const styles = useStyles();
-  const metrics = useMetrics();
 
   if (locked) {
-    const scrim = resolveScrimHeights(resolvePlayerChrome(metrics), edges, {
-      locked: true,
-    });
-
     return (
       <View style={styles.root} pointerEvents="box-none" {...keyHandlers}>
-        {}
-        <Scrim edge="bottom" geometry={scrim.bottom} />
-
         <View
           style={[styles.lockRow, bottomPadding(edges)]}
           pointerEvents="box-none"
@@ -125,7 +115,6 @@ function UnlockedControls({
   const styles = useStyles();
   const metrics = useMetrics();
   const chrome = resolvePlayerChrome(metrics);
-  const scrim = resolveScrimHeights(chrome, edges);
 
   const elapsed = formatTime(position - start);
   const total = formatTime(end - start);
@@ -184,10 +173,6 @@ function UnlockedControls({
 
   return (
     <View style={styles.root} pointerEvents="box-none" {...keyHandlers}>
-      {}
-      <Scrim edge="top" geometry={scrim.top} />
-      <Scrim edge="bottom" geometry={scrim.bottom} />
-
       <View style={[styles.top, topPadding(edges)]} pointerEvents="box-none">
         <ControlButton
           icon="back"
@@ -358,13 +343,36 @@ function bottomPadding(edges: EdgeInsets) {
 const useStyles = makeStyles(metrics => {
   const chrome = resolvePlayerChrome(metrics);
 
-  const shadow = chrome.showsScrims
-    ? null
-    : {
-        textShadowColor: 'rgba(4, 6, 12, 0.9)',
-        textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 5,
-      };
+  /**
+   * What backs the text that is not inside a button.
+   *
+   * The buttons need nothing: they are translucent pills and discs with a
+   * hairline border, so they carry their own contrast onto any frame. The loose
+   * text -- the title, the subtitle, the two time readouts, the live-stream
+   * hint, the TV's key hints -- used to sit on a pair of gradient scrims at the
+   * top and bottom of the screen, and this is what replaced them.
+   *
+   * They were replaced because a scrim sized to cover its controls covers far
+   * more than the controls. Each one held full strength across its whole strip
+   * and then spent another 48dp fading, so on a phone in landscape the pair came
+   * to about 310dp of a 390dp viewport and on a 540dp TV panel to about 340dp --
+   * the two gradients met in the middle, and pressing any button drew a curtain
+   * over the film instead of backing the chrome on top of it. There is no height
+   * to tune here: a gradient that is dark enough to read white text against is
+   * dark enough to be seen doing it, and the strip it must cover is most of the
+   * screen on every device this app runs on.
+   *
+   * A shadow costs the picture a couple of dp around each glyph instead, it
+   * needs no geometry kept in sync with the layout, and it is *more* legible
+   * than the scrim was -- contrast right at the letterform rather than averaged
+   * over a strip. Offset down by a dp as well as blurred, so the darkest part
+   * sits where the eye reads the letter against rather than evenly around it.
+   */
+  const shadow = {
+    textShadowColor: 'rgba(4, 6, 12, 0.9)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 5,
+  };
 
   return {
     root: {
